@@ -69,6 +69,8 @@ namespace Game.Runtime.View
             FaceDown = faceDown;
 
             var mat = _renderer.material; // instancia propia para no pisar el shared
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f); // mate, sin glare
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
             var tex = faceDown ? back : front;
 
             if (tex != null)
