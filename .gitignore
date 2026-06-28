@@ -1,0 +1,14 @@
+# .NET build output (Core dev/test)
+bin/
+obj/
+
+# Unity (cuando se scaffolde el proyecto)
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+*.csproj.user
+.vs/
