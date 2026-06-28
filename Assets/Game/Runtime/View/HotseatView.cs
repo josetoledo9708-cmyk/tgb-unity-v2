@@ -35,9 +35,8 @@ namespace Game.Runtime.View
         [Header("Arte de cartas (carpeta de imágenes)")]
         [SerializeField] private string artFolder = @"C:\Users\Rinco\Downloads";
 
-        [Header("Fondo del campo")]
-        [SerializeField] private string backgroundPath =
-            @"C:\Users\Rinco\OneDrive\Escritorio\ASDADADSSA\Imagenes\Menu\FieldBackgound.png";
+        [Header("Fondo del campo (vacío = zonas procedurales)")]
+        [SerializeField] private string backgroundPath = "";
 
         private GameEngine _engine = null!;
         private CardArtLibrary _art = null!;
