@@ -47,15 +47,17 @@ namespace Game.Runtime.View
         {
             Card = card;
             OwnerId = ownerId;
+            var c = faceDown ? new Color(0.2f, 0.2f, 0.25f) : BoardLayout.ColorFor(card.Type);
             var mat = _renderer.material; // instancia propia para no pisar el shared
-            mat.color = faceDown ? new Color(0.2f, 0.2f, 0.25f) : BoardLayout.ColorFor(card.Type);
+            mat.color = c;
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c); // URP
             _label.text = faceDown ? "?" : Short(card);
             _label.gameObject.SetActive(true);
         }
 
         private static string Short(CardInstance c)
         {
-            string n = c.Nombre.Length > 14 ? c.Nombre.Substring(0, 13) + "…" : c.Nombre;
+            string n = c.Nombre.Length > 11 ? c.Nombre.Substring(0, 10) + "…" : c.Nombre;
             if (CardTypeNames.IsSer(c.Type)) return $"{n}\n(d{c.DurLeft})";
             if (c.Type == CardType.Tierra) return n + (c.Tapped ? "\n[tap]" : "");
             return n;
