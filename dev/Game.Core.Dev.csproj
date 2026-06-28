@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Build de DESARROLLO/TEST (offline) del Core. Compila la misma fuente que usará Unity
+       (Assets/Game/Core) más el loader System.Text.Json, que es solo para dev.
+       Unity ignora esta carpeta (no está bajo Assets) y usa su propio asmdef + loader Newtonsoft. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Game.Core</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Assets\Game\Core\**\*.cs" />
+    <Compile Include="CatalogLoader.cs" />
+  </ItemGroup>
+
+</Project>
