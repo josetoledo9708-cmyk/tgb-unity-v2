@@ -23,20 +23,6 @@ namespace Game.Runtime.View
         /// <summary>El jugador activo puede jugar esta carta (solo cartas de su mano).</summary>
         public bool Playable { get; set; }
 
-        private static Shader? _unlit;
-        private static bool _unlitTried;
-
-        /// <summary>Shader URP Unlit (color exacto, sin iluminación). null si no está disponible.</summary>
-        public static Shader? UnlitShader()
-        {
-            if (!_unlitTried)
-            {
-                _unlitTried = true;
-                _unlit = Shader.Find("Universal Render Pipeline/Unlit");
-            }
-            return _unlit;
-        }
-
         public static CardView Create(Transform parent)
         {
             // Root: queda en la posición base con el COLLIDER (área de clic fija). El hijo
@@ -83,9 +69,7 @@ namespace Game.Runtime.View
             FaceDown = faceDown;
 
             var mat = _renderer.material; // instancia propia para no pisar el shared
-            var unlit = UnlitShader();
-            if (unlit != null && mat.shader != unlit) mat.shader = unlit; // sin iluminación
-            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f); // (si quedara Lit) mate
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f); // mate, sin glare
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
             var tex = faceDown ? back : front;
 

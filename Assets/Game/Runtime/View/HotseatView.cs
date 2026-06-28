@@ -282,10 +282,10 @@ namespace Game.Runtime.View
             go.transform.localScale = new Vector3(30f, 0.02f, 16.85f); // ~16:9
             Destroy(go.GetComponent<Collider>());
             var m = go.GetComponent<MeshRenderer>().material;
-            var unlit = CardView.UnlitShader();
-            if (unlit != null && m.shader != unlit) m.shader = unlit; // fondo sin iluminación
             m.color = Color.white;
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", Color.white);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f); // mate, sin glare
+            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
             m.mainTexture = tex;
             if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
             // Misma corrección 180° que las cartas (cara superior del cubo mapea "de cabeza").
