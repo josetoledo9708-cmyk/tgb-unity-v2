@@ -31,6 +31,10 @@ namespace Game.Runtime.View
         [Header("Arte de cartas (carpeta de imágenes)")]
         [SerializeField] private string artFolder = @"C:\Users\Rinco\Downloads";
 
+        [Header("Fondo del campo")]
+        [SerializeField] private string backgroundPath =
+            @"C:\Users\Rinco\OneDrive\Escritorio\ASDADADSSA\Imagenes\Menu\FieldBackgound.png";
+
         private GameEngine _engine = null!;
         private CardArtLibrary _art = null!;
         private Transform _board = null!;
@@ -226,6 +230,11 @@ namespace Game.Runtime.View
         private void BuildBoard()
         {
             _board = new GameObject("Board").transform;
+
+            // Si hay imagen de fondo, la usamos como campo y ocultamos las zonas procedurales.
+            var bg = LoadTextureFromFile(backgroundPath);
+            if (bg != null) { BuildBackground(bg); return; }
+
             var table = new Color(0.16f, 0.12f, 0.08f);
             var pad = new Color(0.11f, 0.10f, 0.08f);
             var gold = new Color(0.80f, 0.66f, 0.28f);
@@ -262,6 +271,49 @@ namespace Game.Runtime.View
                 Pad(BoardLayout.Historia(p), pad);
                 ZoneLabel("HISTORIA", BoardLayout.Historia(p), 28, 0.075f, label);
             }
+        }
+
+        private void BuildBackground(Texture2D tex)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.SetParent(_board, false);
+            go.transform.position = new Vector3(0f, -0.05f, 0f);
+            go.transform.localScale = new Vector3(30f, 0.02f, 16.85f); // ~16:9
+            Destroy(go.GetComponent<Collider>());
+            var m = go.GetComponent<MeshRenderer>().material;
+            m.color = Color.white;
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", Color.white);
+            m.mainTexture = tex;
+            if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+            // Misma corrección 180° que las cartas (cara superior del cubo mapea "de cabeza").
+            var sc = new Vector2(-1f, -1f);
+            var off = new Vector2(1f, 1f);
+            m.mainTextureScale = sc;
+            m.mainTextureOffset = off;
+            if (m.HasProperty("_BaseMap"))
+            {
+                m.SetTextureScale("_BaseMap", sc);
+                m.SetTextureOffset("_BaseMap", off);
+            }
+        }
+
+        private static Texture2D? LoadTextureFromFile(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return null;
+                var t = new Texture2D(2, 2, TextureFormat.RGBA32, true);
+                if (t.LoadImage(File.ReadAllBytes(path)))
+                {
+                    t.wrapMode = TextureWrapMode.Clamp;
+                    return t;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"No se pudo cargar el fondo {path}: {e.Message}");
+            }
+            return null;
         }
 
         private GameObject Box(Vector3 pos, Vector3 scale, Color color)
