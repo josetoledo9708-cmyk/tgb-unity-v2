@@ -28,7 +28,11 @@ namespace Game.Runtime.View
         [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
         [SerializeField] private float camFov = 38f;
 
+        [Header("Arte de cartas (carpeta de imágenes)")]
+        [SerializeField] private string artFolder = @"C:\Users\Rinco\Downloads";
+
         private GameEngine _engine = null!;
+        private CardArtLibrary _art = null!;
         private readonly List<CardView> _spawned = new();
         private CardView? _hovered;
         private string _status = "";
@@ -40,6 +44,10 @@ namespace Game.Runtime.View
             string path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
             if (!File.Exists(path)) { Debug.LogError($"Falta catálogo en {path}"); return; }
             var catalog = UnityCatalogLoader.FromJson(File.ReadAllText(path));
+
+            _art = new CardArtLibrary(artFolder);
+            if (!_art.Available)
+                Debug.LogWarning($"Sin arte de cartas en '{artFolder}' (se usan quads de color).");
 
             _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver() };
             _engine.StartGame(
@@ -157,7 +165,7 @@ namespace Game.Runtime.View
                            bool playable = false, Quaternion? rot = null)
         {
             var v = CardView.Create(transform);
-            v.Bind(c, owner, faceDown);
+            v.Bind(c, owner, faceDown, _art.Front(c.Nombre), _art.Back());
             v.Playable = playable;
             v.Place(pos, rot ?? Quaternion.identity);
             _spawned.Add(v);

@@ -54,17 +54,35 @@ namespace Game.Runtime.View
             return view;
         }
 
-        public void Bind(CardInstance card, int ownerId, bool faceDown)
+        public void Bind(CardInstance card, int ownerId, bool faceDown,
+                         Texture2D? front = null, Texture2D? back = null)
         {
             Card = card;
             OwnerId = ownerId;
             FaceDown = faceDown;
-            var c = faceDown ? new Color(0.2f, 0.2f, 0.25f) : BoardLayout.ColorFor(card.Type);
+
             var mat = _renderer.material; // instancia propia para no pisar el shared
-            mat.color = c;
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c); // URP
-            _label.text = faceDown ? "?" : Short(card);
-            _label.gameObject.SetActive(true);
+            var tex = faceDown ? back : front;
+
+            if (tex != null)
+            {
+                // Carta con arte completo (marco+nombre+coste baked): textura blanca sin tinte.
+                mat.color = Color.white;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                mat.mainTexture = tex;
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                _label.gameObject.SetActive(false);
+            }
+            else
+            {
+                // Fallback: quad tintado por tipo + etiqueta de texto.
+                var c = faceDown ? new Color(0.2f, 0.2f, 0.25f) : BoardLayout.ColorFor(card.Type);
+                mat.color = c;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
+                mat.mainTexture = null;
+                _label.text = faceDown ? "?" : Short(card);
+                _label.gameObject.SetActive(true);
+            }
         }
 
         /// <summary>Coloca la carta y guarda su pose base (para levantarla/escalarla en hover).</summary>
