@@ -186,7 +186,7 @@ Core construido en `src/Game.Core` (.NET puro, net9.0) + `tests/Game.Core.Tests`
 | M5 | ✅ | destrucción/control + casos especiales (Lot, Sodoma/Gomorra, Benjamín, Caín/Nod) |
 | M6 | ✅ | `ConsoleView` + e2e + determinismo |
 | Efectos | ✅ | **109/114 cartas** + recompensas de DÍA + `ActivateResponse` (trampas reactivas) |
-| M7 | ⏳ | Port a Unity (asmdef, loader Newtonsoft, presentación 3D) |
+| M7 | 🟡 | Scaffold Unity listo (Core en Assets, asmdefs, loader Newtonsoft, StreamingAssets, EditMode). Falta: abrir editor + presentación 3D |
 | M8 | ⏳ | Netcode encima del Core |
 
 **Cobertura de efectos: 109 de 114 cartas** con handler. Las 5 sin efecto son intencionales:
@@ -213,11 +213,18 @@ NegatedNextEffect, ConceptosBlocked, OncePerGame) se resetean/decrementan en Pre
 - **Serialización** explícita de `GameState` a JSON/binario (el modelo ya es serializable).
 - Pulir las aproximaciones de arriba cuando exista la pila de efectos.
 
-## 14. Primer paso del port a Unity (M7)
+## 14. Port a Unity (M7) — estado
 
-1. Crear proyecto Unity 6 URP; mover `src/Game.Core/**.cs` a `Assets/Game/Core` con
-   `asmdef` `Game.Core` (sin UnityEngine); cambiar `TargetFramework` mental a netstandard2.1.
-2. Reemplazar `CatalogLoader` (System.Text.Json) por uno con Newtonsoft (paquete Unity) o
-   `JsonUtility`; copiar `catalogo.v3.json` a `StreamingAssets`.
-3. Portar los tests a NUnit EditMode (la lógica de aserción es trivial de mapear).
-4. Capa `Runtime`: MonoBehaviours que observan `GameState` y mapean input -> comandos.
+**Hecho (scaffold):**
+- Core movido a `Assets/Game/Core` (asmdef `Game.Core`, `noEngineReferences`). Fuente única:
+  Unity lo compila vía asmdef; el build dev `.NET` vía `dev/Game.Core.Dev.csproj`.
+- `Assets/Game/Runtime` (asmdef): `UnityCatalogLoader` (Newtonsoft) + `GameBootstrap` (demo).
+- `Assets/Game/Tests/EditMode` (asmdef + NUnit smoke: conteos, turno, Victoria III).
+- `Assets/StreamingAssets/catalogo.v3.json`, `Packages/manifest.json`, `ProjectVersion.txt`.
+
+**Falta (requiere el editor Unity, no disponible en este entorno):**
+1. Abrir en Unity Hub (genera `.meta`/`Library`, resuelve paquetes).
+2. Escena + cámara oblicua; GameObject con `GameBootstrap` para verificar (Console).
+3. Presentación 3D: prefabs de carta, layout del campo (espejo, 7 tierras, 3 SER, etc.),
+   arrastrar/soltar, animaciones, mapear input -> comandos del `GameEngine`.
+4. Correr EditMode tests desde el Test Runner.
