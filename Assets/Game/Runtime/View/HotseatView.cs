@@ -33,6 +33,9 @@ namespace Game.Runtime.View
 
         private GameEngine _engine = null!;
         private CardArtLibrary _art = null!;
+        private Transform _board = null!;
+        private readonly TextMesh[] _mazoCount = new TextMesh[2];
+        private readonly TextMesh[] _retirCount = new TextMesh[2];
         private readonly List<CardView> _spawned = new();
         private CardView? _hovered;
         private string _status = "";
@@ -56,6 +59,7 @@ namespace Game.Runtime.View
                 seed, firstPlayer: 0);
 
             _status = "Partida iniciada.";
+            BuildBoard();
             Rebuild();
         }
 
@@ -129,6 +133,12 @@ namespace Game.Runtime.View
 
             for (int p = 0; p < 2; p++)
             {
+                if (_mazoCount[p] != null) _mazoCount[p].text = "MAZO\n" + s.Players[p].Mazo.Count;
+                if (_retirCount[p] != null) _retirCount[p].text = "RETIR.\n" + s.Players[p].Retirados.Count;
+            }
+
+            for (int p = 0; p < 2; p++)
+            {
                 var ps = s.Players[p];
                 bool hideHand = p != 0; // ocultar la mano del rival
 
@@ -197,6 +207,80 @@ namespace Game.Runtime.View
                 l.intensity = 1.1f;
                 lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
             }
+        }
+
+        // ---------------- tablero estático (mesa, zonas, etiquetas) ----------------
+
+        private void BuildBoard()
+        {
+            _board = new GameObject("Board").transform;
+            var table = new Color(0.16f, 0.12f, 0.08f);
+            var pad = new Color(0.11f, 0.10f, 0.08f);
+            var gold = new Color(0.80f, 0.66f, 0.28f);
+            var label = new Color(0.78f, 0.72f, 0.52f);
+
+            Box(new Vector3(0f, -0.10f, 0f), new Vector3(26f, 0.02f, 22f), table);   // mesa
+            Box(new Vector3(0f, -0.02f, 0f), new Vector3(20f, 0.04f, 0.12f), gold);  // línea central
+
+            for (int p = 0; p < 2; p++)
+            {
+                for (int i = 0; i < 7; i++) Pad(BoardLayout.Tierra(p, i), pad);
+                ZoneLabel("TIERRAS", BoardLayout.Tierra(p, 3), 40, 0.11f, label);
+
+                Pad(BoardLayout.Mazo(p), pad);
+                _mazoCount[p] = ZoneLabel("MAZO", BoardLayout.Mazo(p), 34, 0.085f, gold, yUp: true);
+
+                Pad(BoardLayout.Descarte(p), pad);
+                _retirCount[p] = ZoneLabel("RETIR.", BoardLayout.Descarte(p), 32, 0.085f, label);
+
+                Pad(BoardLayout.Concepto(p), pad);
+                ZoneLabel("CONC.", BoardLayout.Concepto(p), 32, 0.09f, label);
+
+                for (int si = 0; si < 3; si++)
+                {
+                    Pad(BoardLayout.Ser(p, si), pad);
+                    ZoneLabel("SER", BoardLayout.Ser(p, si), 34, 0.10f, label);
+                }
+
+                Pad(BoardLayout.Dia(p), pad);
+                ZoneLabel("DÍA", BoardLayout.Dia(p), 34, 0.10f, label);
+
+                Pad(BoardLayout.Historia(p), pad);
+                ZoneLabel("HISTORIA", BoardLayout.Historia(p), 28, 0.075f, label);
+            }
+        }
+
+        private GameObject Box(Vector3 pos, Vector3 scale, Color color)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.SetParent(_board, false);
+            go.transform.position = pos;
+            go.transform.localScale = scale;
+            Destroy(go.GetComponent<Collider>()); // no bloquear el raycast de cartas
+            var m = go.GetComponent<MeshRenderer>().material;
+            m.color = color;
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", color);
+            return go;
+        }
+
+        private void Pad(Vector3 slotPos, Color color)
+            => Box(new Vector3(slotPos.x, -0.04f, slotPos.z), new Vector3(1.55f, 0.02f, 2.15f), color);
+
+        private TextMesh ZoneLabel(string txt, Vector3 slotPos, int fontSize, float charSize,
+                                   Color col, bool yUp = false)
+        {
+            var go = new GameObject("ZoneLabel");
+            go.transform.SetParent(_board, false);
+            go.transform.position = new Vector3(slotPos.x, yUp ? 0.12f : 0.0f, slotPos.z);
+            go.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            var tm = go.AddComponent<TextMesh>();
+            tm.text = txt;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.fontSize = fontSize;
+            tm.characterSize = charSize;
+            tm.color = col;
+            return tm;
         }
 
         // ---------------- HUD (IMGUI, sin paquetes) ----------------
