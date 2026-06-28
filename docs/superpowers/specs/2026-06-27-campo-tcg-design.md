@@ -139,9 +139,23 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
   RESPUESTA en turno rival (con FD reservado).
 - **DIA / HISTORIA** — ver §7.
 
+## 10b. Arquitectura (multiplayer: local primero + red después)
+
+- **Core C# puro**, sin dependencias de `UnityEngine` (igual filosofía que el proyecto
+  hermano TGB Unity). Todo el motor de reglas vive aquí y es testeable en EditMode.
+- **Estado serializable** (`GameState` completo serializable a JSON/binario) → habilita
+  guardado, replays y, más adelante, sincronización por red.
+- **Acciones discretas / Command pattern:** cada jugada (jugar carta, tapear, activar DÍA,
+  activar efecto, pasar fase) es un comando validado contra el estado. El motor aplica
+  comandos de forma **determinista** (sin aleatoriedad oculta: el barajado usa una semilla
+  registrada). Esto permite que la capa de red envíe comandos en vez de estado.
+- **Capa de presentación (Unity 3D)** separada del Core: observa el estado y reproduce
+  cambios; nunca contiene lógica de reglas.
+- **v1 = local hotseat** (2 jugadores, misma instancia). La capa de red se añade encima
+  después sin reescribir el Core.
+
 ## 10. Pendientes (TBD)
 
-- **Multiplayer:** online en red vs local hotseat vs local-con-red-después.
 - **Presentación 3D:** cámara, disposición física, animaciones.
 - **Nombre definitivo** del proyecto y del "mazo" (mazo/libro/historia).
 - **Resolución simultánea / empates** si ambos cumplen al mismo fin de turno.
@@ -154,7 +168,10 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 
 ### Decisiones cerradas (antes TBD)
 
+- **Multiplayer:** local primero + red después (ver §10b). Core determinista/serializable;
+  v1 hotseat.
 - Activación de DÍA: modelo A (ver §6). Trampas CONCEPTO: 1 boca abajo a la vez.
 - Mazo: 40-50 cartas, máx 3 copias por carta, incluye las 5 piezas.
 - Victoria III: los SER pieza decaen normal (sin no-decae especial); h5 usa
   `on_piece_play`. Riesgo de Benjamín (dur=1) aceptado como parte del diseño.
+- Benjamín (sh17): se deja como está, caso especial en el motor.
