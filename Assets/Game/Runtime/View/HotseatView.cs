@@ -134,16 +134,20 @@ namespace Game.Runtime.View
 
         private void EnsureSceneRig()
         {
-            if (Camera.main == null)
+            // Reusa la cámara existente o crea una, y SIEMPRE la reposiciona al ángulo del tablero.
+            var cam = Camera.main;
+            if (cam == null)
             {
                 var camGo = new GameObject("Main Camera");
                 camGo.tag = "MainCamera";
-                var cam = camGo.AddComponent<Camera>();
-                cam.transform.position = new Vector3(0f, 13f, -13f);
-                cam.transform.rotation = Quaternion.Euler(48f, 0f, 0f);
-                cam.clearFlags = CameraClearFlags.SolidColor;
-                cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
+                cam = camGo.AddComponent<Camera>();
             }
+            cam.orthographic = false;
+            cam.transform.position = new Vector3(0f, 13f, -13f);
+            cam.transform.rotation = Quaternion.Euler(48f, 0f, 0f);
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
+
             if (FindAnyObjectByType<Light>() == null)
             {
                 var lightGo = new GameObject("Directional Light");
