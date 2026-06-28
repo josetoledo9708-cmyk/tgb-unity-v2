@@ -147,8 +147,10 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 - **Resolución simultánea / empates** si ambos cumplen al mismo fin de turno.
 - **Set de cartas "sacrificio"** para la regla `sacrificioUsed` (tras retirar La Venta de
   José; candidatas c15, c37).
-- **`sh17` Benjamín:** su campo `activado` describe un disparo al fin de turno (vuelve al
-  mazo), no un efecto activado por FD. Reclasificar al implementar.
+
+> Nota: `sh17` Benjamín se deja tal cual en el catálogo. Su texto en `activado` describe un
+> disparo de fin de turno (vuelve al mazo en vez de a Retirados), no un efecto activado por
+> FD; se maneja como caso especial en el motor sin cambiar el dato.
 
 ### Decisiones cerradas (antes TBD)
 
