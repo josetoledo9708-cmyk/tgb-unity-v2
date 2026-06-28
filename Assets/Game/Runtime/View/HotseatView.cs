@@ -25,7 +25,7 @@ namespace Game.Runtime.View
         [SerializeField] private ulong seed = 12345;
 
         [Header("Cámara (ajustable en el Inspector)")]
-        [SerializeField] private Vector3 camPos = new Vector3(0f, 27f, -8f);
+        [SerializeField] private Vector3 camPos = new Vector3(0f, 30f, -6f);
         [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
         [SerializeField] private float camFov = 33f;
         [SerializeField] private bool orthographic = false;
