@@ -11,9 +11,15 @@ namespace Game.Runtime.View
     {
         public CardInstance Card { get; private set; } = null!;
         public int OwnerId { get; private set; }
+        public bool FaceDown { get; private set; }
 
         private TextMesh _label = null!;
         private MeshRenderer _renderer = null!;
+
+        private Vector3 _basePos;
+        private bool _hovered;
+        /// <summary>El jugador activo puede jugar esta carta (solo cartas de su mano).</summary>
+        public bool Playable { get; set; }
 
         public static CardView Create(Transform parent)
         {
@@ -51,12 +57,34 @@ namespace Game.Runtime.View
         {
             Card = card;
             OwnerId = ownerId;
+            FaceDown = faceDown;
             var c = faceDown ? new Color(0.2f, 0.2f, 0.25f) : BoardLayout.ColorFor(card.Type);
             var mat = _renderer.material; // instancia propia para no pisar el shared
             mat.color = c;
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c); // URP
             _label.text = faceDown ? "?" : Short(card);
             _label.gameObject.SetActive(true);
+        }
+
+        /// <summary>Coloca la carta y guarda su posición base (para levantarla en hover).</summary>
+        public void Place(Vector3 pos)
+        {
+            _basePos = pos;
+            ApplyTransform();
+        }
+
+        public void SetHovered(bool hovered)
+        {
+            if (_hovered == hovered) return;
+            _hovered = hovered;
+            ApplyTransform();
+        }
+
+        private void ApplyTransform()
+        {
+            float lift = (Playable ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
+            transform.position = _basePos + Vector3.up * lift;
+            transform.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
         }
 
         private static string Short(CardInstance c)

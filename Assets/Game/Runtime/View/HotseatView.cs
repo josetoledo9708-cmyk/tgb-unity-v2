@@ -25,6 +25,7 @@ namespace Game.Runtime.View
 
         private GameEngine _engine = null!;
         private readonly List<CardView> _spawned = new();
+        private CardView? _hovered;
         private string _status = "";
 
         private void Start()
@@ -47,16 +48,35 @@ namespace Game.Runtime.View
 
         private void Update()
         {
-            if (_engine == null || _engine.State.IsOver) return;
-            if (Input.GetMouseButtonDown(0) && Camera.main != null)
+            if (_engine == null) return;
+
+            var hit = RaycastCard();
+            if (!ReferenceEquals(hit, _hovered))
             {
-                var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(ray, out var hit))
-                {
-                    var cv = hit.collider.GetComponentInParent<CardView>();
-                    if (cv != null) OnCardClicked(cv);
-                }
+                if (_hovered != null) _hovered.SetHovered(false);
+                _hovered = hit;
+                if (_hovered != null) _hovered.SetHovered(true);
             }
+
+            if (!_engine.State.IsOver && Input.GetMouseButtonDown(0) && hit != null)
+                OnCardClicked(hit);
+        }
+
+        private CardView? RaycastCard()
+        {
+            if (Camera.main == null) return null;
+            var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            return Physics.Raycast(ray, out var hit)
+                ? hit.collider.GetComponentInParent<CardView>()
+                : null;
+        }
+
+        private bool IsPlayable(PlayerState p, CardInstance c)
+        {
+            if (c.Type == CardType.Tierra) return !p.TierraPlayedThisTurn && !p.Tierras.IsFull;
+            if (c.Type == CardType.Concepto) return !p.ConceptosBlockedThisTurn && p.Fd >= (c.Def.Coste ?? 0);
+            if (CardTypeNames.IsSer(c.Type)) return !p.Seres.IsFull && p.Fd >= (c.Def.Coste ?? 0);
+            return false;
         }
 
         private void OnCardClicked(CardView cv)
@@ -91,6 +111,7 @@ namespace Game.Runtime.View
         {
             foreach (var v in _spawned) if (v != null) Destroy(v.gameObject);
             _spawned.Clear();
+            _hovered = null; // los CardView se destruyen; evita referencia colgante
             var s = _engine.State;
 
             for (int p = 0; p < 2; p++)
@@ -99,7 +120,11 @@ namespace Game.Runtime.View
                 bool hideHand = p != 0; // ocultar la mano del rival
 
                 for (int i = 0; i < ps.Mano.Count; i++)
-                    Spawn(ps.Mano.Cards[i], p, BoardLayout.Hand(p, i, ps.Mano.Count), hideHand);
+                {
+                    var card = ps.Mano.Cards[i];
+                    bool playable = p == s.ActivePlayer && !s.IsOver && IsPlayable(ps, card);
+                    Spawn(card, p, BoardLayout.Hand(p, i, ps.Mano.Count), hideHand, playable);
+                }
 
                 for (int i = 0; i < ps.Tierras.Count; i++)
                     Spawn(ps.Tierras.Cards[i], p, BoardLayout.Tierra(p, i), false);
@@ -122,11 +147,12 @@ namespace Game.Runtime.View
             }
         }
 
-        private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown)
+        private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown, bool playable = false)
         {
             var v = CardView.Create(transform);
-            v.transform.position = pos;
             v.Bind(c, owner, faceDown);
+            v.Playable = playable;
+            v.Place(pos);
             _spawned.Add(v);
         }
 
@@ -176,6 +202,41 @@ namespace Game.Runtime.View
                 _status = r.Ok ? "Turno terminado." : r.Error;
                 Rebuild();
             }
+            GUILayout.EndArea();
+
+            if (_hovered != null && _hovered.Card != null)
+                DrawCardDetail(_hovered);
+        }
+
+        private GUIStyle? _wrap;
+
+        private void DrawCardDetail(CardView cv)
+        {
+            _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
+
+            if (cv.FaceDown)
+            {
+                GUILayout.BeginArea(new Rect(Screen.width - 340, 10, 330, 60), GUI.skin.box);
+                GUILayout.Label("Carta oculta");
+                GUILayout.EndArea();
+                return;
+            }
+
+            var d = cv.Card.Def;
+            GUILayout.BeginArea(new Rect(Screen.width - 340, 10, 330, 320), GUI.skin.box);
+            GUILayout.Label(d.Nombre, new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold });
+            GUILayout.Label($"Tipo: {d.Type}");
+            if (d.Coste.HasValue) GUILayout.Label($"Coste FD: {d.Coste}");
+            if (d.Fd.HasValue) GUILayout.Label($"Genera FD: {d.Fd}");
+            if (CardTypeNames.IsSer(d.Type))
+                GUILayout.Label($"Duración: {cv.Card.DurLeft} (base {d.Dur}) · actCost {d.ActCost}");
+            if (!string.IsNullOrEmpty(d.TipoConcepto)) GUILayout.Label($"Concepto: {d.TipoConcepto}");
+
+            if (!string.IsNullOrEmpty(d.AlEntrar)) GUILayout.Label($"Al entrar: {d.AlEntrar}", _wrap);
+            if (!string.IsNullOrEmpty(d.Activado)) GUILayout.Label($"Activado: {d.Activado}", _wrap);
+            if (!string.IsNullOrEmpty(d.AlSalir)) GUILayout.Label($"Al salir: {d.AlSalir}", _wrap);
+            if (!string.IsNullOrEmpty(d.Efecto)) GUILayout.Label($"Efecto: {d.Efecto}", _wrap);
+            if (cv.Playable) GUILayout.Label(">> Jugable (clic)");
             GUILayout.EndArea();
         }
     }
