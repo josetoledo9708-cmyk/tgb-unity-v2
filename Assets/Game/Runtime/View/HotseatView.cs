@@ -25,9 +25,11 @@ namespace Game.Runtime.View
         [SerializeField] private ulong seed = 12345;
 
         [Header("Cámara (ajustable en el Inspector)")]
-        [SerializeField] private Vector3 camPos = new Vector3(0f, 21f, -11f);
+        [SerializeField] private Vector3 camPos = new Vector3(0f, 27f, -8f);
         [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
-        [SerializeField] private float camFov = 38f;
+        [SerializeField] private float camFov = 33f;
+        [SerializeField] private bool orthographic = false;
+        [SerializeField] private float orthoSize = 9.5f;
         [SerializeField] private float lightIntensity = 1.0f;
 
         [Header("Arte de cartas (carpeta de imágenes)")]
@@ -316,8 +318,9 @@ namespace Game.Runtime.View
                 camGo.tag = "MainCamera";
                 cam = camGo.AddComponent<Camera>();
             }
-            cam.orthographic = false;
-            cam.fieldOfView = camFov;
+            cam.orthographic = orthographic;
+            if (orthographic) cam.orthographicSize = orthoSize; // sin perspectiva (tablero parejo)
+            else cam.fieldOfView = camFov;
             cam.transform.position = camPos;
             cam.transform.LookAt(camLookAt); // mira al centro del tablero (más cenital)
             cam.clearFlags = CameraClearFlags.SolidColor;
