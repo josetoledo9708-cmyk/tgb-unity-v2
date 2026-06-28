@@ -38,6 +38,25 @@ namespace Game.Runtime.View
         public static Vector3 Hand(int player, int index, int count)
             => Slot(player, HandZ, index, Mathf.Max(count, 1));
 
+        /// <summary>Posición + rotación de una carta de la mano en abanico (cartas solapadas en arco).</summary>
+        public static (Vector3 pos, Quaternion rot) HandFan(int player, int index, int count)
+        {
+            int side = player == 0 ? -1 : 1; // -1 = cerca de cámara
+            float half = (count - 1) / 2f;
+            float t = index - half;                       // -half .. +half
+            float anglePer = Mathf.Min(7f, 42f / Mathf.Max(count, 1));
+            const float spacing = 1.15f;                  // < ancho de carta (1.4) -> solapan
+            const float bow = 0.14f;
+
+            float x = t * spacing;
+            if (player == 1) x = -x;                      // espejo
+            float z = HandZ * side + side * (bow * t * t); // los extremos curvan hacia el jugador
+            float yaw = t * anglePer;
+            if (player == 1) yaw = -yaw;
+
+            return (new Vector3(x, 0.02f, z), Quaternion.Euler(0f, yaw, 0f));
+        }
+
         /// <summary>
         /// Fila frontal tipada. Orden para el jugador (derecha->izquierda):
         /// 0 descarte, 1 CONCEPTO, 2-4 SER, 5 DIA, 6 HISTORIA.

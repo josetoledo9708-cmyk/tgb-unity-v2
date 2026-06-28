@@ -128,7 +128,8 @@ namespace Game.Runtime.View
                 {
                     var card = ps.Mano.Cards[i];
                     bool playable = p == s.ActivePlayer && !s.IsOver && IsPlayable(ps, card);
-                    Spawn(card, p, BoardLayout.Hand(p, i, ps.Mano.Count), hideHand, playable);
+                    var (fpos, frot) = BoardLayout.HandFan(p, i, ps.Mano.Count);
+                    Spawn(card, p, fpos, hideHand, playable, frot);
                 }
 
                 for (int i = 0; i < ps.Tierras.Count; i++)
@@ -152,12 +153,13 @@ namespace Game.Runtime.View
             }
         }
 
-        private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown, bool playable = false)
+        private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown,
+                           bool playable = false, Quaternion? rot = null)
         {
             var v = CardView.Create(transform);
             v.Bind(c, owner, faceDown);
             v.Playable = playable;
-            v.Place(pos);
+            v.Place(pos, rot ?? Quaternion.identity);
             _spawned.Add(v);
         }
 

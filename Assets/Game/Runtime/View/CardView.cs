@@ -17,6 +17,7 @@ namespace Game.Runtime.View
         private MeshRenderer _renderer = null!;
 
         private Vector3 _basePos;
+        private Quaternion _baseRot = Quaternion.identity;
         private bool _hovered;
         /// <summary>El jugador activo puede jugar esta carta (solo cartas de su mano).</summary>
         public bool Playable { get; set; }
@@ -66,10 +67,13 @@ namespace Game.Runtime.View
             _label.gameObject.SetActive(true);
         }
 
-        /// <summary>Coloca la carta y guarda su posición base (para levantarla en hover).</summary>
-        public void Place(Vector3 pos)
+        /// <summary>Coloca la carta y guarda su pose base (para levantarla/escalarla en hover).</summary>
+        public void Place(Vector3 pos) => Place(pos, Quaternion.identity);
+
+        public void Place(Vector3 pos, Quaternion rot)
         {
             _basePos = pos;
+            _baseRot = rot;
             ApplyTransform();
         }
 
@@ -84,6 +88,7 @@ namespace Game.Runtime.View
         {
             float lift = (Playable ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
             transform.position = _basePos + Vector3.up * lift;
+            transform.rotation = _baseRot;
             transform.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
         }
 
