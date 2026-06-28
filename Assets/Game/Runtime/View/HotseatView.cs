@@ -25,8 +25,8 @@ namespace Game.Runtime.View
 
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 21f, -11f);
-        [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0.5f);
-        [SerializeField] private float camFov = 55f;
+        [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
+        [SerializeField] private float camFov = 38f;
 
         private GameEngine _engine = null!;
         private readonly List<CardView> _spawned = new();
