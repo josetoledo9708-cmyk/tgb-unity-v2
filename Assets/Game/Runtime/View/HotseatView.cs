@@ -188,14 +188,14 @@ namespace Game.Runtime.View
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
-            if (FindAnyObjectByType<Light>() == null)
-            {
-                var lightGo = new GameObject("Directional Light");
-                var l = lightGo.AddComponent<Light>();
-                l.type = LightType.Directional;
-                l.intensity = 1.1f;
-                lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            }
+            // Iluminación pareja para que el arte de las cartas se lea con color fiel.
+            var light = FindAnyObjectByType<Light>();
+            if (light == null) light = new GameObject("Directional Light").AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 0.7f;
+            light.transform.rotation = Quaternion.Euler(75f, 0f, 0f); // casi cenital
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.82f, 0.82f, 0.85f);
         }
 
         // ---------------- HUD (IMGUI, sin paquetes) ----------------

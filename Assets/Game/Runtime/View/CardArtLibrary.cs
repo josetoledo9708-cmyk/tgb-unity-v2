@@ -56,18 +56,33 @@ namespace Game.Runtime.View
             if (Alias.TryGetValue(key, out var a)) key = a;
             if (_cache.TryGetValue(key, out var cached)) return cached;
 
+            // Empareja por prefijo común más largo (tolera nombres más largos/cortos que el archivo).
             string? best = null;
+            int bestScore = 0;
             int bestLen = int.MaxValue;
+            int threshold = Mathf.Min(key.Length, 6);
             foreach (var kv in _files)
-                if (kv.Key.StartsWith(key) && kv.Key.Length < bestLen)
+            {
+                int cp = CommonPrefix(key, kv.Key);
+                if (cp < threshold) continue;
+                if (cp > bestScore || (cp == bestScore && kv.Key.Length < bestLen))
                 {
+                    bestScore = cp;
                     bestLen = kv.Key.Length;
                     best = kv.Value;
                 }
+            }
 
             var tex = best != null ? Load(best) : null;
             _cache[key] = tex;
             return tex;
+        }
+
+        private static int CommonPrefix(string a, string b)
+        {
+            int n = Mathf.Min(a.Length, b.Length), i = 0;
+            while (i < n && a[i] == b[i]) i++;
+            return i;
         }
 
         public Texture2D? Back()
