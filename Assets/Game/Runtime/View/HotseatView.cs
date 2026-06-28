@@ -205,7 +205,7 @@ namespace Game.Runtime.View
         {
             if (_engine == null) return;
             var s = _engine.State;
-            GUILayout.BeginArea(new Rect(10, 10, 360, 220), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(Screen.width - 370, 10, 360, 220), GUI.skin.box);
             GUILayout.Label($"Turno {s.TurnNumber} · Fase {s.Phase} · Activo P{s.ActivePlayer}");
             GUILayout.Label($"P0  FD={s.Players[0].Fd}  Día={s.Players[0].DiaActual}  Mano={s.Players[0].Mano.Count}");
             GUILayout.Label($"P1  FD={s.Players[1].Fd}  Día={s.Players[1].DiaActual}  Mano={s.Players[1].Mano.Count}");
@@ -233,14 +233,25 @@ namespace Game.Runtime.View
 
             if (cv.FaceDown)
             {
-                GUILayout.BeginArea(new Rect(Screen.width - 340, 10, 330, 60), GUI.skin.box);
+                GUILayout.BeginArea(new Rect(10, 10, 330, 60), GUI.skin.box);
                 GUILayout.Label("Carta oculta");
                 GUILayout.EndArea();
                 return;
             }
 
             var d = cv.Card.Def;
-            GUILayout.BeginArea(new Rect(Screen.width - 340, 10, 330, 320), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10, 10, 340, 470), GUI.skin.box);
+
+            var art = _art.Front(d.Nombre);
+            if (art != null)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                GUILayout.Label(art, GUILayout.Width(150), GUILayout.Height(214));
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            }
+
             GUILayout.Label(d.Nombre, new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold });
             GUILayout.Label($"Tipo: {d.Type}");
             if (d.Coste.HasValue) GUILayout.Label($"Coste FD: {d.Coste}");
