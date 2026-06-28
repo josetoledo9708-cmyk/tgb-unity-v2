@@ -26,8 +26,8 @@ namespace Game.Runtime.View
 
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 30f, -6f);
-        [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, -1f);
-        [SerializeField] private float camFov = 25f;
+        [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
+        [SerializeField] private float camFov = 31f;
         [SerializeField] private bool orthographic = false;
         [SerializeField] private float orthoSize = 9.5f;
         [SerializeField] private float lightIntensity = 1.0f;
