@@ -24,14 +24,12 @@ namespace Game.Runtime.View
         [SerializeField] private ulong seed = 12345;
 
         private GameEngine _engine = null!;
-        private Material _baseMat = null!;
         private readonly List<CardView> _spawned = new();
         private string _status = "";
 
         private void Start()
         {
             EnsureSceneRig();
-            _baseMat = new Material(FindCardShader());
 
             string path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
             if (!File.Exists(path)) { Debug.LogError($"Falta catálogo en {path}"); return; }
@@ -126,19 +124,10 @@ namespace Game.Runtime.View
 
         private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown)
         {
-            var v = CardView.Create(transform, _baseMat);
+            var v = CardView.Create(transform);
             v.transform.position = pos;
             v.Bind(c, owner, faceDown);
             _spawned.Add(v);
-        }
-
-        /// <summary>Shader robusto para URP (evita el magenta de "Standard" bajo URP).</summary>
-        private static Shader FindCardShader()
-        {
-            return Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("Universal Render Pipeline/Lit")
-                ?? Shader.Find("Sprites/Default")
-                ?? Shader.Find("Unlit/Color");
         }
 
         private void EnsureSceneRig()

@@ -15,19 +15,20 @@ namespace Game.Runtime.View
         private TextMesh _label = null!;
         private MeshRenderer _renderer = null!;
 
-        public static CardView Create(Transform parent, Material baseMaterial)
+        public static CardView Create(Transform parent)
         {
             var go = new GameObject("Card");
             go.transform.SetParent(parent, false);
             go.transform.localScale = new Vector3(1.4f, 0.05f, 2.0f); // carta acostada
 
+            // El cubo trae el material URP por defecto (válido). Lo tintamos en Bind;
+            // NO lo reemplazamos por uno de Shader.Find (eso daba magenta bajo URP).
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.transform.SetParent(go.transform, false);
             Object.Destroy(cube.GetComponent<BoxCollider>());
 
             var view = go.AddComponent<CardView>();
             view._renderer = cube.GetComponent<MeshRenderer>();
-            view._renderer.sharedMaterial = baseMaterial;
             go.AddComponent<BoxCollider>().size = Vector3.one;
 
             var labelGo = new GameObject("Label");
