@@ -27,7 +27,7 @@ namespace Game.Runtime.View
         [SerializeField] private Vector3 camPos = new Vector3(0f, 21f, -11f);
         [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
         [SerializeField] private float camFov = 38f;
-        [SerializeField] private float lightIntensity = 0.9f;
+        [SerializeField] private float lightIntensity = 1.0f;
 
         [Header("Arte de cartas (carpeta de imágenes)")]
         [SerializeField] private string artFolder = @"C:\Users\Rinco\Downloads";
@@ -220,7 +220,7 @@ namespace Game.Runtime.View
             if (light == null) light = new GameObject("Directional Light").AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = lightIntensity; // ajustable en el Inspector
-            light.transform.rotation = Quaternion.Euler(55f, -20f, 0f);
+            light.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // cenital: ilumina de lleno las cartas planas
             // Ambiente bajo para levantar sombras sin lavar (los materiales son mate, sin glare).
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.30f, 0.30f, 0.33f);
