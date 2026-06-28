@@ -9,11 +9,11 @@ namespace Game.Runtime.View
     /// </summary>
     public sealed class CardView : MonoBehaviour
     {
-        public CardInstance Card { get; private set; }
+        public CardInstance Card { get; private set; } = null!;
         public int OwnerId { get; private set; }
 
-        private TextMesh _label;
-        private MeshRenderer _renderer;
+        private TextMesh _label = null!;
+        private MeshRenderer _renderer = null!;
 
         public static CardView Create(Transform parent, Material baseMaterial)
         {

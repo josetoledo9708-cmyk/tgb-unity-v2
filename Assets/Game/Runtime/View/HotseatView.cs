@@ -23,8 +23,8 @@ namespace Game.Runtime.View
         [SerializeField] private string historiaP1 = "h2";
         [SerializeField] private ulong seed = 12345;
 
-        private GameEngine _engine;
-        private Material _baseMat;
+        private GameEngine _engine = null!;
+        private Material _baseMat = null!;
         private readonly List<CardView> _spawned = new();
         private string _status = "";
 
@@ -144,7 +144,7 @@ namespace Game.Runtime.View
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
             }
-            if (FindObjectOfType<Light>() == null)
+            if (FindAnyObjectByType<Light>() == null)
             {
                 var lightGo = new GameObject("Directional Light");
                 var l = lightGo.AddComponent<Light>();

@@ -19,7 +19,7 @@ namespace Game.Runtime
         [SerializeField] private string historiaP1 = "h2";
         [SerializeField] private ulong seed = 12345;
 
-        public GameEngine Engine { get; private set; }
+        public GameEngine Engine { get; private set; } = null!;
 
         private void Start()
         {
