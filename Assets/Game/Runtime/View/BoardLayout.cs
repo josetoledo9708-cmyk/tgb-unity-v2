@@ -55,7 +55,8 @@ namespace Game.Runtime.View
             float z = -HandZ - bow * t * t;               // jugador 0: extremos hacia la cámara
             float yaw = t * anglePer;
 
-            if (player == 1) { x = -x; z = -z; yaw += 180f; } // espejo puntual
+            // Espejo de posición y tilt, SIN voltear la cara (las cartas se leen derechas).
+            if (player == 1) { x = -x; z = -z; yaw = -yaw; }
 
             return (new Vector3(x, 0.02f, z), Quaternion.Euler(0f, yaw, 0f));
         }

@@ -71,6 +71,18 @@ namespace Game.Runtime.View
                 if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
                 mat.mainTexture = tex;
                 if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+
+                // La cara superior del cubo mapea la textura "de cabeza": rotarla 180°
+                // (escala negada + offset) para que el arte salga derecho.
+                var scale = new Vector2(-1f, -1f);
+                var offset = new Vector2(1f, 1f);
+                mat.mainTextureScale = scale;
+                mat.mainTextureOffset = offset;
+                if (mat.HasProperty("_BaseMap"))
+                {
+                    mat.SetTextureScale("_BaseMap", scale);
+                    mat.SetTextureOffset("_BaseMap", offset);
+                }
                 _label.gameObject.SetActive(false);
             }
             else
