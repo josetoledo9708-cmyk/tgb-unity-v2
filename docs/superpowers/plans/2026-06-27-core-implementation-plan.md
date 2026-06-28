@@ -185,24 +185,33 @@ Core construido en `src/Game.Core` (.NET puro, net9.0) + `tests/Game.Core.Tests`
 | M4 | ✅ | `EffectApi` + `EffectRegistry`; familias 1-3 |
 | M5 | ✅ | destrucción/control + casos especiales (Lot, Sodoma/Gomorra, Benjamín, Caín/Nod) |
 | M6 | ✅ | `ConsoleView` + e2e + determinismo |
+| Efectos | ✅ | **109/114 cartas** + recompensas de DÍA + `ActivateResponse` (trampas reactivas) |
 | M7 | ⏳ | Port a Unity (asmdef, loader Newtonsoft, presentación 3D) |
 | M8 | ⏳ | Netcode encima del Core |
 
-**Cobertura de efectos: ~28 de 114 cartas** tienen handler. El resto dispara sus triggers
-pero aún no hace nada (sin romper). Pendiente de implementar por familias.
+**Cobertura de efectos: 109 de 114 cartas** con handler. Las 5 sin efecto son intencionales:
+`dia1` (sin recompensa), `dia7` (Victoria I en el motor), `t03`/`t06`/`t07` (TIERRAs básicas).
+Estados nuevos (Indestructible, DiaBlocked, TierrasNoFd, NextSerDurBonus, EffectsBlocked,
+NegatedNextEffect, ConceptosBlocked, OncePerGame) se resetean/decrementan en Preludio.
+
+### Aproximaciones documentadas (sin stack/timing completo)
+
+- **Control de SER rival** (Jacob `activado`, La Esposa de Putifar, Putifar `activado`):
+  emiten log; no transfieren control real (falta un modelo de "control temporal").
+- **Copiar efecto** (c23 El Robo de la Bendición): aproximado a robar 1 (no copia el último
+  AL_ENTRAR rival; falta historial de efectos).
+- **Mirar y reordenar** (Betel, Adán `activado`, c16, c33, Gehón): emiten log; `LookTopTakeOne`
+  no reordena el resto al fondo.
+- **RESPUESTA / negación**: `NegatedNextEffect` anula el *próximo* efecto del rival (no un
+  efecto concreto en vuelo; suficiente para trampas, no para una pila de prioridad real).
 
 ### Pendientes para "motor completo"
 
-- **Efectos restantes** (~86 cartas): el grueso de CONCEPTO, SER divinos/humanos y TIERRAs
-  especiales (AL_TAPEARSE de t02/t04/t10/t11/t17/t18, pasivos como El Jardín +1 dur, etc.).
-- **RESPUESTA / trampas reactivas:** existe el comando para colocar CONCEPTO boca abajo,
-  falta `ActivateResponse` durante el turno rival pagando FD reservado, con su ventana de
-  prioridad.
-- **Targeting interactivo real** (hoy `AutoDecisionProvider` elige la 1ª opción).
-- **Protecciones con duración por turnos** (Gosén, Arca, ProtectedUntilTurn) más allá del
-  flag booleano de Lot.
+- **Targeting interactivo real** (hoy `AutoDecisionProvider` elige la 1ª opción legal).
+- **Ventana de prioridad / pila** para respuestas encadenadas y negaciones precisas.
 - **IA oponente** para un jugador solo.
 - **Serialización** explícita de `GameState` a JSON/binario (el modelo ya es serializable).
+- Pulir las aproximaciones de arriba cuando exista la pila de efectos.
 
 ## 14. Primer paso del port a Unity (M7)
 
