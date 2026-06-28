@@ -15,6 +15,7 @@ namespace Game.Core.Model
         public int DurLeft { get; set; }            // SER: turnos de duración restantes.
         public int TurnsLeftRemaining { get; set; } // TIERRA con autodestrucción (Sodoma/Gomorra).
         public int ProtectedUntilTurn { get; set; } = -1; // protección de destrucción (nº de turno global).
+        public bool Indestructible { get; set; }          // no puede ser destruida por ningún efecto.
 
         public CardInstance(int instanceId, CardDefinition def, int ownerId)
         {

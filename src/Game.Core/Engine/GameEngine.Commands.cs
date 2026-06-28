@@ -77,6 +77,7 @@ namespace Game.Core.Engine
 
             card.Tapped = true;
             int fd = card.Def.Fd ?? 1;
+            if (p.TierrasNoFdTurns > 0) fd = 0; // Maldición de la Tierra
             p.Fd += fd;
             State.Emit($"tapea ({card.Nombre}) +{fd} FD (total {p.Fd})");
             Fire(card, EffectTrigger.AlTapearse);
@@ -96,7 +97,9 @@ namespace Game.Core.Engine
             p.Fd -= coste;
             p.Mano.Remove(card);
             card.DurLeft = card.Def.Dur ?? 0;
+            if (p.NextSerDurBonus != 0) { card.DurLeft += p.NextSerDurBonus; p.NextSerDurBonus = 0; }
             p.Seres.Add(card);
+            ApplyEnterPassives(p, card);
             State.Emit($"juega SER ({card.Nombre}) -{coste} FD");
             Fire(card, EffectTrigger.AlEntrar);
             return CommandResult.Success;
@@ -108,6 +111,7 @@ namespace Game.Core.Engine
             var p = State.Active;
             if (!p.Mano.Cards.Contains(card)) return CommandResult.Fail("La carta no está en tu mano.");
             if (card.Type != CardType.Concepto) return CommandResult.Fail("No es un CONCEPTO.");
+            if (p.ConceptosBlockedThisTurn) return CommandResult.Fail("No puedes jugar CONCEPTOS este turno.");
 
             if (faceDown)
             {
@@ -165,6 +169,7 @@ namespace Game.Core.Engine
         {
             var g = GuardPrep(); if (!g.Ok) return g;
             var p = State.Active;
+            if (p.DiaBlockedTurns > 0) return CommandResult.Fail("No puedes activar DÍA este turno (Babel).");
             int diaNum = p.DiaActual;
             if (diaNum > 7) return CommandResult.Fail("No quedan DÍAs por activar.");
 
@@ -194,6 +199,32 @@ namespace Game.Core.Engine
 
             Fire(diaCard, EffectTrigger.AlActivarElDia); // recompensa (M4)
             OnDiaActivated(p, diaNum);                    // dia7 -> Victoria I (M3)
+            return CommandResult.Success;
+        }
+
+        /// <summary>
+        /// Activa una trampa CONCEPTO boca abajo durante el turno del rival, pagando con el
+        /// FD reservado del propio jugador. El que responde es el dueño de la trampa (no el activo).
+        /// </summary>
+        public CommandResult ActivateResponse(CardInstance trap)
+        {
+            if (State.IsOver) return CommandResult.Fail("La partida terminó.");
+            var responder = State.Players[trap.OwnerId];
+            if (responder.Id == State.ActivePlayer)
+                return CommandResult.Fail("Las trampas se activan en el turno del rival.");
+            if (!responder.Concepto.Cards.Contains(trap) || !trap.FaceDown)
+                return CommandResult.Fail("No es una trampa boca abajo válida.");
+
+            int coste = trap.Def.Coste ?? 0;
+            if (responder.Fd < coste)
+                return CommandResult.Fail($"FD reservado insuficiente ({responder.Fd}/{coste}).");
+
+            responder.Fd -= coste;
+            responder.Concepto.Remove(trap);
+            trap.FaceDown = false;
+            State.Emit($"P{responder.Id} activa trampa ({trap.Nombre}) -{coste} FD");
+            Fire(trap, EffectTrigger.Respuesta);
+            if (!responder.Retirados.Cards.Contains(trap)) responder.Retirados.Add(trap);
             return CommandResult.Success;
         }
     }

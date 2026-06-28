@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Core.Effects;
@@ -7,6 +8,19 @@ namespace Game.Core.Engine
 {
     public sealed partial class GameEngine
     {
+        /// <summary>Pasivos de campo al entrar un SER: El Jardín del Edén (+1 dur),
+        /// La Tierra de Nod con Caín del rival (-1 dur a los SER que entran).</summary>
+        public void ApplyEnterPassives(PlayerState owner, CardInstance ser)
+        {
+            if (owner.Tierras.Cards.Any(t => t.Nombre == "El Jardín del Edén"))
+                ser.DurLeft += 1;
+
+            var opp = State.Other(owner.Id);
+            if (opp.Tierras.Cards.Any(t => t.Nombre == "La Tierra de Nod")
+                && opp.Seres.Cards.Any(s => s.Nombre == "Caín"))
+                ser.DurLeft = Math.Max(0, ser.DurLeft - 1);
+        }
+
         /// <summary>Comienza el turno del jugador activo: Preludio -> Genesis -> (Preparacion).</summary>
         public void BeginTurn()
         {
@@ -47,6 +61,13 @@ namespace Game.Core.Engine
             p.TierraPlayedThisTurn = false;
             p.SeresActivatedThisTurn.Clear();
             p.DiaFreeUsed = p.SacrificioUsed = p.DiluvioUsed = p.TierraProtected = false;
+            p.NextSerDurBonus = 0;
+            p.ConceptosBlockedThisTurn = false;
+            p.NegatedNextEffect = false;
+            if (p.DiaBlockedTurns > 0) p.DiaBlockedTurns--;
+            if (p.TierrasNoFdTurns > 0) p.TierrasNoFdTurns--;
+            if (p.EffectsBlockedTurns > 0) p.EffectsBlockedTurns--;
+            State.ActivatedEffectsDisabled = false;
 
             // SER pierden 1 turno de duración; los que llegan a 0 abandonan el campo.
             foreach (var ser in p.Seres.Cards.ToList())

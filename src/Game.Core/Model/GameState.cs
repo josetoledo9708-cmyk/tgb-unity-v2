@@ -15,6 +15,9 @@ namespace Game.Core.Model
         public VictoryId? WinReason { get; set; }
         public bool IsOver => Winner.HasValue;
 
+        // Confusión de Lenguas: SER de ambos pierden efectos activados hasta el próximo Preludio.
+        public bool ActivatedEffectsDisabled { get; set; }
+
         public List<string> Log { get; } = new();
 
         public PlayerState Active => Players[ActivePlayer];

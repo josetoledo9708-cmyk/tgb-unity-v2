@@ -21,6 +21,7 @@ namespace Game.Core.Tests
             M4Tests.Run(t, cat);
             M5Tests.Run(t, cat);
             M6Tests.Run(t, cat);
+            M7Tests.Run(t, cat);
 
             return t.Summarize();
         }

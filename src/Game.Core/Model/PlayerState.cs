@@ -27,6 +27,15 @@ namespace Game.Core.Model
         public bool DiluvioUsed { get; set; }
         public bool TierraProtected { get; set; }
 
+        // Estados temporales (efectos de cartas).
+        public int DiaBlockedTurns { get; set; }        // Babel: no puede activar DÍA.
+        public int TierrasNoFdTurns { get; set; }       // Maldición de la Tierra: tus TIERRAs dan 0 FD.
+        public bool ConceptosBlockedThisTurn { get; set; } // Ángel de la Torre.
+        public int NextSerDurBonus { get; set; }        // Túnica de Colores: +dur al próximo SER.
+        public int EffectsBlockedTurns { get; set; }    // Querubines: tus efectos no se disparan.
+        public bool NegatedNextEffect { get; set; }     // RESPUESTA rival: anula tu próximo efecto.
+        public HashSet<string> OncePerGameUsed { get; } = new(); // efectos "una vez por partida".
+
         // Control por turno.
         public bool TierraPlayedThisTurn { get; set; }
         public HashSet<int> SeresActivatedThisTurn { get; } = new(); // InstanceId
