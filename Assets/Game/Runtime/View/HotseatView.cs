@@ -154,8 +154,20 @@ namespace Game.Runtime.View
                 for (int i = 0; i < ps.Tierras.Count; i++)
                     Spawn(ps.Tierras.Cards[i], p, BoardLayout.Tierra(p, i), false);
 
-                if (ps.Mazo.Top != null)
-                    Spawn(ps.Mazo.Top, p, BoardLayout.Mazo(p), true);
+                // Mazo: montón de reversos escalonados (parece pila de cartas).
+                if (ps.Mazo.Count > 0)
+                {
+                    int stack = Mathf.Clamp(ps.Mazo.Count, 1, 12);
+                    for (int i = 0; i < stack; i++)
+                        Spawn(ps.Mazo.Top!, p, BoardLayout.Mazo(p) + Vector3.up * (i * 0.035f), faceDown: true);
+                }
+
+                // Retirados: la última carta que llegó, boca arriba.
+                if (ps.Retirados.Count > 0)
+                {
+                    var top = ps.Retirados.Cards[ps.Retirados.Count - 1];
+                    Spawn(top, p, BoardLayout.Descarte(p) + Vector3.up * 0.02f, faceDown: false);
+                }
 
                 for (int i = 0; i < ps.Seres.Count; i++)
                     Spawn(ps.Seres.Cards[i], p, BoardLayout.Ser(p, i), false);
@@ -227,11 +239,13 @@ namespace Game.Runtime.View
                 for (int i = 0; i < 7; i++) Pad(BoardLayout.Tierra(p, i), pad);
                 ZoneLabel("TIERRAS", BoardLayout.Tierra(p, 3), 40, 0.11f, label);
 
-                Pad(BoardLayout.Mazo(p), pad);
-                _mazoCount[p] = ZoneLabel("MAZO", BoardLayout.Mazo(p), 34, 0.085f, gold, yUp: true);
+                var mp = BoardLayout.Mazo(p);
+                Pad(mp, pad);
+                _mazoCount[p] = ZoneLabel("MAZO", mp + new Vector3(Mathf.Sign(mp.x) * 1.4f, 0f, 0f), 30, 0.08f, gold);
 
-                Pad(BoardLayout.Descarte(p), pad);
-                _retirCount[p] = ZoneLabel("RETIR.", BoardLayout.Descarte(p), 32, 0.085f, label);
+                var dp = BoardLayout.Descarte(p);
+                Pad(dp, pad);
+                _retirCount[p] = ZoneLabel("RETIR.", dp + new Vector3(Mathf.Sign(dp.x) * 1.4f, 0f, 0f), 30, 0.08f, label);
 
                 Pad(BoardLayout.Concepto(p), pad);
                 ZoneLabel("CONC.", BoardLayout.Concepto(p), 32, 0.09f, label);
