@@ -23,6 +23,11 @@ namespace Game.Runtime.View
         [SerializeField] private string historiaP1 = "h2";
         [SerializeField] private ulong seed = 12345;
 
+        [Header("Cámara (ajustable en el Inspector)")]
+        [SerializeField] private Vector3 camPos = new Vector3(0f, 21f, -11f);
+        [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0.5f);
+        [SerializeField] private float camFov = 55f;
+
         private GameEngine _engine = null!;
         private readonly List<CardView> _spawned = new();
         private CardView? _hovered;
@@ -167,8 +172,9 @@ namespace Game.Runtime.View
                 cam = camGo.AddComponent<Camera>();
             }
             cam.orthographic = false;
-            cam.transform.position = new Vector3(0f, 13f, -13f);
-            cam.transform.rotation = Quaternion.Euler(48f, 0f, 0f);
+            cam.fieldOfView = camFov;
+            cam.transform.position = camPos;
+            cam.transform.LookAt(camLookAt); // mira al centro del tablero (más cenital)
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
