@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -43,7 +44,13 @@ namespace Game.Runtime.View
         private readonly TextMesh[] _retirCount = new TextMesh[2];
         private readonly List<CardView> _spawned = new();
         private CardView? _hovered;
+        private CardView? _drag;
         private string _status = "";
+
+        private readonly HashSet<int> _prevHandIds = new();
+        private readonly List<GameObject>[] _glowTierra = { new(), new() };
+        private readonly List<GameObject>[] _glowSer = { new(), new() };
+        private readonly GameObject?[] _glowConcepto = new GameObject?[2];
 
         private void Start()
         {
@@ -72,6 +79,8 @@ namespace Game.Runtime.View
         {
             if (_engine == null) return;
 
+            if (_drag != null) { DragUpdate(); return; }
+
             var hit = RaycastCard();
             if (!ReferenceEquals(hit, _hovered))
             {
@@ -81,7 +90,80 @@ namespace Game.Runtime.View
             }
 
             if (!_engine.State.IsOver && Input.GetMouseButtonDown(0) && hit != null)
-                OnCardClicked(hit);
+                OnPointerDown(hit);
+        }
+
+        private void OnPointerDown(CardView cv)
+        {
+            var s = _engine.State;
+            // Carta jugable de tu mano -> arrastrar; resto (tapear TIERRA) -> clic.
+            if (cv.OwnerId == s.ActivePlayer && s.Active.Mano.Cards.Contains(cv.Card) && IsPlayable(s.Active, cv.Card))
+                BeginDrag(cv);
+            else
+                OnCardClicked(cv);
+        }
+
+        private void BeginDrag(CardView cv)
+        {
+            _drag = cv;
+            if (_hovered != null) { _hovered.SetHovered(false); _hovered = null; }
+            ShowGlowFor(cv.Card.Type, _engine.State.ActivePlayer);
+        }
+
+        private void DragUpdate()
+        {
+            _drag!.transform.position = CursorOnPlane(0.5f); // sigue al cursor, levantada
+            if (Input.GetMouseButtonUp(0)) EndDrag();
+        }
+
+        private void EndDrag()
+        {
+            var cv = _drag!;
+            _drag = null;
+            HideGlow();
+
+            var card = cv.Card;
+            bool inField = Mathf.Abs(cv.transform.position.z) < BoardLayout.HandZ - 1f;
+            if (inField && !_engine.State.IsOver)
+            {
+                var r = card.Type switch
+                {
+                    CardType.Tierra => _engine.PlayTierra(card),
+                    CardType.Concepto => _engine.PlayConcepto(card, faceDown: false),
+                    _ => _engine.PlaySer(card)
+                };
+                _status = $"{card.Nombre}: {(r.Ok ? "OK" : r.Error)}";
+            }
+            Rebuild(); // jugada o snap-back
+        }
+
+        private Vector3 CursorOnPlane(float y)
+        {
+            if (Camera.main == null) return Vector3.zero;
+            var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var plane = new Plane(Vector3.up, new Vector3(0f, y, 0f));
+            return plane.Raycast(ray, out var d) ? ray.GetPoint(d) : Vector3.zero;
+        }
+
+        private void ShowGlowFor(CardType type, int player)
+        {
+            HideGlow();
+            if (type == CardType.Tierra)
+                foreach (var g in _glowTierra[player]) g.SetActive(true);
+            else if (type == CardType.Concepto)
+                _glowConcepto[player]?.SetActive(true);
+            else if (CardTypeNames.IsSer(type))
+                foreach (var g in _glowSer[player]) g.SetActive(true);
+        }
+
+        private void HideGlow()
+        {
+            for (int p = 0; p < 2; p++)
+            {
+                foreach (var g in _glowTierra[p]) g.SetActive(false);
+                foreach (var g in _glowSer[p]) g.SetActive(false);
+                _glowConcepto[p]?.SetActive(false);
+            }
         }
 
         private CardView? RaycastCard()
@@ -142,6 +224,8 @@ namespace Game.Runtime.View
                 if (_retirCount[p] != null) _retirCount[p].text = "RETIR.\n" + s.Players[p].Retirados.Count;
             }
 
+            var curHandIds = new HashSet<int>();
+
             for (int p = 0; p < 2; p++)
             {
                 var ps = s.Players[p];
@@ -150,10 +234,14 @@ namespace Game.Runtime.View
                 for (int i = 0; i < ps.Mano.Count; i++)
                 {
                     var card = ps.Mano.Cards[i];
+                    curHandIds.Add(card.InstanceId);
                     bool playable = p == s.ActivePlayer && !s.IsOver && IsPlayable(ps, card);
                     var (fpos, frot) = BoardLayout.HandFan(p, i, ps.Mano.Count);
                     // Mano rival gira 180° (espejo) -> no necesita flip de textura.
-                    Spawn(card, p, fpos, hideHand, playable, frot, flipTexture: p == 0);
+                    var v = Spawn(card, p, fpos, hideHand, playable, frot, flipTexture: p == 0);
+                    // Carta recién robada/añadida: animarla desde el mazo.
+                    if (!_prevHandIds.Contains(card.InstanceId))
+                        StartCoroutine(Deal(v.transform, BoardLayout.Mazo(p) + Vector3.up * 0.3f, fpos));
                 }
 
                 for (int i = 0; i < ps.Tierras.Count; i++)
@@ -187,16 +275,35 @@ namespace Game.Runtime.View
                 if (diaTop != null)
                     Spawn(diaTop, p, BoardLayout.Dia(p), false);
             }
+
+            _prevHandIds.Clear();
+            _prevHandIds.UnionWith(curHandIds); // base para detectar nuevas cartas el próximo rebuild
         }
 
-        private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown,
-                           bool playable = false, Quaternion? rot = null, bool flipTexture = true)
+        private CardView Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown,
+                               bool playable = false, Quaternion? rot = null, bool flipTexture = true)
         {
             var v = CardView.Create(transform);
             v.Bind(c, owner, faceDown, _art.Front(c.Nombre), _art.Back(), flipTexture);
             v.Playable = playable;
             v.Place(pos, rot ?? Quaternion.identity);
             _spawned.Add(v);
+            return v;
+        }
+
+        private IEnumerator Deal(Transform t, Vector3 from, Vector3 to)
+        {
+            if (t == null) yield break;
+            const float dur = 0.25f;
+            float e = 0f;
+            t.position = from;
+            while (e < dur && t != null)
+            {
+                e += Time.deltaTime;
+                t.position = Vector3.Lerp(from, to, Mathf.SmoothStep(0f, 1f, e / dur));
+                yield return null;
+            }
+            if (t != null) t.position = to;
         }
 
         private void EnsureSceneRig()
@@ -231,6 +338,7 @@ namespace Game.Runtime.View
         private void BuildBoard()
         {
             _board = new GameObject("Board").transform;
+            BuildGlow(); // resaltados de zona (ocultos hasta arrastrar)
 
             // Si hay imagen de fondo, la usamos como campo y ocultamos las zonas procedurales.
             var bg = LoadTextureFromFile(backgroundPath);
@@ -317,6 +425,26 @@ namespace Game.Runtime.View
                 Debug.LogWarning($"No se pudo cargar el fondo {path}: {e.Message}");
             }
             return null;
+        }
+
+        private void BuildGlow()
+        {
+            var gT = new Color(0.35f, 1.0f, 0.45f); // TIERRA verde
+            var gS = new Color(0.45f, 0.7f, 1.0f);  // SER azul
+            var gC = new Color(0.75f, 0.5f, 1.0f);  // CONCEPTO morado
+            for (int p = 0; p < 2; p++)
+            {
+                for (int i = 0; i < 7; i++) _glowTierra[p].Add(Glow(BoardLayout.Tierra(p, i), gT));
+                for (int s = 0; s < 3; s++) _glowSer[p].Add(Glow(BoardLayout.Ser(p, s), gS));
+                _glowConcepto[p] = Glow(BoardLayout.Concepto(p), gC);
+            }
+        }
+
+        private GameObject Glow(Vector3 slot, Color c)
+        {
+            var go = Box(new Vector3(slot.x, 0.01f, slot.z), new Vector3(1.7f, 0.02f, 2.3f), c);
+            go.SetActive(false);
+            return go;
         }
 
         private GameObject Box(Vector3 pos, Vector3 scale, Color color)
