@@ -47,7 +47,7 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 | SER simultáneos | 3 |
 | TIERRAs en campo | 7 |
 | Cartas en mano al fin de ENTREGA | 7 |
-| CONCEPTO boca abajo (trampas armadas) | 1 a la vez *(default, TBD)* |
+| CONCEPTO boca abajo (trampas armadas) | 1 a la vez |
 
 ## 4. Estructura del turno (4 fases)
 
@@ -67,8 +67,7 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
    - Jugar SER pagando su coste FD (máx 3 en campo).
    - Jugar CONCEPTO pagando su coste FD.
    - Activar EFECTO de un SER pagando `actCost` (1 vez por SER por turno).
-   - Activar el DÍA actual cumpliendo su condición y pagando su coste (1 activación de DÍA
-     gratuita por turno por la regla `diaFreeUsed`).
+   - Activar el DÍA actual (ver §7 para el modelo de activación).
 4. **ENTREGA**
    - Verifica Victoria III (5 piezas de la Historia en campo).
    - Descarta hasta el límite de 7 cartas en mano.
@@ -93,9 +92,24 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 
 - **dia7 (Victoria I) condición:** haber activado DÍAs 1–6 + tener 3 TIERRAs + tener
   2 SER en campo, uno de coste **≤2** y otro de coste **≥3**.
-- **Excepción h5 (El Primer Fratricidio):** su 5ª pieza `La Maldición de la Tierra` es un
-  CONCEPTO de uso único; Victoria III se verifica **al entrar** esa carta (antes de
-  resolver su efecto), no al fin de ENTREGA.
+- **Victoria III — modo de verificación por HISTORIA** (campo `modo_victoria`):
+  - `field_at_entrega` (default, h1–h4, h6, h7): las 5 piezas en campo al fin de ENTREGA.
+  - `on_piece_play` (solo **h5**): su 5ª pieza `La Maldición de la Tierra` es un CONCEPTO
+    de uso único; la victoria se verifica **al jugar** esa carta (con las otras 4 piezas
+    ya en campo), antes de resolver su efecto. Es una jugada "all-in": si falta una pieza,
+    el CONCEPTO resuelve normal y va a Retirados.
+
+### Activación de DÍA (modelo A)
+
+- **1 activación base por turno:** activa el DÍA actual (en orden 1→7) pagando su `coste`
+  en FD y cumpliendo su condición. Avanza 1 día.
+- **Activaciones gratis (extra):** las cartas de la lista `diaFreeUsed` permiten activar
+  un DÍA **sin pagar el coste FD**, pero **la condición del DÍA siempre se exige**. La
+  regla `diaFreeUsed` limita estas activaciones gratis a **1 por turno**.
+- Lista `diaFreeUsed`: El Ángel del Señor (sd5), Los Tres Mensajeros (sd7), Abraham (sh07),
+  Henoc (sh11), Isaac (sh12), Melquisedec (sh19), La Alianza del Fuego (c10).
+- Isaac + Rebeca en campo: puede activar cualquier DÍA cuya condición cumpla, **ignorando
+  el orden numérico** (excepción a la regla de orden).
 
 ## 7. HISTORIA y DIA (cartas externas al mazo)
 
@@ -107,9 +121,11 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 
 ## 8. Construcción del mazo
 
-- **40 cartas** (incluye exactamente las **5 piezas** de la HISTORIA elegida).
-  Sugerencia: ~10 TIERRA, ~15 SER, ~10 CONCEPTO, contando las 5 piezas dentro de esos tipos.
-  *(Default; el conteo exacto piezas-dentro-de-tipos queda TBD.)*
+- **40 a 50 cartas** (rango). Debe incluir las **5 piezas** de la HISTORIA elegida
+  (al menos 1 de cada).
+- **Sin límite de copias** por carta — se permiten duplicados libremente.
+- Curva orientativa (para 40): ~10-12 TIERRA, ~15-18 SER, ~8-10 CONCEPTO, contando las
+  piezas dentro de sus tipos.
 - **+ 1 HISTORIA** y **+ 7 DIA**, fuera del mazo.
 
 ## 9. Tipos de carta (resumen; detalle por carta en el catálogo)
@@ -126,13 +142,17 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 ## 10. Pendientes (TBD)
 
 - **Multiplayer:** online en red vs local hotseat vs local-con-red-después.
-- **Decaimiento SER:** confirmado por carta vía `dur`; falta validar balance.
-- **Riesgo de balance Victoria III:** requiere 3 SER simultáneos (= ocupa las 3 ranuras) y
-  los SER decaen; casos extremos como **Benjamín (h7, dur=1)** son casi imposibles de
-  mantener. Revisar.
-- **Trampas CONCEPTO:** confirmar si solo 1 boca abajo a la vez (default) o varias.
-- **Composición exacta del mazo** (piezas dentro/fuera del conteo por tipo).
 - **Presentación 3D:** cámara, disposición física, animaciones.
 - **Nombre definitivo** del proyecto y del "mazo" (mazo/libro/historia).
 - **Resolución simultánea / empates** si ambos cumplen al mismo fin de turno.
-- **Set de cartas "sacrificio"** para la regla `sacrificioUsed` (tras retirar La Venta de José).
+- **Set de cartas "sacrificio"** para la regla `sacrificioUsed` (tras retirar La Venta de
+  José; candidatas c15, c37).
+- **`sh17` Benjamín:** su campo `activado` describe un disparo al fin de turno (vuelve al
+  mazo), no un efecto activado por FD. Reclasificar al implementar.
+
+### Decisiones cerradas (antes TBD)
+
+- Activación de DÍA: modelo A (ver §6). Trampas CONCEPTO: 1 boca abajo a la vez.
+- Mazo: 40-50 cartas, sin límite de copias, incluye las 5 piezas.
+- Victoria III: los SER pieza decaen normal (sin no-decae especial); h5 usa
+  `on_piece_play`. Riesgo de Benjamín (dur=1) aceptado como parte del diseño.

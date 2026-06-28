@@ -10,8 +10,10 @@
     "retirados_igual_descarte": true,
     "primer_jugador_no_roba_turno_1": true,
     "dia7_condicion": "DÍAs 1-6 activados + 3 TIERRAs + 2 SER en campo: uno de coste <=2 y otro de coste >=3.",
+    "dia_modelo_activacion": "Modelo A: 1 activación base por turno pagando el coste FD del DÍA (avanza 1 día, en orden). Las cartas de diaFreeUsed dan 1 activación EXTRA por turno SIN pagar coste, pero la condición del DÍA siempre se exige. diaFreeUsed limita las gratis a 1/turno.",
     "diaFreeUsed_correccion": "Quitar 'Canaán' (no activa DÍA). Añadir 'La Alianza del Fuego' (c10).",
-    "trampas_boca_abajo": "Máximo 1 CONCEPTO boca abajo a la vez (1 zona CONCEPTO). TBD.",
+    "trampas_boca_abajo": "Máximo 1 CONCEPTO boca abajo a la vez (1 zona CONCEPTO).",
+    "tamano_mazo": "40 a 50 cartas (rango). Debe incluir las 5 piezas de la HISTORIA declarada. Sin límite de copias por carta (duplicados permitidos).",
     "erratas_datos": ["Eliminada TIERRA t21 'Peniel' (duplicado vacío de t15).", "dia7 corregido.", "Conteo TIERRA 21->20, TOTAL 120->119."]
   },
   "reglas_basicas": {
@@ -68,21 +70,23 @@
       "cartas_en_mano_fin_entrega": 7
     },
     "construccion_mazo": {
-      "total": 40,
+      "min": 40,
+      "max": 50,
+      "copias_por_carta": "sin límite (duplicados permitidos)",
+      "obligatorio": "Debe incluir las 5 piezas de la HISTORIA declarada (al menos 1 de cada)",
       "fuera_del_mazo": ["7 DIA", "1 HISTORIA elegida"],
       "composicion_sugerida": {
-        "TIERRA": 10,
-        "SER": 15,
-        "CONCEPTO": 10,
-        "piezas_historia_obligatorias": 5,
-        "nota": "Las 5 piezas se cuentan DENTRO de sus tipos (TIERRA/SER/CONCEPTO). 40 = 35 genéricas + 5 piezas."
+        "TIERRA": "~10-12",
+        "SER": "~15-18",
+        "CONCEPTO": "~8-10",
+        "nota": "Curva orientativa para un mazo de 40. Las 5 piezas se cuentan DENTRO de sus tipos."
       }
     }
   },
   "victorias": [
     { "id": "VICTORIA_I", "nombre": "Los 7 Días", "condicion": "Activar el DÍA 7 durante PREPARACION", "notas": "Los DÍA deben activarse en orden 1-7" },
     { "id": "VICTORIA_II", "nombre": "Fin del Mazo", "condicion": "El rival no puede robar en GENESIS por mazo vacío" },
-    { "id": "VICTORIA_III", "nombre": "La Historia", "condicion": "Las 5 piezas de la Historia declarada en campo al final de ENTREGA" }
+    { "id": "VICTORIA_III", "nombre": "La Historia", "condicion": "Las 5 piezas de la Historia declarada en campo al final de ENTREGA (modo_victoria=field_at_entrega). Excepción h5: se verifica al jugar la 5ª pieza (modo_victoria=on_piece_play)." }
   ],
   "tipos_de_efecto": [
     { "id": "AL_ENTRAR", "cuando": "Al llegar la carta al campo desde cualquier origen" },
@@ -119,13 +123,13 @@
     { "numero": 7, "nombre": "El Descanso", "coste": 4, "condicion": "DÍAs 1-6 activados + 3 TIERRAs + 2 SER en campo (uno coste<=2 y otro coste>=3)", "efecto": "VICTORIA_I inmediata" }
   ],
   "historias": [
-    { "id": "h1", "nombre": "La Caída del Edén", "genesis": "Génesis 3", "piezas": ["El Jardín del Edén", "El Árbol del Fruto Prohibido", "Adán", "Eva", "La Serpiente"] },
-    { "id": "h2", "nombre": "El Diluvio Universal", "genesis": "Génesis 6-9", "piezas": ["El Monte Ararat", "Egipto", "Noé", "Sem", "Jafet"] },
-    { "id": "h3", "nombre": "La Alianza con Abraham", "genesis": "Génesis 12-18", "piezas": ["Hebrón/Mambré", "Canaán", "Abraham", "Sara", "Melquisedec"] },
-    { "id": "h4", "nombre": "El Destino de Sodoma y Gomorra", "genesis": "Génesis 18-19", "piezas": ["Sodoma", "Gomorra", "Abraham", "Lot", "Los Ángeles de Sodoma"] },
-    { "id": "h5", "nombre": "El Primer Fratricidio", "genesis": "Génesis 4", "piezas": ["El Jardín del Edén", "La Tierra de Nod", "Caín", "Abel", "La Maldición de la Tierra"], "nota": "La Maldición de la Tierra es un CONCEPTO que actúa como quinta pieza. Debe jugarse de última. La Victoria III se verifica al entrar antes de que el efecto se resuelva." },
-    { "id": "h6", "nombre": "La Escalera al Cielo", "genesis": "Génesis 25-33", "piezas": ["Betel", "Canaán", "Jacob/Israel", "Esaú", "Los Ángeles de la Escalera"] },
-    { "id": "h7", "nombre": "José, el Salvador de Egipto", "genesis": "Génesis 37-45", "piezas": ["Egipto", "La Tierra de Gosén", "José", "El Faraón", "Benjamín"] }
+    { "id": "h1", "nombre": "La Caída del Edén", "genesis": "Génesis 3", "modo_victoria": "field_at_entrega", "piezas": ["El Jardín del Edén", "El Árbol del Fruto Prohibido", "Adán", "Eva", "La Serpiente"] },
+    { "id": "h2", "nombre": "El Diluvio Universal", "genesis": "Génesis 6-9", "modo_victoria": "field_at_entrega", "piezas": ["El Monte Ararat", "Egipto", "Noé", "Sem", "Jafet"] },
+    { "id": "h3", "nombre": "La Alianza con Abraham", "genesis": "Génesis 12-18", "modo_victoria": "field_at_entrega", "piezas": ["Hebrón/Mambré", "Canaán", "Abraham", "Sara", "Melquisedec"] },
+    { "id": "h4", "nombre": "El Destino de Sodoma y Gomorra", "genesis": "Génesis 18-19", "modo_victoria": "field_at_entrega", "piezas": ["Sodoma", "Gomorra", "Abraham", "Lot", "Los Ángeles de Sodoma"] },
+    { "id": "h5", "nombre": "El Primer Fratricidio", "genesis": "Génesis 4", "modo_victoria": "on_piece_play", "piezas": ["El Jardín del Edén", "La Tierra de Nod", "Caín", "Abel", "La Maldición de la Tierra"], "nota": "La Maldición de la Tierra es un CONCEPTO que actúa como quinta pieza. Debe jugarse de última. La Victoria III se verifica AL JUGAR esa carta (con las otras 4 piezas en campo), antes de que su efecto se resuelva." },
+    { "id": "h6", "nombre": "La Escalera al Cielo", "genesis": "Génesis 25-33", "modo_victoria": "field_at_entrega", "piezas": ["Betel", "Canaán", "Jacob/Israel", "Esaú", "Los Ángeles de la Escalera"] },
+    { "id": "h7", "nombre": "José, el Salvador de Egipto", "genesis": "Génesis 37-45", "modo_victoria": "field_at_entrega", "piezas": ["Egipto", "La Tierra de Gosén", "José", "El Faraón", "Benjamín"] }
   ],
   "catalogo_cartas": {
     "DIA": [

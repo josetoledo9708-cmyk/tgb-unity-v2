@@ -15,15 +15,19 @@
    coste **≤2** y otro de coste **≥3** (antes decía `SER<=2 + SER>=3`, imposible).
 4. **Retirados = Descarte:** una sola zona (cementerio general).
 
-## Decisiones por default (marcadas, revisables)
+## Decisiones confirmadas (ronda 2)
 
 5. **Primer jugador no roba en su turno 1** (regla del diseño del campo; prevalece sobre
    el "Roba 1 carta" incondicional de GENESIS).
 6. **`diaFreeUsed`:** se quita **Canaán** (su efecto no activa DÍA) y se añade
-   **La Alianza del Fuego** (c10, que sí activa DÍA gratis).
-7. **Trampas CONCEPTO boca abajo:** máximo **1 a la vez** (hay 1 zona CONCEPTO).
-8. **Composición de mazo:** 40 cartas = 35 genéricas + 5 piezas de la HISTORIA (las piezas
-   se cuentan dentro de sus tipos TIERRA/SER/CONCEPTO).
+   **La Alianza del Fuego** (c10). Lista final: sd5, sd7, sh07, sh11, sh12, sh19, c10.
+7. **Activación de DÍA = modelo A:** 1 activación base/turno pagando `coste`; las cartas de
+   `diaFreeUsed` dan 1 activación EXTRA sin coste; la **condición siempre se exige**.
+8. **Trampas CONCEPTO boca abajo:** máximo **1 a la vez** (1 zona CONCEPTO; campo sin cambios).
+9. **Mazo: 40–50 cartas** (rango), debe incluir las 5 piezas, **sin límite de copias**
+   (duplicados permitidos).
+10. **Victoria III:** los SER pieza **decaen normal** (sin regla no-decae). Riesgo de
+    Benjamín (dur=1) aceptado. **h5** usa `modo_victoria: on_piece_play` (variación buscada).
 
 ## Erratas de datos aplicadas
 
