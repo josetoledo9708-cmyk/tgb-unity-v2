@@ -16,6 +16,7 @@ namespace Game.Runtime.View
         private TextMesh _label = null!;
         private MeshRenderer _renderer = null!;
 
+        private Transform _visual = null!;
         private Vector3 _basePos;
         private Quaternion _baseRot = Quaternion.identity;
         private bool _hovered;
@@ -24,25 +25,31 @@ namespace Game.Runtime.View
 
         public static CardView Create(Transform parent)
         {
-            // Root SIN escala (para no deformar la etiqueta). La escala de carta va en el cubo.
+            // Root: queda en la posición base con el COLLIDER (área de clic fija). El hijo
+            // "Visual" es el que se levanta/escala en hover, así el collider no se mueve y no
+            // hay parpadeo de hover en los bordes.
             var go = new GameObject("Card");
             go.transform.SetParent(parent, false);
+
+            var visual = new GameObject("Visual").transform;
+            visual.SetParent(go.transform, false);
 
             // El cubo trae el material URP por defecto (válido). Lo tintamos en Bind;
             // NO lo reemplazamos por uno de Shader.Find (eso daba magenta bajo URP).
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.transform.SetParent(go.transform, false);
+            cube.transform.SetParent(visual, false);
             cube.transform.localScale = new Vector3(1.4f, 0.05f, 2.0f); // carta acostada
             Object.Destroy(cube.GetComponent<BoxCollider>());
 
             var view = go.AddComponent<CardView>();
             view._renderer = cube.GetComponent<MeshRenderer>();
+            view._visual = visual;
 
             var col = go.AddComponent<BoxCollider>();
             col.size = new Vector3(1.4f, 0.2f, 2.0f);
 
             var labelGo = new GameObject("Label");
-            labelGo.transform.SetParent(go.transform, false);
+            labelGo.transform.SetParent(visual, false);
             labelGo.transform.localPosition = new Vector3(0f, 0.06f, 0f);
             labelGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             view._label = labelGo.AddComponent<TextMesh>();
@@ -117,10 +124,14 @@ namespace Game.Runtime.View
 
         private void ApplyTransform()
         {
-            float lift = (Playable ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
-            transform.position = _basePos + Vector3.up * lift;
+            // Root (collider) fijo en la base; el Visual se levanta/escala -> sin parpadeo.
+            transform.position = _basePos;
             transform.rotation = _baseRot;
-            transform.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
+            transform.localScale = Vector3.one;
+
+            float lift = (Playable ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
+            _visual.localPosition = new Vector3(0f, lift, 0f);
+            _visual.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
         }
 
         private static string Short(CardInstance c)
