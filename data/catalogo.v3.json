@@ -13,7 +13,7 @@
     "dia_modelo_activacion": "Modelo A: 1 activación base por turno pagando el coste FD del DÍA (avanza 1 día, en orden). Las cartas de diaFreeUsed dan 1 activación EXTRA por turno SIN pagar coste, pero la condición del DÍA siempre se exige. diaFreeUsed limita las gratis a 1/turno.",
     "diaFreeUsed_correccion": "Quitar 'Canaán' (no activa DÍA). Añadir 'La Alianza del Fuego' (c10).",
     "trampas_boca_abajo": "Máximo 1 CONCEPTO boca abajo a la vez (1 zona CONCEPTO).",
-    "tamano_mazo": "40 a 50 cartas (rango). Debe incluir las 5 piezas de la HISTORIA declarada. Sin límite de copias por carta (duplicados permitidos).",
+    "tamano_mazo": "40 a 50 cartas (rango). Debe incluir las 5 piezas de la HISTORIA declarada. Máximo 3 copias por carta.",
     "erratas_datos": ["Eliminada TIERRA t21 'Peniel' (duplicado vacío de t15).", "dia7 corregido.", "Conteo TIERRA 21->20, TOTAL 120->119."]
   },
   "reglas_basicas": {
@@ -72,7 +72,7 @@
     "construccion_mazo": {
       "min": 40,
       "max": 50,
-      "copias_por_carta": "sin límite (duplicados permitidos)",
+      "copias_por_carta": "máximo 3 por carta",
       "obligatorio": "Debe incluir las 5 piezas de la HISTORIA declarada (al menos 1 de cada)",
       "fuera_del_mazo": ["7 DIA", "1 HISTORIA elegida"],
       "composicion_sugerida": {

@@ -123,7 +123,7 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 
 - **40 a 50 cartas** (rango). Debe incluir las **5 piezas** de la HISTORIA elegida
   (al menos 1 de cada).
-- **Sin límite de copias** por carta — se permiten duplicados libremente.
+- **Máximo 3 copias** por carta.
 - Curva orientativa (para 40): ~10-12 TIERRA, ~15-18 SER, ~8-10 CONCEPTO, contando las
   piezas dentro de sus tipos.
 - **+ 1 HISTORIA** y **+ 7 DIA**, fuera del mazo.
@@ -153,6 +153,6 @@ Fila frontal (hacia el centro), orden derecha→izquierda para el jugador princi
 ### Decisiones cerradas (antes TBD)
 
 - Activación de DÍA: modelo A (ver §6). Trampas CONCEPTO: 1 boca abajo a la vez.
-- Mazo: 40-50 cartas, sin límite de copias, incluye las 5 piezas.
+- Mazo: 40-50 cartas, máx 3 copias por carta, incluye las 5 piezas.
 - Victoria III: los SER pieza decaen normal (sin no-decae especial); h5 usa
   `on_piece_play`. Riesgo de Benjamín (dur=1) aceptado como parte del diseño.

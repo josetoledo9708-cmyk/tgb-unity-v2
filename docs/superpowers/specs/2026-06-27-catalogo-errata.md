@@ -24,8 +24,7 @@
 7. **Activación de DÍA = modelo A:** 1 activación base/turno pagando `coste`; las cartas de
    `diaFreeUsed` dan 1 activación EXTRA sin coste; la **condición siempre se exige**.
 8. **Trampas CONCEPTO boca abajo:** máximo **1 a la vez** (1 zona CONCEPTO; campo sin cambios).
-9. **Mazo: 40–50 cartas** (rango), debe incluir las 5 piezas, **sin límite de copias**
-   (duplicados permitidos).
+9. **Mazo: 40–50 cartas** (rango), debe incluir las 5 piezas, **máximo 3 copias por carta**.
 10. **Victoria III:** los SER pieza **decaen normal** (sin regla no-decae). Riesgo de
     Benjamín (dur=1) aceptado. **h5** usa `modo_victoria: on_piece_play` (variación buscada).
 
