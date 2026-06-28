@@ -27,6 +27,7 @@ namespace Game.Runtime.View
         [SerializeField] private Vector3 camPos = new Vector3(0f, 21f, -11f);
         [SerializeField] private Vector3 camLookAt = new Vector3(0f, 0f, 0f);
         [SerializeField] private float camFov = 38f;
+        [SerializeField] private float lightIntensity = 0.55f;
 
         [Header("Arte de cartas (carpeta de imágenes)")]
         [SerializeField] private string artFolder = @"C:\Users\Rinco\Downloads";
@@ -215,14 +216,11 @@ namespace Game.Runtime.View
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
-            if (FindAnyObjectByType<Light>() == null)
-            {
-                var lightGo = new GameObject("Directional Light");
-                var l = lightGo.AddComponent<Light>();
-                l.type = LightType.Directional;
-                l.intensity = 1.1f;
-                lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            }
+            var light = FindAnyObjectByType<Light>();
+            if (light == null) light = new GameObject("Directional Light").AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = lightIntensity; // ajustable en el Inspector
+            light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
         }
 
         // ---------------- tablero estático (mesa, zonas, etiquetas) ----------------
