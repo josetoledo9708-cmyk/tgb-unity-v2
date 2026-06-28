@@ -105,8 +105,13 @@ namespace Game.Core.Engine
             p.Fd -= coste;
             p.Mano.Remove(card);
             State.Emit($"juega CONCEPTO ({card.Nombre}) -{coste} FD");
+
+            // Victoria III (h5): se verifica al jugar la 5ª pieza, antes de resolver el efecto.
+            CheckVictoryOnPiecePlay(p, card);
+            if (State.IsOver) return CommandResult.Success;
+
             Fire(card, EffectTrigger.UsoUnico);
-            // Si el efecto no la reubicó (p.ej. victoria h5), va a Retirados.
+            // Si el efecto no la reubicó, va a Retirados.
             if (!p.Retirados.Cards.Contains(card) && !State.IsOver)
                 p.Retirados.Add(card);
             return CommandResult.Success;

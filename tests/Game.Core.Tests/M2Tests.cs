@@ -93,6 +93,7 @@ namespace Game.Core.Tests
             {
                 var eng = M1Tests.NewGame(cat, 108);
                 var p = eng.State.Active;
+                p.Tierras.Add(eng.NewInstance(cat.Get("t03"), p.Id)); // dia1 exige 1 TIERRA
                 int retiradosAntes = p.Retirados.Count;
                 TestRunner.IsTrue(eng.ActivateDia(useFree: true).Ok, "activar dia1 gratis");
                 TestRunner.AreEqual(2, p.DiaActual, "ahora toca dia2");

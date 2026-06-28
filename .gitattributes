@@ -1,0 +1,4 @@
+* text=auto
+*.cs text
+*.json text
+*.md text
