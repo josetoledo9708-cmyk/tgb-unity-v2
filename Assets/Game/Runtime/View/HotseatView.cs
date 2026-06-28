@@ -137,7 +137,8 @@ namespace Game.Runtime.View
                     var card = ps.Mano.Cards[i];
                     bool playable = p == s.ActivePlayer && !s.IsOver && IsPlayable(ps, card);
                     var (fpos, frot) = BoardLayout.HandFan(p, i, ps.Mano.Count);
-                    Spawn(card, p, fpos, hideHand, playable, frot);
+                    // Mano rival gira 180° (espejo) -> no necesita flip de textura.
+                    Spawn(card, p, fpos, hideHand, playable, frot, flipTexture: p == 0);
                 }
 
                 for (int i = 0; i < ps.Tierras.Count; i++)
@@ -162,10 +163,10 @@ namespace Game.Runtime.View
         }
 
         private void Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown,
-                           bool playable = false, Quaternion? rot = null)
+                           bool playable = false, Quaternion? rot = null, bool flipTexture = true)
         {
             var v = CardView.Create(transform);
-            v.Bind(c, owner, faceDown, _art.Front(c.Nombre), _art.Back());
+            v.Bind(c, owner, faceDown, _art.Front(c.Nombre), _art.Back(), flipTexture);
             v.Playable = playable;
             v.Place(pos, rot ?? Quaternion.identity);
             _spawned.Add(v);
@@ -188,14 +189,14 @@ namespace Game.Runtime.View
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
-            // Iluminación pareja para que el arte de las cartas se lea con color fiel.
-            var light = FindAnyObjectByType<Light>();
-            if (light == null) light = new GameObject("Directional Light").AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 0.7f;
-            light.transform.rotation = Quaternion.Euler(75f, 0f, 0f); // casi cenital
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.82f, 0.82f, 0.85f);
+            if (FindAnyObjectByType<Light>() == null)
+            {
+                var lightGo = new GameObject("Directional Light");
+                var l = lightGo.AddComponent<Light>();
+                l.type = LightType.Directional;
+                l.intensity = 1.1f;
+                lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+            }
         }
 
         // ---------------- HUD (IMGUI, sin paquetes) ----------------

@@ -55,7 +55,7 @@ namespace Game.Runtime.View
         }
 
         public void Bind(CardInstance card, int ownerId, bool faceDown,
-                         Texture2D? front = null, Texture2D? back = null)
+                         Texture2D? front = null, Texture2D? back = null, bool flipTexture = true)
         {
             Card = card;
             OwnerId = ownerId;
@@ -72,10 +72,11 @@ namespace Game.Runtime.View
                 mat.mainTexture = tex;
                 if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
 
-                // La cara superior del cubo mapea la textura "de cabeza": rotarla 180°
-                // (escala negada + offset) para que el arte salga derecho.
-                var scale = new Vector2(-1f, -1f);
-                var offset = new Vector2(1f, 1f);
+                // La cara superior del cubo mapea la textura "de cabeza". Las cartas sin giro
+                // físico de 180° (jugador y campo) se corrigen rotando la textura 180°; las que
+                // ya giran 180° (mano rival) no necesitan flip.
+                var scale = flipTexture ? new Vector2(-1f, -1f) : Vector2.one;
+                var offset = flipTexture ? new Vector2(1f, 1f) : Vector2.zero;
                 mat.mainTextureScale = scale;
                 mat.mainTextureOffset = offset;
                 if (mat.HasProperty("_BaseMap"))
