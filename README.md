@@ -38,10 +38,14 @@ Corre la batería completa (M0–M7, ~65 casos) sin abrir el editor.
 
 1. Unity Hub → Add → seleccionar esta carpeta (editor 6000.4.x, URP).
 2. Unity importa, genera `.meta`/`Library` y resuelve paquetes (Newtonsoft, Test Framework).
-3. Crear una escena, añadir un GameObject vacío con el componente `GameBootstrap`
-   (`Assets/Game/Runtime`) y darle Play: carga el catálogo, monta una partida de muestra y
-   vuelca el estado al Console.
+3. Demo jugable: en una escena vacía, añadir un GameObject con `HotseatView`
+   (`Assets/Game/Runtime/View`) y Play. Genera cámara/luz y dibuja el campo en 3D (cartas
+   por código). Clic en carta de tu mano = jugarla; clic en tu TIERRA = tapearla; botón
+   "Terminar turno". (`GameBootstrap` es la variante headless que solo vuelca al Console.)
 4. Tests: Window → General → Test Runner → EditMode → Run All.
+
+> La capa `View` es un punto de partida autogenerado (sin prefabs ni arte). La presentación
+> final (prefabs de carta, animaciones, arrastrar y soltar) se construye encima del mismo motor.
 
 > Si cambias `data/catalogo.v3.json`, copia la nueva versión a
 > `Assets/StreamingAssets/catalogo.v3.json`.
