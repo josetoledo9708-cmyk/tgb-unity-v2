@@ -14,6 +14,25 @@ namespace Game.Core.Engine
             return CommandResult.Success;
         }
 
+        private static bool IsSacrificio(CardInstance c) => c.Def.Id is "c15" or "c37";
+        private static bool IsDiluvioOrRama(CardInstance c) => c.Def.Id is "c07" or "c08";
+
+        /// <summary>Restricciones de exclusión por turno (diluvioUsed / sacrificioUsed).</summary>
+        private static string? ConceptoBlocked(PlayerState p, CardInstance card)
+        {
+            if (IsDiluvioOrRama(card) && p.DiluvioUsed)
+                return "No puedes jugar El Diluvio y La Rama de Olivo el mismo turno.";
+            if (IsSacrificio(card) && p.SacrificioUsed)
+                return "Solo una carta de sacrificio por turno.";
+            return null;
+        }
+
+        private static void MarkConceptoFlags(PlayerState p, CardInstance card)
+        {
+            if (IsDiluvioOrRama(card)) p.DiluvioUsed = true;
+            if (IsSacrificio(card)) p.SacrificioUsed = true;
+        }
+
         public CommandResult PlayTierra(CardInstance card)
         {
             var g = GuardPrep(); if (!g.Ok) return g;
@@ -100,10 +119,14 @@ namespace Game.Core.Engine
                 return CommandResult.Success;
             }
 
+            var block = ConceptoBlocked(p, card);
+            if (block != null) return CommandResult.Fail(block);
+
             int coste = card.Def.Coste ?? 0;
             if (p.Fd < coste) return CommandResult.Fail($"FD insuficiente ({p.Fd}/{coste}).");
             p.Fd -= coste;
             p.Mano.Remove(card);
+            MarkConceptoFlags(p, card);
             State.Emit($"juega CONCEPTO ({card.Nombre}) -{coste} FD");
 
             // Victoria III (h5): se verifica al jugar la 5ª pieza, antes de resolver el efecto.

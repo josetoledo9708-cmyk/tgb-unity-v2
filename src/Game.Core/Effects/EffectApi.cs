@@ -104,5 +104,45 @@ namespace Game.Core.Effects
 
         public static bool HasSerInField(PlayerState p, string nombre)
             => p.Seres.Cards.Any(c => c.Nombre == nombre);
+
+        // --- destrucción / control (familias 4-6) ---
+
+        public static void DestroyAllSeresBothSides(GameEngine eng)
+        {
+            foreach (var p in eng.State.Players)
+                foreach (var ser in p.Seres.Cards.ToList())
+                    eng.SendToRetirados(p, p.Seres, ser, fireAlSalir: true);
+            eng.State.Emit("El Diluvio: todos los SER a Retirados");
+        }
+
+        public static bool DestroyTierraByEffect(GameEngine eng, CardInstance tierra)
+        {
+            var owner = eng.State.Players[tierra.OwnerId];
+            if (!owner.Tierras.Cards.Contains(tierra)) return false;
+            if (owner.TierraProtected || eng.LotInField(owner))
+            {
+                eng.State.Emit($"Destrucción de {tierra.Nombre} bloqueada (protección)");
+                return false;
+            }
+            eng.DestroyTierra(owner, tierra); // dispara AL_SER_DESTRUIDA
+            return true;
+        }
+
+        /// <summary>Destruye hasta n TIERRAs eligiendo del rival primero y luego propias.</summary>
+        public static int DestroyTierras(GameEngine eng, int byPlayerId, int n)
+        {
+            var me = eng.State.Players[byPlayerId];
+            var opp = eng.State.Players[1 - byPlayerId];
+            var pool = opp.Tierras.Cards.Concat(me.Tierras.Cards).ToList();
+            int destroyed = 0;
+            for (int i = 0; i < n && pool.Count > 0; i++)
+            {
+                var target = eng.Decisions.ChooseCard(eng.State, pool, "Destruir TIERRA", optional: false)
+                             ?? pool[0];
+                pool.Remove(target);
+                if (DestroyTierraByEffect(eng, target)) destroyed++;
+            }
+            return destroyed;
+        }
     }
 }

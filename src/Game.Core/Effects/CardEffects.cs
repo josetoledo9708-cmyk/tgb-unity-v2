@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Game.Core.Model;
 using static Game.Core.Model.EffectTrigger;
 
@@ -78,6 +79,36 @@ namespace Game.Core.Effects
                 EffectApi.Draw(c.Engine, c.Opponent, 1);
             });
             r.On("c14", UsoUnico, c => EffectApi.DiscardRandom(c.Engine, c.Opponent, 2)); // La Dispersión de los Pueblos
+
+            RegisterSpecials(r);
+        }
+
+        /// <summary>Familias 4-6: destrucción/control y casos especiales documentados.</summary>
+        public static void RegisterSpecials(EffectRegistry r)
+        {
+            r.On("c07", UsoUnico, c => EffectApi.DestroyAllSeresBothSides(c.Engine));        // El Diluvio
+            r.On("c08", UsoUnico, c => EffectApi.SearchTierraToField(c.Engine, c.Owner));    // La Rama de Olivo
+            r.On("c11", UsoUnico, c => EffectApi.DestroyTierras(c.Engine, c.Owner.Id, 1));   // La Destrucción de Sodoma
+            r.On("sd3", AlEntrar, c => EffectApi.DestroyTierras(c.Engine, c.Owner.Id, 2));   // Los Ángeles de Sodoma
+
+            r.On("sh09", AlEntrar, c => c.Owner.TierraProtected = true);                     // Lot
+
+            // Sodoma / Gomorra: al ser destruidas, el rival de su dueño roba.
+            r.On("t08", AlSerDestruida, c => EffectApi.Draw(c.Engine, c.Opponent, 2));       // Sodoma
+            r.On("t09", AlSerDestruida, c => EffectApi.Draw(c.Engine, c.Opponent, 3));       // Gomorra
+
+            // Caín: al entrar destruye 1 TIERRA; al salir, La Tierra de Nod lo sigue a Retirados.
+            r.On("sh03", AlEntrar, c => EffectApi.DestroyTierras(c.Engine, c.Owner.Id, 1));
+            r.On("sh03", AlSalir, c =>
+            {
+                var nod = c.Owner.Tierras.Cards.FirstOrDefault(x => x.Nombre == "La Tierra de Nod");
+                if (nod != null)
+                {
+                    c.Owner.Tierras.Remove(nod);
+                    c.Owner.Retirados.Add(nod);
+                    c.Engine.State.Emit("La Tierra de Nod se va con Caín");
+                }
+            });
         }
 
         private static void PairDrawOrSearch(EffectContext c, string pareja)

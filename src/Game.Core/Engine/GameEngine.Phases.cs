@@ -48,11 +48,26 @@ namespace Game.Core.Engine
             p.SeresActivatedThisTurn.Clear();
             p.DiaFreeUsed = p.SacrificioUsed = p.DiluvioUsed = p.TierraProtected = false;
 
-            // SER pierden 1 turno de duración; los que llegan a 0 -> Retirados (AL_SALIR).
+            // SER pierden 1 turno de duración; los que llegan a 0 abandonan el campo.
             foreach (var ser in p.Seres.Cards.ToList())
             {
                 ser.DurLeft--;
-                if (ser.DurLeft <= 0)
+                if (ser.DurLeft > 0) continue;
+
+                if (ser.Nombre == "Benjamín")
+                {
+                    // Caso especial: regresa al mazo en vez de a Retirados.
+                    p.Seres.Remove(ser);
+                    ser.Tapped = false;
+                    p.Mazo.Add(ser);
+                    State.Emit("Benjamín regresa al mazo");
+                    if (p.Seres.Cards.Any(c => c.Nombre == "José") && p.Mazo.Count > 0)
+                    {
+                        p.Mano.Add(p.Mazo.DrawTop());
+                        State.Emit("José: roba al regresar Benjamín");
+                    }
+                }
+                else
                 {
                     State.Emit($"{ser.Nombre} agota su duración -> Retirados");
                     SendToRetirados(p, p.Seres, ser, fireAlSalir: true);
