@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Core.Data;
+using Game.Core.Effects;
 using Game.Core.Model;
 
 namespace Game.Core.Engine
@@ -16,6 +17,11 @@ namespace Game.Core.Engine
         public CardCatalog Catalog { get; }
         public DeterministicRng Rng { get; private set; } = null!;
 
+        /// <summary>Resolutor de efectos (NullEffectResolver hasta M4).</summary>
+        public IEffectResolver Effects { get; set; } = new NullEffectResolver();
+        /// <summary>Proveedor de decisiones (Auto por defecto).</summary>
+        public IDecisionProvider Decisions { get; set; } = new AutoDecisionProvider();
+
         private int _nextInstanceId = 1;
 
         public const int OpeningHand = 7;
@@ -25,6 +31,10 @@ namespace Game.Core.Engine
 
         public CardInstance NewInstance(CardDefinition def, int owner)
             => new CardInstance(_nextInstanceId++, def, owner);
+
+        /// <summary>Dispara un trigger de efecto sobre una carta.</summary>
+        public void Fire(CardInstance card, EffectTrigger trigger)
+            => Effects.Resolve(new EffectContext(this, card, trigger));
 
         public void StartGame(DeckDefinition deck0, DeckDefinition deck1,
                               ulong seed, int firstPlayer = 0)
@@ -38,9 +48,9 @@ namespace Game.Core.Engine
             SetupPlayer(State.Players[0], deck0);
             SetupPlayer(State.Players[1], deck1);
 
-            State.Phase = Phase.Preludio;
             State.TurnNumber = 1;
             State.Emit($"Partida iniciada. Primer jugador: {firstPlayer}. Semilla: {seed}.");
+            BeginTurn();
         }
 
         private void ValidateOrThrow(DeckDefinition deck, int player)

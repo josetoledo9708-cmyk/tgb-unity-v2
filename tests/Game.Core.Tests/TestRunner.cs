@@ -44,7 +44,7 @@ namespace Game.Core.Tests
                 throw new Exception(msg ?? $"esperado <{expected}>, fue <{actual}>");
         }
 
-        public static void IsTrue(bool cond, string msg)
+        public static void IsTrue(bool cond, string msg = "condición falsa")
         {
             if (!cond) throw new Exception(msg);
         }
