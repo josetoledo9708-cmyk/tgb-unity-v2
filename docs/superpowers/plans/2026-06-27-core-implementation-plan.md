@@ -171,9 +171,44 @@ humana; la lógica vive en código tipado y testeable.
   resuelven como casos especiales documentados en el código.
 - **Nombre de carpeta/proyecto** y assets 3D quedan fuera de este plan.
 
-## 13. Primer paso concreto (M0)
+## 13. Estado de implementación (2026-06-27)
 
-1. Crear `Assets/Game/Core` con `asmdef` `Game.Core` (sin referencia a UnityEngine).
-2. Definir enums + `CardDefinition` + `CatalogLoader`.
-3. Copiar `data/catalogo.v3.json` a `StreamingAssets`.
-4. Test EditMode: cargar catálogo y afirmar conteos (7/20/45/42/7).
+Core construido en `src/Game.Core` (.NET puro, net9.0) + `tests/Game.Core.Tests`
+(runner propio). Correr: `dotnet run --project tests/Game.Core.Tests`. **55 tests verdes.**
+
+| M | Estado | Notas |
+|---|--------|-------|
+| M0 | ✅ | modelo + `CatalogLoader` |
+| M1 | ✅ | `GameState`, zonas, `DeckValidator`, setup con semilla |
+| M2 | ✅ | fases, comandos, FD, Victoria II |
+| M3 | ✅ | condiciones DÍA, Victorias I y III (incl. h5 on_piece_play) |
+| M4 | ✅ | `EffectApi` + `EffectRegistry`; familias 1-3 |
+| M5 | ✅ | destrucción/control + casos especiales (Lot, Sodoma/Gomorra, Benjamín, Caín/Nod) |
+| M6 | ✅ | `ConsoleView` + e2e + determinismo |
+| M7 | ⏳ | Port a Unity (asmdef, loader Newtonsoft, presentación 3D) |
+| M8 | ⏳ | Netcode encima del Core |
+
+**Cobertura de efectos: ~28 de 114 cartas** tienen handler. El resto dispara sus triggers
+pero aún no hace nada (sin romper). Pendiente de implementar por familias.
+
+### Pendientes para "motor completo"
+
+- **Efectos restantes** (~86 cartas): el grueso de CONCEPTO, SER divinos/humanos y TIERRAs
+  especiales (AL_TAPEARSE de t02/t04/t10/t11/t17/t18, pasivos como El Jardín +1 dur, etc.).
+- **RESPUESTA / trampas reactivas:** existe el comando para colocar CONCEPTO boca abajo,
+  falta `ActivateResponse` durante el turno rival pagando FD reservado, con su ventana de
+  prioridad.
+- **Targeting interactivo real** (hoy `AutoDecisionProvider` elige la 1ª opción).
+- **Protecciones con duración por turnos** (Gosén, Arca, ProtectedUntilTurn) más allá del
+  flag booleano de Lot.
+- **IA oponente** para un jugador solo.
+- **Serialización** explícita de `GameState` a JSON/binario (el modelo ya es serializable).
+
+## 14. Primer paso del port a Unity (M7)
+
+1. Crear proyecto Unity 6 URP; mover `src/Game.Core/**.cs` a `Assets/Game/Core` con
+   `asmdef` `Game.Core` (sin UnityEngine); cambiar `TargetFramework` mental a netstandard2.1.
+2. Reemplazar `CatalogLoader` (System.Text.Json) por uno con Newtonsoft (paquete Unity) o
+   `JsonUtility`; copiar `catalogo.v3.json` a `StreamingAssets`.
+3. Portar los tests a NUnit EditMode (la lógica de aserción es trivial de mapear).
+4. Capa `Runtime`: MonoBehaviours que observan `GameState` y mapean input -> comandos.
