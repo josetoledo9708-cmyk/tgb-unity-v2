@@ -131,7 +131,8 @@ namespace Game.Runtime.View
             transform.rotation = _baseRot;
             transform.localScale = Vector3.one;
 
-            float lift = (Playable ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
+            // No levantar cartas boca abajo (mano del rival): se vería disparejo.
+            float lift = (Playable && !FaceDown ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
             _visual.localPosition = new Vector3(0f, lift, 0f);
             _visual.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
         }

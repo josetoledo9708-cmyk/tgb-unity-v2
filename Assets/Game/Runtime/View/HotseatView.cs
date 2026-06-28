@@ -96,8 +96,8 @@ namespace Game.Runtime.View
         private void OnPointerDown(CardView cv)
         {
             var s = _engine.State;
-            // Carta jugable de tu mano -> arrastrar; resto (tapear TIERRA) -> clic.
-            if (cv.OwnerId == s.ActivePlayer && s.Active.Mano.Cards.Contains(cv.Card) && IsPlayable(s.Active, cv.Card))
+            // Carta jugable de tu mano (visible) -> arrastrar; resto (tapear TIERRA) -> clic.
+            if (cv.OwnerId == s.ActivePlayer && !cv.FaceDown && s.Active.Mano.Cards.Contains(cv.Card) && IsPlayable(s.Active, cv.Card))
                 BeginDrag(cv);
             else
                 OnCardClicked(cv);
