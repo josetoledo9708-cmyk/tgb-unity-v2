@@ -144,8 +144,8 @@ namespace Game.Runtime.View
                 if (ps.Concepto.Top != null)
                     Spawn(ps.Concepto.Top, p, BoardLayout.Concepto(p), true);
 
-                if (ps.Historia != null)
-                    Spawn(ps.Historia, p, BoardLayout.Historia(p), false);
+                if (ps.Historia != null) // HISTORIA se muestra en horizontal (girada 90°)
+                    Spawn(ps.Historia, p, BoardLayout.Historia(p), false, false, Quaternion.Euler(0f, 90f, 0f));
 
                 var diaTop = ps.PilaDia.Cards.FirstOrDefault(d => PlayerState.DiaNumero(d) == ps.DiaActual);
                 if (diaTop != null)
