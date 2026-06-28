@@ -17,29 +17,32 @@ namespace Game.Runtime.View
 
         public static CardView Create(Transform parent)
         {
+            // Root SIN escala (para no deformar la etiqueta). La escala de carta va en el cubo.
             var go = new GameObject("Card");
             go.transform.SetParent(parent, false);
-            go.transform.localScale = new Vector3(1.4f, 0.05f, 2.0f); // carta acostada
 
             // El cubo trae el material URP por defecto (válido). Lo tintamos en Bind;
             // NO lo reemplazamos por uno de Shader.Find (eso daba magenta bajo URP).
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.transform.SetParent(go.transform, false);
+            cube.transform.localScale = new Vector3(1.4f, 0.05f, 2.0f); // carta acostada
             Object.Destroy(cube.GetComponent<BoxCollider>());
 
             var view = go.AddComponent<CardView>();
             view._renderer = cube.GetComponent<MeshRenderer>();
-            go.AddComponent<BoxCollider>().size = Vector3.one;
+
+            var col = go.AddComponent<BoxCollider>();
+            col.size = new Vector3(1.4f, 0.2f, 2.0f);
 
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(go.transform, false);
-            labelGo.transform.localPosition = new Vector3(0f, 0.6f, 0f);
+            labelGo.transform.localPosition = new Vector3(0f, 0.06f, 0f);
             labelGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            labelGo.transform.localScale = new Vector3(0.12f, 0.08f, 0.12f);
             view._label = labelGo.AddComponent<TextMesh>();
             view._label.anchor = TextAnchor.MiddleCenter;
             view._label.alignment = TextAlignment.Center;
-            view._label.fontSize = 48;
+            view._label.fontSize = 40;
+            view._label.characterSize = 0.085f;
             view._label.color = Color.black;
             return view;
         }
