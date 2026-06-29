@@ -14,6 +14,9 @@ namespace Game.Core.Effects
                                  string prompt, bool optional);
         bool ChooseYesNo(GameState s, string prompt);
         int ChooseOption(GameState s, IReadOnlyList<string> options, string prompt);
+
+        /// <summary>Devuelve las cartas en el orden elegido (1 = primera/arriba del mazo).</summary>
+        IReadOnlyList<CardInstance> ChooseOrder(GameState s, IReadOnlyList<CardInstance> cards, string prompt);
     }
 
     /// <summary>Elige siempre la primera opción legal. Para tests y como fallback.</summary>
@@ -26,5 +29,8 @@ namespace Game.Core.Effects
         public bool ChooseYesNo(GameState s, string prompt) => true;
 
         public int ChooseOption(GameState s, IReadOnlyList<string> options, string prompt) => 0;
+
+        public IReadOnlyList<CardInstance> ChooseOrder(GameState s, IReadOnlyList<CardInstance> cards, string prompt)
+            => cards; // sin reordenar
     }
 }

@@ -37,6 +37,11 @@ namespace Game.Runtime.View
         private CommandResult _cmdResult;
         private string _cmdName = "";
 
+        private DecisionRequest? _decReq;
+        private CardInstance? _decSelected;
+        private readonly List<CardInstance> _decOrder = new();
+        private Vector2 _decScroll;
+
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 26f, -5.7f);
         [SerializeField] private Vector3 camRotation = new Vector3(78.69f, 0f, 0f);
@@ -660,25 +665,75 @@ namespace Game.Runtime.View
 
         private void DrawDecision(DecisionRequest req)
         {
-            float w = 440f;
-            float h = Mathf.Min(540f, 96f + req.Options.Count * 30f + (req.Optional ? 34f : 0f));
+            if (req != _decReq) { _decReq = req; _decSelected = null; _decOrder.Clear(); _decScroll = Vector2.zero; }
+
+            const float thumbW = 86f, thumbH = 120f, gap = 8f;
+            int visible = Mathf.Clamp(req.Options.Count, 1, 7);
+            float w = visible * (thumbW + gap) + gap + 16f;
+            float h = 36f + thumbH + 40f + 44f;
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+
             var hdr = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             GUILayout.Label(req.Prompt, hdr);
+
+            _decScroll = GUILayout.BeginScrollView(_decScroll, true, false, GUILayout.Height(thumbH + 34f));
+            GUILayout.BeginHorizontal();
+            var capStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 10 };
             foreach (var c in req.Options)
-                if (GUILayout.Button(CardLabel(c), GUILayout.Height(26))) { _decisions.Resolve(req, c); break; }
-            if (req.Optional && GUILayout.Button("Ninguna / cancelar", GUILayout.Height(26)))
-                _decisions.Resolve(req, null);
+            {
+                GUILayout.BeginVertical(GUILayout.Width(thumbW));
+                bool sel = req.IsOrder ? _decOrder.Contains(c) : c == _decSelected;
+                var prev = GUI.backgroundColor;
+                if (sel) GUI.backgroundColor = new Color(0.45f, 0.8f, 1f);
+                var tex = _art.Front(c.Nombre);
+                var content = tex != null ? new GUIContent(tex) : new GUIContent(c.Nombre);
+                if (GUILayout.Button(content, GUILayout.Width(thumbW), GUILayout.Height(thumbH)))
+                    OnDecCardClick(req, c);
+                GUI.backgroundColor = prev;
+                string mark = req.IsOrder
+                    ? (_decOrder.Contains(c) ? (_decOrder.IndexOf(c) + 1).ToString() : "·")
+                    : (c == _decSelected ? "✓" : " ");
+                GUILayout.Label($"{mark} {Trunc(c.Nombre, 11)}", capStyle);
+                GUILayout.EndVertical();
+                GUILayout.Space(gap);
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndScrollView();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (req.IsOrder)
+            {
+                if (GUILayout.Button("Reiniciar", GUILayout.Width(90))) _decOrder.Clear();
+                GUI.enabled = _decOrder.Count == req.Options.Count;
+                if (GUILayout.Button("Aceptar", GUILayout.Width(120)))
+                    _decisions.ResolveOrder(req, new List<CardInstance>(_decOrder));
+                GUI.enabled = true;
+            }
+            else
+            {
+                if (req.Optional && GUILayout.Button("Ninguna", GUILayout.Width(90)))
+                    _decisions.Resolve(req, null);
+                GUI.enabled = _decSelected != null;
+                if (GUILayout.Button("Aceptar", GUILayout.Width(120)))
+                    _decisions.Resolve(req, _decSelected);
+                GUI.enabled = true;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
             GUILayout.EndArea();
         }
 
-        private static string CardLabel(CardInstance c)
+        private void OnDecCardClick(DecisionRequest req, CardInstance c)
         {
-            var d = c.Def;
-            string extra = d.Coste.HasValue ? $" (coste {d.Coste})"
-                         : d.Fd.HasValue ? $" (FD {d.Fd})" : "";
-            return d.Nombre + extra;
+            if (req.IsOrder)
+            {
+                if (!_decOrder.Remove(c)) _decOrder.Add(c); // clic alterna: añadir al orden o quitar
+            }
+            else _decSelected = c;
         }
+
+        private static string Trunc(string s, int n) => s.Length > n ? s.Substring(0, n - 1) + "…" : s;
 
         private static string PhaseName(Phase ph) => ph switch
         {

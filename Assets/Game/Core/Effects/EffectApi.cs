@@ -196,6 +196,18 @@ namespace Game.Core.Effects
             return pick != null;
         }
 
+        /// <summary>Mira las top n del mazo y las reordena según la decisión (1 = arriba).</summary>
+        public static void LookTopReorder(GameEngine eng, PlayerState p, int n)
+        {
+            var top = p.Mazo.Cards.Take(n).ToList();
+            if (top.Count == 0) return;
+            var ordered = eng.Decisions.ChooseOrder(eng.State, top,
+                $"Reordena las {top.Count} cartas superiores (1 = arriba del mazo)");
+            for (int i = 0; i < top.Count; i++) p.Mazo.Cards.RemoveAt(0);
+            for (int i = ordered.Count - 1; i >= 0; i--) p.Mazo.Cards.Insert(0, ordered[i]);
+            eng.State.Emit($"P{p.Id} reordena las {top.Count} superiores");
+        }
+
         public static void ProtectAllSeres(GameEngine eng, PlayerState p, int turns)
         {
             foreach (var s in p.Seres.Cards) s.ProtectedUntilTurn = eng.State.TurnNumber + turns;

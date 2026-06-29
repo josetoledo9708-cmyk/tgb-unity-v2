@@ -12,7 +12,9 @@ namespace Game.Runtime.View
         public IReadOnlyList<CardInstance> Options { get; }
         public string Prompt { get; }
         public bool Optional { get; }
-        public CardInstance? Result;
+        public bool IsOrder;                 // true = elegir orden de todas; false = elegir 1
+        public CardInstance? Result;         // modo seleccionar
+        public List<CardInstance>? ResultOrder; // modo ordenar
         public readonly ManualResetEventSlim Done = new(false);
 
         public DecisionRequest(IReadOnlyList<CardInstance> options, string prompt, bool optional)
@@ -47,10 +49,27 @@ namespace Game.Runtime.View
         public bool ChooseYesNo(GameState s, string prompt) => true;
         public int ChooseOption(GameState s, IReadOnlyList<string> options, string prompt) => 0;
 
-        /// <summary>Llamado por la UI (hilo principal) para resolver la decisión.</summary>
+        public IReadOnlyList<CardInstance> ChooseOrder(GameState s, IReadOnlyList<CardInstance> cards, string prompt)
+        {
+            if (cards.Count <= 1) return cards;
+            var req = new DecisionRequest(cards.ToList(), prompt, optional: false) { IsOrder = true };
+            _pending = req;
+            req.Done.Wait();
+            _pending = null;
+            return req.ResultOrder ?? cards;
+        }
+
+        /// <summary>Llamado por la UI (hilo principal) para resolver una selección.</summary>
         public void Resolve(DecisionRequest req, CardInstance? result)
         {
             req.Result = result;
+            req.Done.Set();
+        }
+
+        /// <summary>Resuelve una decisión de orden con la lista ordenada.</summary>
+        public void ResolveOrder(DecisionRequest req, List<CardInstance> order)
+        {
+            req.ResultOrder = order;
             req.Done.Set();
         }
     }

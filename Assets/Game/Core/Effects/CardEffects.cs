@@ -59,7 +59,7 @@ namespace Game.Core.Effects
             });
             r.On("t04", AlTapearse, c => { c.Opponent.DiaBlockedTurns += 1; EffectApi.DiscardRandom(c.Engine, c.Owner, 1); });
             r.On("t05", AlEntrar, c => { if (EffectApi.OncePerGame(c.Owner, "t05")) EffectApi.SearchTierraToField(c.Engine, c.Owner, d => d.Id == "t06" || d.Id == "t07"); }); // Canaán
-            r.On("t10", AlTapearse, c => c.Engine.State.Emit("Betel: reordena las 2 superiores"));
+            r.On("t10", AlTapearse, c => EffectApi.LookTopReorder(c.Engine, c.Owner, 2)); // Betel
             r.On("t11", AlTapearse, c =>
             {
                 EffectApi.ReturnFromRetiradosToHand(c.Engine, c.Owner, d => CardTypeNames.IsSer(d.Type));
@@ -122,7 +122,7 @@ namespace Game.Core.Effects
         private static void Humanos(EffectRegistry r)
         {
             r.On("sh01", AlEntrar, c => Pair(c, "Eva"));   // Adán
-            r.On("sh01", EfectoActivado, c => c.Engine.State.Emit("Adán: reordena las 2 superiores"));
+            r.On("sh01", EfectoActivado, c => EffectApi.LookTopReorder(c.Engine, c.Owner, 2)); // Adán
             r.On("sh02", AlEntrar, c => Pair(c, "Adán"));   // Eva
             r.On("sh02", EfectoActivado, c => EffectApi.DiscardRandom(c.Engine, c.Owner, 1));
             r.On("sh03", AlEntrar, c => EffectApi.DestroyTierras(c.Engine, c.Owner.Id, 1)); // Caín
@@ -242,7 +242,7 @@ namespace Game.Core.Effects
             r.On("c13", UsoUnico, c => c.State.ActivatedEffectsDisabled = true);                     // La Confusión de Lenguas
             r.On("c14", UsoUnico, c => EffectApi.DiscardRandom(c.Engine, c.Opponent, 2));            // La Dispersión de los Pueblos
             r.On("c15", UsoUnico, c => { EffectApi.SacrificeOwnSer(c.Engine, c.Owner); EffectApi.Draw(c.Engine, c.Owner, 3); }); // El Sacrificio de Isaac
-            r.On("c16", UsoUnico, c => { c.Engine.State.Emit("Sueño de la Escalera: reordena top 3"); EffectApi.Draw(c.Engine, c.Owner, 1); }); // El Sueño de la Escalera
+            r.On("c16", UsoUnico, c => { EffectApi.LookTopReorder(c.Engine, c.Owner, 3); EffectApi.Draw(c.Engine, c.Owner, 1); }); // El Sueño de la Escalera
             r.On("c17", UsoUnico, c => c.Owner.NextSerDurBonus += 2);                                // La Túnica de Colores
             r.On("c18", UsoUnico, c =>                                                               // El Pozo de José
             {
