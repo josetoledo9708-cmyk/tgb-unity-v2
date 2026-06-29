@@ -49,6 +49,8 @@ namespace Game.Runtime.View
         private Transform _board = null!;
         private readonly TextMesh[] _mazoCount = new TextMesh[2];
         private readonly TextMesh[] _retirCount = new TextMesh[2];
+        private readonly TextMesh[] _fdLabel = new TextMesh[2];
+        private readonly TextMesh[] _handCount = new TextMesh[2];
         private readonly List<CardView> _spawned = new();
         private CardView? _hovered;
         private CardView? _drag;
@@ -121,6 +123,7 @@ namespace Game.Runtime.View
                 if (_hovered != null) _hovered.SetHovered(false);
                 _hovered = hit;
                 if (_hovered != null) _hovered.SetHovered(true);
+                UpdateHandCount();
             }
 
             if (!_engine.State.IsOver && Input.GetMouseButtonDown(0) && hit != null)
@@ -200,6 +203,20 @@ namespace Game.Runtime.View
             }
         }
 
+        private void UpdateHandCount()
+        {
+            for (int p = 0; p < 2; p++)
+                if (_handCount[p] != null) _handCount[p].gameObject.SetActive(false);
+
+            if (_hovered == null || _hovered.Card == null) return;
+            int o = _hovered.OwnerId;
+            if (_handCount[o] != null && _engine.State.Players[o].Mano.Cards.Contains(_hovered.Card))
+            {
+                _handCount[o].text = "Mano: " + _engine.State.Players[o].Mano.Count;
+                _handCount[o].gameObject.SetActive(true);
+            }
+        }
+
         private CardView? RaycastCard()
         {
             if (Camera.main == null) return null;
@@ -256,6 +273,7 @@ namespace Game.Runtime.View
             {
                 if (_mazoCount[p] != null) _mazoCount[p].text = "MAZO\n" + s.Players[p].Mazo.Count;
                 if (_retirCount[p] != null) _retirCount[p].text = "RETIR.\n" + s.Players[p].Retirados.Count;
+                if (_fdLabel[p] != null) _fdLabel[p].text = "FD\n" + s.Players[p].Fd;
             }
 
             var curHandIds = new HashSet<int>();
@@ -373,7 +391,8 @@ namespace Game.Runtime.View
         private void BuildBoard()
         {
             _board = new GameObject("Board").transform;
-            BuildGlow(); // resaltados de zona (ocultos hasta arrastrar)
+            BuildGlow();     // resaltados de zona (ocultos hasta arrastrar)
+            BuildHudLabels(); // contadores FD (mundo) + mano (al hover)
 
             // Si hay imagen de fondo, la usamos como campo y ocultamos las zonas procedurales.
             var bg = LoadTextureFromFile(backgroundPath);
@@ -462,6 +481,23 @@ namespace Game.Runtime.View
             return null;
         }
 
+        private void BuildHudLabels()
+        {
+            var gold = new Color(0.92f, 0.82f, 0.35f);
+            for (int p = 0; p < 2; p++)
+            {
+                var mz = BoardLayout.Mazo(p);
+                // FD al flanco OPUESTO del mazo, misma fila.
+                var fdPos = new Vector3(Mathf.Sign(-mz.x) * 9f, 0f, mz.z);
+                _fdLabel[p] = ZoneLabel("FD", fdPos, 42, 0.13f, gold);
+
+                // Contador de mano al costado de la mano (oculto hasta hover).
+                float handZ = (p == 0 ? -1f : 1f) * BoardLayout.HandZ;
+                _handCount[p] = ZoneLabel("Mano", new Vector3(9f, 0f, handZ), 36, 0.10f, Color.white);
+                _handCount[p].gameObject.SetActive(false);
+            }
+        }
+
         private void BuildGlow()
         {
             var gT = new Color(0.35f, 1.0f, 0.45f); // TIERRA verde
@@ -529,7 +565,8 @@ namespace Game.Runtime.View
             var timer = new GUIStyle(big) { fontSize = 20 };
             timer.normal.textColor = new Color(0.45f, 0.6f, 1f);
 
-            GUILayout.BeginArea(new Rect(Screen.width - 300, 16, 280, 260), GUI.skin.box);
+            float pw = 200f, ph = 200f;
+            GUILayout.BeginArea(new Rect(Screen.width - pw - 14f, (Screen.height - ph) * 0.5f, pw, ph), GUI.skin.box);
             GUILayout.Space(6);
             GUILayout.Label("FASE ACTUAL", title);
             GUILayout.Label(PhaseName(s.Phase), big);
@@ -554,7 +591,6 @@ namespace Game.Runtime.View
                 }
                 GUI.enabled = true;
             }
-            GUILayout.Label($"P0 FD {s.Players[0].Fd} · Mano {s.Players[0].Mano.Count}    P1 FD {s.Players[1].Fd} · Mano {s.Players[1].Mano.Count}", center);
             GUILayout.Label(_status, center);
             GUILayout.EndArea();
 
