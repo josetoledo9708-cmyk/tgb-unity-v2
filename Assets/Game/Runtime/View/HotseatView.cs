@@ -662,9 +662,15 @@ namespace Game.Runtime.View
             GUILayout.EndArea();
 
             if (_decisions.Pending != null)
+            {
                 DrawDecision(_decisions.Pending);
+                if (_decSelected != null) // ver la carta elegida en el menú + sus efectos
+                    DrawCardDetailFor(_decSelected, s.ActivePlayer);
+            }
             else if (!_busy && _hovered != null && _hovered.Card != null)
+            {
                 DrawCardDetail(_hovered);
+            }
         }
 
         private void DrawDecision(DecisionRequest req)
@@ -791,8 +797,25 @@ namespace Game.Runtime.View
                 return;
             }
 
-            var d = cv.Card.Def;
             GUILayout.BeginArea(new Rect(10, 10, 340, 470), GUI.skin.box);
+            DrawDetailBody(cv.Card, cv.OwnerId);
+            DrawActivationHint(cv);
+            GUILayout.EndArea();
+        }
+
+        /// <summary>Detalle de una carta concreta (usado también para la carta elegida en el menú).</summary>
+        private void DrawCardDetailFor(CardInstance card, int owner)
+        {
+            _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
+            GUILayout.BeginArea(new Rect(10, 10, 340, 470), GUI.skin.box);
+            DrawDetailBody(card, owner);
+            GUILayout.EndArea();
+        }
+
+        private void DrawDetailBody(CardInstance card, int owner)
+        {
+            _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
+            var d = card.Def;
 
             var art = _art.Front(d.Nombre);
             if (art != null)
@@ -809,7 +832,7 @@ namespace Game.Runtime.View
             if (d.Coste.HasValue) GUILayout.Label($"Coste FD: {d.Coste}");
             if (d.Fd.HasValue) GUILayout.Label($"Genera FD: {d.Fd}");
             if (CardTypeNames.IsSer(d.Type))
-                GUILayout.Label($"Duración: {cv.Card.DurLeft} (base {d.Dur}) · actCost {d.ActCost}");
+                GUILayout.Label($"Duración: {card.DurLeft} (base {d.Dur}) · actCost {d.ActCost}");
             if (!string.IsNullOrEmpty(d.TipoConcepto)) GUILayout.Label($"Concepto: {d.TipoConcepto}");
 
             if (!string.IsNullOrEmpty(d.Condicion)) GUILayout.Label($"Condición: {d.Condicion}", _wrap);
@@ -818,9 +841,7 @@ namespace Game.Runtime.View
             if (!string.IsNullOrEmpty(d.AlSalir)) GUILayout.Label($"Al salir: {d.AlSalir}", _wrap);
             if (!string.IsNullOrEmpty(d.Efecto)) GUILayout.Label($"Efecto: {d.Efecto}", _wrap);
 
-            DrawHistoriaPieces(d, cv.OwnerId);
-            DrawActivationHint(cv);
-            GUILayout.EndArea();
+            DrawHistoriaPieces(d, owner);
         }
 
         /// <summary>HISTORIA: lista sus 5 piezas con ✓ si ya están en campo del dueño.</summary>
