@@ -124,7 +124,7 @@ namespace Game.Core.Effects
             r.On("sh01", AlEntrar, c => Pair(c, "Eva"));   // Adán
             r.On("sh01", EfectoActivado, c => EffectApi.LookTopReorder(c.Engine, c.Owner, 2)); // Adán
             r.On("sh02", AlEntrar, c => Pair(c, "Adán"));   // Eva
-            r.On("sh02", EfectoActivado, c => EffectApi.DiscardRandom(c.Engine, c.Owner, 1));
+            r.On("sh02", EfectoActivado, c => { EffectApi.RevealMany(c.Engine, c.Opponent.Mano.Cards.ToList(), "Mano del rival"); EffectApi.DiscardRandom(c.Engine, c.Owner, 1); }); // Eva
             r.On("sh03", AlEntrar, c => EffectApi.DestroyTierras(c.Engine, c.Owner.Id, 1)); // Caín
             r.On("sh03", EfectoActivado, c => EffectApi.SearchToHand(c.Engine, c.Owner, d => d.Type == CardType.Concepto));
             r.On("sh03", AlSalir, c =>

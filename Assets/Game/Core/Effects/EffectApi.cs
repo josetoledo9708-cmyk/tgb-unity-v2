@@ -119,6 +119,14 @@ namespace Game.Core.Effects
             eng.State.Emit($"Revelado: {card.Nombre}");
         }
 
+        /// <summary>Muestra varias cartas al jugador (revelar mano/zona). No cambia el estado.</summary>
+        public static void RevealMany(GameEngine eng, IReadOnlyList<CardInstance> cards, string prompt)
+        {
+            if (cards.Count == 0) { eng.State.Emit($"{prompt}: vacía"); return; }
+            eng.Decisions.ChooseCard(eng.State, cards.ToList(), prompt, optional: true);
+            eng.State.Emit($"Reveladas {cards.Count} carta(s)");
+        }
+
         // --- destrucción / control (familias 4-6) ---
 
         public static void DestroyAllSeresBothSides(GameEngine eng)
