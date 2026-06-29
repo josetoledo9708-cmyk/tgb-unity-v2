@@ -111,6 +111,14 @@ namespace Game.Core.Effects
         public static bool HasSerInField(PlayerState p, string nombre)
             => p.Seres.Cards.Any(c => c.Nombre == nombre);
 
+        /// <summary>Muestra una carta al jugador (mirar/espiar). No cambia el estado.</summary>
+        public static void Reveal(GameEngine eng, CardInstance? card, string prompt)
+        {
+            if (card == null) return;
+            eng.Decisions.ChooseCard(eng.State, new[] { card }, prompt, optional: true);
+            eng.State.Emit($"Revelado: {card.Nombre}");
+        }
+
         // --- destrucción / control (familias 4-6) ---
 
         public static void DestroyAllSeresBothSides(GameEngine eng)

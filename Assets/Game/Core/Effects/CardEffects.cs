@@ -214,7 +214,7 @@ namespace Game.Core.Effects
         {
             r.On("sa1", AlEntrar, c => EffectApi.DiscardRandom(c.Engine, c.Opponent, 1)); // La Serpiente
             r.On("sa1", EfectoActivado, c => c.Opponent.NegatedNextEffect = true);
-            r.On("sa2", AlEntrar, c => c.Engine.State.Emit("El Cuervo: mira la carta superior del mazo rival"));
+            r.On("sa2", AlEntrar, c => EffectApi.Reveal(c.Engine, c.Opponent.Mazo.Top, "Carta superior del mazo rival")); // El Cuervo
             r.On("sa2", EfectoActivado, c => EffectApi.Draw(c.Engine, c.Owner, 1));
             r.On("sa3", AlSalir, c => EffectApi.Draw(c.Engine, c.Owner, 1)); // La Paloma
             r.On("sa3", EfectoActivado, c => EffectApi.AddFd(c.Engine, c.Owner, 1));
