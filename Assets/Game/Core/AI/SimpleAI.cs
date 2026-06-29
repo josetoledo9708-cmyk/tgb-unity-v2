@@ -34,6 +34,13 @@ namespace Game.Core.AI
                 if (ser == null || !eng.PlaySer(ser).Ok) break;
             }
 
+            // 3b) Usar los efectos ACTIVADOS de los SER en campo (si alcanza el FD).
+            foreach (var ser in p.Seres.Cards.ToList())
+            {
+                if (p.SeresActivatedThisTurn.Contains(ser.InstanceId)) continue;
+                if ((ser.Def.ActCost ?? 0) <= p.Fd) eng.ActivateSerEffect(ser);
+            }
+
             // 4) Activar el DÍA actual si cumple condición y alcanza el FD.
             int dia = p.DiaActual;
             if (dia <= 7 && DiaConditions.Met(p, dia))

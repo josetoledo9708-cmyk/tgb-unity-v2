@@ -239,24 +239,25 @@ namespace Game.Runtime.View
             var s = _engine.State;
             if (cv.OwnerId != s.ActivePlayer || cv.Card == null) return;
             var p = s.Active;
+            var card = cv.Card;
             CommandResult r;
 
-            if (p.Mano.Cards.Contains(cv.Card))
-            {
-                r = cv.Card.Type switch
+            if (p.Tierras.Cards.Contains(card) && !card.Tapped)
+                r = _engine.TapTierra(card);                       // tapear TIERRA -> FD
+            else if (p.Seres.Cards.Contains(card))
+                r = _engine.ActivateSerEffect(card);               // efecto ACTIVADO del SER (paga actCost)
+            else if (card.Type == CardType.Dia)
+                r = _engine.ActivateDia(useFree: false);           // activar el DÍA actual
+            else if (p.Mano.Cards.Contains(card))                  // mano no arrastrable -> intentar jugar
+                r = card.Type switch
                 {
-                    CardType.Tierra => _engine.PlayTierra(cv.Card),
-                    CardType.Concepto => _engine.PlayConcepto(cv.Card, faceDown: false),
-                    _ => _engine.PlaySer(cv.Card)
+                    CardType.Tierra => _engine.PlayTierra(card),
+                    CardType.Concepto => _engine.PlayConcepto(card, faceDown: false),
+                    _ => _engine.PlaySer(card)
                 };
-            }
-            else if (p.Tierras.Cards.Contains(cv.Card) && !cv.Card.Tapped)
-            {
-                r = _engine.TapTierra(cv.Card);
-            }
             else return;
 
-            _status = $"{cv.Card.Nombre}: {(r.Ok ? "OK" : r.Error)}";
+            _status = $"{card.Nombre}: {(r.Ok ? "OK" : r.Error)}";
             Rebuild();
         }
 
