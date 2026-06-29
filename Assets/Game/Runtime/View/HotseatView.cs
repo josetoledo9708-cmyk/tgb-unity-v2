@@ -57,6 +57,8 @@ namespace Game.Runtime.View
         private string _status = "";
 
         private readonly HashSet<int> _prevHandIds = new();
+        private readonly Dictionary<int, int>[] _serSlot = { new(), new() };
+        private readonly Dictionary<int, int>[] _tierraSlot = { new(), new() };
         private readonly List<GameObject>[] _glowTierra = { new(), new() };
         private readonly List<GameObject>[] _glowSer = { new(), new() };
         private readonly GameObject?[] _glowConcepto = new GameObject?[2];
@@ -297,8 +299,9 @@ namespace Game.Runtime.View
                         StartCoroutine(Deal(v.transform, BoardLayout.Mazo(p) + Vector3.up * 0.3f, fpos));
                 }
 
-                for (int i = 0; i < ps.Tierras.Count; i++)
-                    Spawn(ps.Tierras.Cards[i], p, BoardLayout.Tierra(p, i), false);
+                var tSlots = AssignSlots(_tierraSlot[p], ps.Tierras.Cards, 7);
+                foreach (var t in ps.Tierras.Cards)
+                    Spawn(t, p, BoardLayout.Tierra(p, tSlots[t.InstanceId]), false);
 
                 // Mazo: montón de reversos escalonados (parece pila de cartas).
                 if (ps.Mazo.Count > 0)
@@ -315,8 +318,9 @@ namespace Game.Runtime.View
                     Spawn(top, p, BoardLayout.Descarte(p) + Vector3.up * 0.02f, faceDown: false);
                 }
 
-                for (int i = 0; i < ps.Seres.Count; i++)
-                    Spawn(ps.Seres.Cards[i], p, BoardLayout.Ser(p, i), false);
+                var sSlots = AssignSlots(_serSlot[p], ps.Seres.Cards, 3);
+                foreach (var ser in ps.Seres.Cards)
+                    Spawn(ser, p, BoardLayout.Ser(p, sSlots[ser.InstanceId]), false);
 
                 if (ps.Concepto.Top != null)
                     Spawn(ps.Concepto.Top, p, BoardLayout.Concepto(p), true);
@@ -357,6 +361,26 @@ namespace Game.Runtime.View
                 yield return null;
             }
             if (t != null) t.position = to;
+        }
+
+        /// <summary>Asigna a cada carta un slot estable (no se reordenan al retirarse otra).</summary>
+        private static Dictionary<int, int> AssignSlots(Dictionary<int, int> map,
+                                                        IReadOnlyList<CardInstance> cards, int max)
+        {
+            var present = new HashSet<int>(cards.Select(c => c.InstanceId));
+            foreach (var k in map.Keys.Where(k => !present.Contains(k)).ToList()) map.Remove(k);
+
+            var used = new HashSet<int>(map.Values);
+            foreach (var c in cards)
+            {
+                if (map.ContainsKey(c.InstanceId)) continue;
+                int slot = 0;
+                while (slot < max && used.Contains(slot)) slot++;
+                if (slot >= max) slot = max - 1;
+                map[c.InstanceId] = slot;
+                used.Add(slot);
+            }
+            return map;
         }
 
         private void EnsureSceneRig()
@@ -672,12 +696,61 @@ namespace Game.Runtime.View
                 GUILayout.Label($"Duración: {cv.Card.DurLeft} (base {d.Dur}) · actCost {d.ActCost}");
             if (!string.IsNullOrEmpty(d.TipoConcepto)) GUILayout.Label($"Concepto: {d.TipoConcepto}");
 
+            if (!string.IsNullOrEmpty(d.Condicion)) GUILayout.Label($"Condición: {d.Condicion}", _wrap);
             if (!string.IsNullOrEmpty(d.AlEntrar)) GUILayout.Label($"Al entrar: {d.AlEntrar}", _wrap);
             if (!string.IsNullOrEmpty(d.Activado)) GUILayout.Label($"Activado: {d.Activado}", _wrap);
             if (!string.IsNullOrEmpty(d.AlSalir)) GUILayout.Label($"Al salir: {d.AlSalir}", _wrap);
             if (!string.IsNullOrEmpty(d.Efecto)) GUILayout.Label($"Efecto: {d.Efecto}", _wrap);
-            if (cv.Playable) GUILayout.Label(">> Jugable (clic)");
+
+            DrawHistoriaPieces(d, cv.OwnerId);
+            DrawActivationHint(cv);
             GUILayout.EndArea();
+        }
+
+        /// <summary>HISTORIA: lista sus 5 piezas con ✓ si ya están en campo del dueño.</summary>
+        private void DrawHistoriaPieces(CardDefinition d, int owner)
+        {
+            if (d.Type != CardType.Historia) return;
+            var h = _engine.Catalog.FindHistoria(d.Id);
+            if (h == null) return;
+            var ps = _engine.State.Players[owner];
+            GUILayout.Label("Piezas necesarias:");
+            foreach (var pieza in h.Piezas)
+            {
+                bool en = ps.Tierras.Cards.Any(c => c.Nombre == pieza)
+                       || ps.Seres.Cards.Any(c => c.Nombre == pieza);
+                GUILayout.Label($"  {(en ? "✓" : "•")} {pieza}", _wrap);
+            }
+        }
+
+        /// <summary>Indica si la carta puede activarse ahora (SER/DÍA del jugador activo).</summary>
+        private void DrawActivationHint(CardView cv)
+        {
+            var s = _engine.State;
+            if (cv.OwnerId != s.ActivePlayer) return;
+            var p = s.Active;
+            var card = cv.Card;
+
+            if (p.Seres.Cards.Contains(card))
+            {
+                int cost = card.Def.ActCost ?? 0;
+                if (p.SeresActivatedThisTurn.Contains(card.InstanceId))
+                    GUILayout.Label(">> Efecto ya usado este turno");
+                else if (p.Fd >= cost)
+                    GUILayout.Label($">> Clic para activar (cuesta {cost} FD)");
+                else
+                    GUILayout.Label($">> FD insuficiente ({p.Fd}/{cost})");
+            }
+            else if (card.Type == CardType.Dia && PlayerState.DiaNumero(card) == p.DiaActual)
+            {
+                GUILayout.Label(DiaConditions.Met(p, p.DiaActual)
+                    ? ">> Condición cumplida — clic para activar"
+                    : ">> Condición NO cumplida");
+            }
+            else if (cv.Playable)
+            {
+                GUILayout.Label(">> Arrastra al campo para jugar");
+            }
         }
     }
 }
