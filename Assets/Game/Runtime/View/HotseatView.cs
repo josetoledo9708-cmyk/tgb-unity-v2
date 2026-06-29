@@ -807,7 +807,7 @@ namespace Game.Runtime.View
         private void DrawCardDetailFor(CardInstance card, int owner)
         {
             _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
-            GUILayout.BeginArea(new Rect(10, 10, 340, 470), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(Screen.width - 350f, 10f, 340f, 470f), GUI.skin.box); // arriba a la derecha
             DrawDetailBody(card, owner);
             GUILayout.EndArea();
         }
