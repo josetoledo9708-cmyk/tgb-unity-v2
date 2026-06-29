@@ -25,7 +25,10 @@ namespace Game.Runtime.View
         [SerializeField] private string historiaP1 = "h2";
         [SerializeField] private ulong seed = 12345;
         [SerializeField] private int aiPlayer = 1; // jugador controlado por IA (-1 = ninguno)
+        [SerializeField] private float turnSeconds = 180f; // temporizador por turno
         private bool _aiRunning;
+        private float _turnTimer;
+        private int _timerTurn = -1;
 
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 26f, -5.7f);
@@ -108,6 +111,7 @@ namespace Game.Runtime.View
         private void Update()
         {
             if (_engine == null) return;
+            TickTimer();
 
             if (_drag != null) { DragUpdate(); return; }
 
@@ -517,25 +521,83 @@ namespace Game.Runtime.View
         {
             if (_engine == null) return;
             var s = _engine.State;
-            GUILayout.BeginArea(new Rect(Screen.width - 370, 10, 360, 220), GUI.skin.box);
-            GUILayout.Label($"Turno {s.TurnNumber} · Fase {s.Phase} · Activo P{s.ActivePlayer}");
-            GUILayout.Label($"P0  FD={s.Players[0].Fd}  Día={s.Players[0].DiaActual}  Mano={s.Players[0].Mano.Count}");
-            GUILayout.Label($"P1  FD={s.Players[1].Fd}  Día={s.Players[1].DiaActual}  Mano={s.Players[1].Mano.Count}");
-            GUILayout.Label(_status);
+
+            var center = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
+            var title = new GUIStyle(center) { fontSize = 13 };
+            var big = new GUIStyle(center) { fontSize = 22, fontStyle = FontStyle.Bold };
+            var sub = new GUIStyle(center) { fontSize = 15 };
+            var timer = new GUIStyle(big) { fontSize = 20 };
+            timer.normal.textColor = new Color(0.45f, 0.6f, 1f);
+
+            GUILayout.BeginArea(new Rect(Screen.width - 300, 16, 280, 260), GUI.skin.box);
+            GUILayout.Space(6);
+            GUILayout.Label("FASE ACTUAL", title);
+            GUILayout.Label(PhaseName(s.Phase), big);
+            GUILayout.Box("", GUILayout.Height(2), GUILayout.ExpandWidth(true));
+            GUILayout.Label($"Turno {s.TurnNumber}", sub);
+            GUILayout.Label(WhoseTurn(s), sub);
+            GUILayout.Label(TimerStr(), timer);
+            GUILayout.Space(4);
 
             if (s.IsOver)
-                GUILayout.Label($"FIN: gana P{s.Winner} (Victoria {s.WinReason})");
-            else if (!_aiRunning && GUILayout.Button("Terminar turno"))
+                GUILayout.Label($"FIN: gana P{s.Winner} ({s.WinReason})", sub);
+            else
             {
-                var r = _engine.EndTurn();
-                _status = r.Ok ? "Turno terminado." : r.Error;
-                Rebuild();
-                MaybeRunAI();
+                bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
+                GUI.enabled = humanTurn && !_aiRunning;
+                if (GUILayout.Button("SIGUIENTE FASE", GUILayout.Height(28)))
+                {
+                    var r = _engine.EndTurn();
+                    _status = r.Ok ? "Turno terminado." : r.Error;
+                    Rebuild();
+                    MaybeRunAI();
+                }
+                GUI.enabled = true;
             }
+            GUILayout.Label($"P0 FD {s.Players[0].Fd} · Mano {s.Players[0].Mano.Count}    P1 FD {s.Players[1].Fd} · Mano {s.Players[1].Mano.Count}", center);
+            GUILayout.Label(_status, center);
             GUILayout.EndArea();
 
             if (_hovered != null && _hovered.Card != null)
                 DrawCardDetail(_hovered);
+        }
+
+        private static string PhaseName(Phase ph) => ph switch
+        {
+            Phase.Preludio => "PRELUDIO",
+            Phase.Genesis => "GÉNESIS",
+            Phase.Preparacion => "PREPARACIÓN",
+            Phase.Entrega => "ENTREGA",
+            _ => ph.ToString().ToUpperInvariant()
+        };
+
+        private string WhoseTurn(GameState s)
+        {
+            if (s.ActivePlayer == aiPlayer) return "Turno IA";
+            return s.ActivePlayer == 0 ? "Tu Turno" : "Turno Rival";
+        }
+
+        private string TimerStr()
+        {
+            int t = Mathf.Max(0, Mathf.CeilToInt(_turnTimer));
+            return $"{t / 60}:{t % 60:00}";
+        }
+
+        private void TickTimer()
+        {
+            var s = _engine.State;
+            if (s.TurnNumber != _timerTurn) { _timerTurn = s.TurnNumber; _turnTimer = turnSeconds; }
+            if (s.IsOver) return;
+            bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
+            if (!humanTurn) return; // la IA no consume el reloj
+            _turnTimer -= Time.deltaTime;
+            if (_turnTimer <= 0f && !_aiRunning)
+            {
+                _turnTimer = 0f;
+                _engine.EndTurn();
+                Rebuild();
+                MaybeRunAI();
+            }
         }
 
         private GUIStyle? _wrap;
