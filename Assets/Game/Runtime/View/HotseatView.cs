@@ -41,6 +41,7 @@ namespace Game.Runtime.View
         private CardInstance? _decSelected;
         private readonly List<CardInstance> _decOrder = new();
         private Vector2 _decScroll;
+        private System.Action? _deferredResolve;
 
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 26f, -5.7f);
@@ -128,6 +129,9 @@ namespace Game.Runtime.View
         private void Update()
         {
             if (_engine == null) return;
+
+            // Resolver decisión (Aceptar) fuera del ciclo OnGUI para no romper el GUILayout.
+            if (_deferredResolve != null) { var a = _deferredResolve; _deferredResolve = null; a(); }
 
             // Comando humano en curso (en hilo): esperar a que termine o a resolver decisión.
             if (_busy)
@@ -667,18 +671,20 @@ namespace Game.Runtime.View
         {
             if (req != _decReq) { _decReq = req; _decSelected = null; _decOrder.Clear(); _decScroll = Vector2.zero; }
 
-            const float thumbW = 86f, thumbH = 120f, gap = 8f;
+            const float thumbW = 84f, thumbH = 118f, gap = 8f;
             int visible = Mathf.Clamp(req.Options.Count, 1, 7);
-            float w = visible * (thumbW + gap) + gap + 16f;
-            float h = 36f + thumbH + 40f + 44f;
+            float w = visible * (thumbW + gap) + gap + 20f;
+            float h = 30f + (thumbH + 40f) + 46f;
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
 
             var hdr = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             GUILayout.Label(req.Prompt, hdr);
 
-            _decScroll = GUILayout.BeginScrollView(_decScroll, true, false, GUILayout.Height(thumbH + 34f));
+            // Solo barra horizontal (vertical oculta con GUIStyle.none).
+            _decScroll = GUILayout.BeginScrollView(_decScroll, true, false,
+                GUI.skin.horizontalScrollbar, GUIStyle.none, GUI.skin.box, GUILayout.Height(thumbH + 40f));
             GUILayout.BeginHorizontal();
-            var capStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 10 };
+            var cap = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 10 };
             foreach (var c in req.Options)
             {
                 GUILayout.BeginVertical(GUILayout.Width(thumbW));
@@ -686,39 +692,39 @@ namespace Game.Runtime.View
                 var prev = GUI.backgroundColor;
                 if (sel) GUI.backgroundColor = new Color(0.45f, 0.8f, 1f);
                 var tex = _art.Front(c.Nombre);
-                var content = tex != null ? new GUIContent(tex) : new GUIContent(c.Nombre);
+                var content = tex != null ? new GUIContent(tex) : new GUIContent(Trunc(c.Nombre, 12));
                 if (GUILayout.Button(content, GUILayout.Width(thumbW), GUILayout.Height(thumbH)))
                     OnDecCardClick(req, c);
                 GUI.backgroundColor = prev;
                 string mark = req.IsOrder
                     ? (_decOrder.Contains(c) ? (_decOrder.IndexOf(c) + 1).ToString() : "·")
                     : (c == _decSelected ? "✓" : " ");
-                GUILayout.Label($"{mark} {Trunc(c.Nombre, 11)}", capStyle);
+                GUILayout.Label($"{mark} {Trunc(c.Nombre, 11)}", cap);
                 GUILayout.EndVertical();
                 GUILayout.Space(gap);
             }
             GUILayout.EndHorizontal();
             GUILayout.EndScrollView();
 
+            bool can = req.IsOrder ? _decOrder.Count == req.Options.Count : (_decSelected != null || req.Optional);
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (req.IsOrder)
+            GUI.enabled = can;
+            if (GUILayout.Button("Aceptar", GUILayout.Width(150), GUILayout.Height(28)))
             {
-                if (GUILayout.Button("Reiniciar", GUILayout.Width(90))) _decOrder.Clear();
-                GUI.enabled = _decOrder.Count == req.Options.Count;
-                if (GUILayout.Button("Aceptar", GUILayout.Width(120)))
-                    _decisions.ResolveOrder(req, new List<CardInstance>(_decOrder));
-                GUI.enabled = true;
+                // Diferir el resolve a Update: cambiarlo dentro de OnGUI rompe el GUILayout.
+                if (req.IsOrder)
+                {
+                    var order = new List<CardInstance>(_decOrder);
+                    _deferredResolve = () => _decisions.ResolveOrder(req, order);
+                }
+                else
+                {
+                    var pick = _decSelected;
+                    _deferredResolve = () => _decisions.Resolve(req, pick);
+                }
             }
-            else
-            {
-                if (req.Optional && GUILayout.Button("Ninguna", GUILayout.Width(90)))
-                    _decisions.Resolve(req, null);
-                GUI.enabled = _decSelected != null;
-                if (GUILayout.Button("Aceptar", GUILayout.Width(120)))
-                    _decisions.Resolve(req, _decSelected);
-                GUI.enabled = true;
-            }
+            GUI.enabled = true;
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
@@ -728,7 +734,7 @@ namespace Game.Runtime.View
         {
             if (req.IsOrder)
             {
-                if (!_decOrder.Remove(c)) _decOrder.Add(c); // clic alterna: añadir al orden o quitar
+                if (!_decOrder.Remove(c)) _decOrder.Add(c); // clic alterna en el orden
             }
             else _decSelected = c;
         }
