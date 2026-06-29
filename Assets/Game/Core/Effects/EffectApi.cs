@@ -48,11 +48,13 @@ namespace Game.Core.Effects
         public static bool SearchToHand(GameEngine eng, PlayerState p,
                                         Func<CardDefinition, bool> pred)
         {
-            var card = p.Mazo.Cards.FirstOrDefault(c => pred(c.Def));
+            var candidates = p.Mazo.Cards.Where(c => pred(c.Def)).ToList();
+            if (candidates.Count == 0) return false;
+            var card = eng.Decisions.ChooseCard(eng.State, candidates, "Busca una carta en el mazo", optional: true);
+            eng.Rng.Shuffle(p.Mazo.Cards); // el mazo se revuelve tras buscar
             if (card == null) return false;
             p.Mazo.Remove(card);
             p.Mano.Add(card);
-            eng.Rng.Shuffle(p.Mazo.Cards);
             eng.State.Emit($"P{p.Id} busca a mano ({card.Nombre})");
             return true;
         }
@@ -60,14 +62,18 @@ namespace Game.Core.Effects
         public static bool SearchTierraToField(GameEngine eng, PlayerState p,
                                                Func<CardDefinition, bool>? pred = null)
         {
-            var card = p.Mazo.Cards.FirstOrDefault(c =>
-                c.Type == CardType.Tierra && (pred == null || pred(c.Def)));
-            if (card == null || p.Tierras.IsFull) return false;
+            if (p.Tierras.IsFull) return false;
+            var candidates = p.Mazo.Cards
+                .Where(c => c.Type == CardType.Tierra && (pred == null || pred(c.Def)))
+                .ToList();
+            if (candidates.Count == 0) return false;
+            var card = eng.Decisions.ChooseCard(eng.State, candidates, "Elige una TIERRA para poner en campo", optional: true);
+            eng.Rng.Shuffle(p.Mazo.Cards);
+            if (card == null) return false;
             p.Mazo.Remove(card);
             card.Tapped = false;
             card.TurnsLeftRemaining = card.Def.TurnsLeft ?? 0;
             p.Tierras.Add(card);
-            eng.Rng.Shuffle(p.Mazo.Cards);
             eng.State.Emit($"P{p.Id} pone TIERRA en campo ({card.Nombre})");
             eng.Fire(card, EffectTrigger.AlEntrar);
             return true;

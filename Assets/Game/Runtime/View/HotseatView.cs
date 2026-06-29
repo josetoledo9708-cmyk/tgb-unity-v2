@@ -30,6 +30,13 @@ namespace Game.Runtime.View
         private float _turnTimer;
         private int _timerTurn = -1;
 
+        private readonly RuntimeDecisionProvider _decisions = new();
+        private readonly AutoDecisionProvider _auto = new();
+        private bool _busy;
+        private System.Threading.Tasks.Task? _cmdTask;
+        private CommandResult _cmdResult;
+        private string _cmdName = "";
+
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 26f, -5.7f);
         [SerializeField] private Vector3 camRotation = new Vector3(78.69f, 0f, 0f);
@@ -75,7 +82,7 @@ namespace Game.Runtime.View
             if (!_art.Available)
                 Debug.LogWarning($"Sin arte de cartas en '{artFolder}' (se usan quads de color).");
 
-            _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver() };
+            _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver(), Decisions = _auto };
             _engine.StartGame(
                 SampleDeckBuilder.Build(catalog, historiaP0, 40),
                 SampleDeckBuilder.Build(catalog, historiaP1, 40),
@@ -97,6 +104,7 @@ namespace Game.Runtime.View
         {
             _aiRunning = true;
             _status = "IA pensando...";
+            _engine.Decisions = _auto; // la IA decide sin UI
             yield return new WaitForSeconds(0.7f);
 
             SimpleAI.PlayTurn(_engine);
@@ -115,6 +123,21 @@ namespace Game.Runtime.View
         private void Update()
         {
             if (_engine == null) return;
+
+            // Comando humano en curso (en hilo): esperar a que termine o a resolver decisión.
+            if (_busy)
+            {
+                if (_cmdTask != null && _cmdTask.IsCompleted)
+                {
+                    _busy = false;
+                    _engine.Decisions = _auto;
+                    _status = $"{_cmdName}: {(_cmdResult.Ok ? "OK" : _cmdResult.Error)}";
+                    Rebuild();
+                    MaybeRunAI();
+                }
+                return; // sin input/hover mientras se procesa; la decisión se atiende en OnGUI
+            }
+
             TickTimer();
 
             if (_drag != null) { DragUpdate(); return; }
@@ -165,15 +188,18 @@ namespace Game.Runtime.View
             bool inField = Mathf.Abs(cv.transform.position.z) < BoardLayout.HandZ - 1f;
             if (inField && !_engine.State.IsOver)
             {
-                var r = card.Type switch
+                System.Func<CommandResult> cmd = card.Type switch
                 {
-                    CardType.Tierra => _engine.PlayTierra(card),
-                    CardType.Concepto => _engine.PlayConcepto(card, faceDown: false),
-                    _ => _engine.PlaySer(card)
+                    CardType.Tierra => () => _engine.PlayTierra(card),
+                    CardType.Concepto => () => _engine.PlayConcepto(card, faceDown: false),
+                    _ => () => _engine.PlaySer(card)
                 };
-                _status = $"{card.Nombre}: {(r.Ok ? "OK" : r.Error)}";
+                RunHumanCommand(card.Nombre, cmd);
             }
-            Rebuild(); // jugada o snap-back
+            else
+            {
+                Rebuild(); // snap-back
+            }
         }
 
         private Vector3 CursorOnPlane(float y)
@@ -203,6 +229,20 @@ namespace Game.Runtime.View
                 foreach (var g in _glowSer[p]) g.SetActive(false);
                 _glowConcepto[p]?.SetActive(false);
             }
+        }
+
+        /// <summary>Ejecuta un comando del jugador en un hilo (para que las decisiones puedan pausar).</summary>
+        private void RunHumanCommand(string name, System.Func<CommandResult> cmd)
+        {
+            if (_busy || _aiRunning) return;
+            _busy = true;
+            _cmdName = name;
+            _engine.Decisions = _decisions; // interactivo durante el comando humano
+            _cmdTask = System.Threading.Tasks.Task.Run(() =>
+            {
+                try { _cmdResult = cmd(); }
+                catch (System.Exception e) { _cmdResult = CommandResult.Fail(e.Message); }
+            });
         }
 
         private void UpdateHandCount()
@@ -242,25 +282,23 @@ namespace Game.Runtime.View
             if (cv.OwnerId != s.ActivePlayer || cv.Card == null) return;
             var p = s.Active;
             var card = cv.Card;
-            CommandResult r;
+            System.Func<CommandResult>? cmd = null;
 
             if (p.Tierras.Cards.Contains(card) && !card.Tapped)
-                r = _engine.TapTierra(card);                       // tapear TIERRA -> FD
+                cmd = () => _engine.TapTierra(card);               // tapear TIERRA -> FD
             else if (p.Seres.Cards.Contains(card))
-                r = _engine.ActivateSerEffect(card);               // efecto ACTIVADO del SER (paga actCost)
+                cmd = () => _engine.ActivateSerEffect(card);       // efecto ACTIVADO del SER
             else if (card.Type == CardType.Dia)
-                r = _engine.ActivateDia(useFree: false);           // activar el DÍA actual
+                cmd = () => _engine.ActivateDia(useFree: false);   // activar el DÍA actual
             else if (p.Mano.Cards.Contains(card))                  // mano no arrastrable -> intentar jugar
-                r = card.Type switch
+                cmd = card.Type switch
                 {
-                    CardType.Tierra => _engine.PlayTierra(card),
-                    CardType.Concepto => _engine.PlayConcepto(card, faceDown: false),
-                    _ => _engine.PlaySer(card)
+                    CardType.Tierra => () => _engine.PlayTierra(card),
+                    CardType.Concepto => () => _engine.PlayConcepto(card, faceDown: false),
+                    _ => () => _engine.PlaySer(card)
                 };
-            else return;
 
-            _status = $"{card.Nombre}: {(r.Ok ? "OK" : r.Error)}";
-            Rebuild();
+            if (cmd != null) RunHumanCommand(card.Nombre, cmd);
         }
 
         // ---------------- render ----------------
@@ -606,21 +644,40 @@ namespace Game.Runtime.View
             else
             {
                 bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
-                GUI.enabled = humanTurn && !_aiRunning;
+                GUI.enabled = humanTurn && !_aiRunning && !_busy;
                 if (GUILayout.Button("SIGUIENTE FASE", GUILayout.Height(28)))
-                {
-                    var r = _engine.EndTurn();
-                    _status = r.Ok ? "Turno terminado." : r.Error;
-                    Rebuild();
-                    MaybeRunAI();
-                }
+                    RunHumanCommand("Terminar turno", () => _engine.EndTurn());
                 GUI.enabled = true;
             }
             GUILayout.Label(_status, center);
             GUILayout.EndArea();
 
-            if (_hovered != null && _hovered.Card != null)
+            if (_decisions.Pending != null)
+                DrawDecision(_decisions.Pending);
+            else if (!_busy && _hovered != null && _hovered.Card != null)
                 DrawCardDetail(_hovered);
+        }
+
+        private void DrawDecision(DecisionRequest req)
+        {
+            float w = 440f;
+            float h = Mathf.Min(540f, 96f + req.Options.Count * 30f + (req.Optional ? 34f : 0f));
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            var hdr = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            GUILayout.Label(req.Prompt, hdr);
+            foreach (var c in req.Options)
+                if (GUILayout.Button(CardLabel(c), GUILayout.Height(26))) { _decisions.Resolve(req, c); break; }
+            if (req.Optional && GUILayout.Button("Ninguna / cancelar", GUILayout.Height(26)))
+                _decisions.Resolve(req, null);
+            GUILayout.EndArea();
+        }
+
+        private static string CardLabel(CardInstance c)
+        {
+            var d = c.Def;
+            string extra = d.Coste.HasValue ? $" (coste {d.Coste})"
+                         : d.Fd.HasValue ? $" (FD {d.Fd})" : "";
+            return d.Nombre + extra;
         }
 
         private static string PhaseName(Phase ph) => ph switch
@@ -652,12 +709,10 @@ namespace Game.Runtime.View
             bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
             if (!humanTurn) return; // la IA no consume el reloj
             _turnTimer -= Time.deltaTime;
-            if (_turnTimer <= 0f && !_aiRunning)
+            if (_turnTimer <= 0f && !_aiRunning && !_busy)
             {
                 _turnTimer = 0f;
-                _engine.EndTurn();
-                Rebuild();
-                MaybeRunAI();
+                RunHumanCommand("Tiempo agotado", () => _engine.EndTurn());
             }
         }
 
