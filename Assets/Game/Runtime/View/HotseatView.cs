@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using Game.Core.AI;
 using Game.Core.Data;
 using Game.Core.Effects;
 using Game.Core.Engine;
@@ -23,6 +24,8 @@ namespace Game.Runtime.View
         [SerializeField] private string historiaP0 = "h1";
         [SerializeField] private string historiaP1 = "h2";
         [SerializeField] private ulong seed = 12345;
+        [SerializeField] private int aiPlayer = 1; // jugador controlado por IA (-1 = ninguno)
+        private bool _aiRunning;
 
         [Header("Cámara (ajustable en el Inspector)")]
         [SerializeField] private Vector3 camPos = new Vector3(0f, 26f, -5.7f);
@@ -74,6 +77,32 @@ namespace Game.Runtime.View
             _status = "Partida iniciada.";
             BuildBoard();
             Rebuild();
+            MaybeRunAI();
+        }
+
+        private void MaybeRunAI()
+        {
+            if (_aiRunning || aiPlayer < 0 || _engine == null || _engine.State.IsOver) return;
+            if (_engine.State.ActivePlayer == aiPlayer) StartCoroutine(AiTurn());
+        }
+
+        private IEnumerator AiTurn()
+        {
+            _aiRunning = true;
+            _status = "IA pensando...";
+            yield return new WaitForSeconds(0.7f);
+
+            SimpleAI.PlayTurn(_engine);
+            Rebuild();
+            yield return new WaitForSeconds(0.6f);
+
+            if (!_engine.State.IsOver)
+            {
+                _engine.EndTurn();
+                Rebuild();
+            }
+            _aiRunning = false;
+            MaybeRunAI(); // por si el siguiente turno también es IA
         }
 
         private void Update()
@@ -496,11 +525,12 @@ namespace Game.Runtime.View
 
             if (s.IsOver)
                 GUILayout.Label($"FIN: gana P{s.Winner} (Victoria {s.WinReason})");
-            else if (GUILayout.Button("Terminar turno"))
+            else if (!_aiRunning && GUILayout.Button("Terminar turno"))
             {
                 var r = _engine.EndTurn();
                 _status = r.Ok ? "Turno terminado." : r.Error;
                 Rebuild();
+                MaybeRunAI();
             }
             GUILayout.EndArea();
 
