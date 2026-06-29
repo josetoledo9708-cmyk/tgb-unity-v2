@@ -90,7 +90,7 @@ namespace Game.Runtime.View
 
             _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver(), Decisions = _auto };
             _engine.StartGame(
-                SampleDeckBuilder.Build(catalog, historiaP0, 40),
+                SampleDeckBuilder.Build(catalog, historiaP0, 40, pieceCopies: 2), // P0 lleva 2 de cada pieza
                 SampleDeckBuilder.Build(catalog, historiaP1, 40),
                 seed, firstPlayer: 0);
 

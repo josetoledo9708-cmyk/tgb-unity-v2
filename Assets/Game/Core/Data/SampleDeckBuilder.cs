@@ -21,7 +21,7 @@ namespace Game.Core.Data
             "sh23", "sh18", "sh19", "sh05"               // SER fuerte
         };
 
-        public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40)
+        public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40, int pieceCopies = 1)
         {
             var historia = cat.FindHistoria(historiaId)!;
             var ids = new List<string>();
@@ -38,9 +38,12 @@ namespace Game.Core.Data
                 return true;
             }
 
-            // 1) Las 5 piezas (1 copia cada una).
+            // 1) Las 5 piezas (pieceCopies copias de cada una).
             foreach (var pieza in historia.Piezas)
-                Add(cat.Cards.Values.First(x => x.Nombre == pieza).Id);
+            {
+                var id = cat.Cards.Values.First(x => x.Nombre == pieza).Id;
+                for (int k = 0; k < pieceCopies; k++) Add(id);
+            }
 
             // 2) Núcleo curado, ciclando hasta llenar.
             bool progressed = true;
