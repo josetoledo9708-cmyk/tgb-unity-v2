@@ -75,11 +75,18 @@ namespace Game.Runtime.View
 
             if (tex != null)
             {
-                // Carta con arte completo (marco+nombre+coste baked): textura blanca sin tinte.
-                mat.color = Color.white;
-                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                // Carta con arte completo (marco+nombre+coste baked). Render PLANO: la textura va
+                // como EMISIÓN y la base en negro, así la luz no la lava ni le añade brillo y se ve
+                // idéntica a la imagen original (igual que el recuadro de detalle).
+                mat.color = Color.black;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.black);
                 mat.mainTexture = tex;
                 if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+
+                mat.EnableKeyword("_EMISSION");
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+                if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", Color.white);
+                if (mat.HasProperty("_EmissionMap")) mat.SetTexture("_EmissionMap", tex);
 
                 // La cara superior del cubo mapea la textura "de cabeza". Las cartas sin giro
                 // físico de 180° (jugador y campo) se corrigen rotando la textura 180°; las que
@@ -88,11 +95,12 @@ namespace Game.Runtime.View
                 var offset = flipTexture ? new Vector2(1f, 1f) : Vector2.zero;
                 mat.mainTextureScale = scale;
                 mat.mainTextureOffset = offset;
-                if (mat.HasProperty("_BaseMap"))
-                {
-                    mat.SetTextureScale("_BaseMap", scale);
-                    mat.SetTextureOffset("_BaseMap", offset);
-                }
+                foreach (var prop in new[] { "_BaseMap", "_EmissionMap" })
+                    if (mat.HasProperty(prop))
+                    {
+                        mat.SetTextureScale(prop, scale);
+                        mat.SetTextureOffset(prop, offset);
+                    }
                 _label.gameObject.SetActive(false);
             }
             else
