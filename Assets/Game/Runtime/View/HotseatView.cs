@@ -161,6 +161,10 @@ namespace Game.Runtime.View
             SnapshotLog(); // congelar el log una vez por frame (la IA lo escribe en otro hilo)
             _respShow = _respPending; // latch (lo activa el hilo de la IA): estable durante los pases de OnGUI
 
+            // Aura dorada en las cartas que el jugador puede accionar ahora.
+            for (int i = 0; i < _spawned.Count; i++)
+                if (_spawned[i] != null) _spawned[i].SetActionable(CanAct(_spawned[i]));
+
             // Comando humano en curso (en hilo): esperar a que termine o a resolver decisión.
             if (_busy)
             {
@@ -318,6 +322,28 @@ namespace Game.Runtime.View
             return Physics.Raycast(ray, out var hit)
                 ? hit.collider.GetComponentInParent<CardView>()
                 : null;
+        }
+
+        /// <summary>¿La carta puede accionarse ahora (turno humano): tapear/activar/jugar?</summary>
+        private bool CanAct(CardView cv)
+        {
+            var s = _engine.State;
+            if (s.IsOver || _busy || _aiRunning) return false;
+            if (cv.Card == null || cv.OwnerId != s.ActivePlayer || s.ActivePlayer == aiPlayer) return false;
+            var p = s.Active;
+            var card = cv.Card;
+
+            if (p.Tierras.Cards.Contains(card)) return !card.Tapped;                 // tapear -> FD
+            if (p.Seres.Cards.Contains(card))
+                return _engine.Effects.HasEffect(card.Def.Id, EffectTrigger.EfectoActivado)
+                       && (card.Def.ActCost ?? 0) <= p.Fd
+                       && !p.SeresActivatedThisTurn.Contains(card.InstanceId);        // efecto activado
+            if (card.Type == CardType.Dia)
+                return p.DiaBlockedTurns == 0 && PlayerState.DiaNumero(card) == p.DiaActual
+                       && DiaConditions.Met(p, p.DiaActual)
+                       && (p.Fd >= (card.Def.Coste ?? 0) || !p.DiaFreeUsed);          // activar DÍA
+            if (p.Mano.Cards.Contains(card)) return IsPlayable(p, card);              // jugar de la mano
+            return false;
         }
 
         private bool IsPlayable(PlayerState p, CardInstance c)
