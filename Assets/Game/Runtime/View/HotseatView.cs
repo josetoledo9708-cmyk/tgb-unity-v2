@@ -49,7 +49,7 @@ namespace Game.Runtime.View
         [SerializeField] private float camFov = 31f;
         [SerializeField] private bool orthographic = false;
         [SerializeField] private float orthoSize = 9.5f;
-        [SerializeField] private float lightIntensity = 1.0f;
+        [SerializeField] private float lightIntensity = 0.85f;
 
         [Header("Arte de cartas (carpeta de imágenes)")]
         [SerializeField] private string artFolder = @"C:\Users\Rinco\Downloads";
@@ -497,10 +497,12 @@ namespace Game.Runtime.View
             if (light == null) light = new GameObject("Directional Light").AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = lightIntensity; // ajustable en el Inspector
-            light.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // cenital: ilumina de lleno las cartas planas
-            // Ambiente bajo para levantar sombras sin lavar (los materiales son mate, sin glare).
+            light.transform.rotation = Quaternion.Euler(52f, -28f, 0f); // angulada: da gradiente/volumen 3D
+            light.shadows = LightShadows.Soft;                           // sombra suave del grosor de la carta
+            light.shadowStrength = 0.45f;
+            // Ambiente para levantar sombras sin lavar (materiales mate).
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.30f, 0.30f, 0.33f);
+            RenderSettings.ambientLight = new Color(0.34f, 0.34f, 0.38f);
         }
 
         // ---------------- tablero estático (mesa, zonas, etiquetas) ----------------
