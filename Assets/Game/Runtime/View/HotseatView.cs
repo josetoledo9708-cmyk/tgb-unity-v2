@@ -939,7 +939,7 @@ namespace Game.Runtime.View
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(10, 10, 340, 470), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10, 10, 520, 300), GUI.skin.box);
             DrawDetailBody(cv.Card, cv.OwnerId);
             DrawActivationHint(cv);
             GUILayout.EndArea();
@@ -949,7 +949,7 @@ namespace Game.Runtime.View
         private void DrawCardDetailFor(CardInstance card, int owner)
         {
             _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
-            GUILayout.BeginArea(new Rect(Screen.width - 350f, 10f, 340f, 470f), GUI.skin.box); // arriba a la derecha
+            GUILayout.BeginArea(new Rect(Screen.width - 530f, 10f, 520f, 300f), GUI.skin.box); // arriba a la derecha
             DrawDetailBody(card, owner);
             GUILayout.EndArea();
         }
@@ -959,17 +959,16 @@ namespace Game.Runtime.View
             _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
             var d = card.Def;
 
+            GUILayout.BeginHorizontal();
+
+            // Columna izquierda: imagen.
             var art = _art.Front(d.Nombre);
             if (art != null)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.FlexibleSpace();
                 GUILayout.Label(art, GUILayout.Width(150), GUILayout.Height(214));
-                GUILayout.FlexibleSpace();
-                GUILayout.EndHorizontal();
-            }
 
-            GUILayout.Label(d.Nombre, new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold });
+            // Columna derecha: nombre, datos y efectos.
+            GUILayout.BeginVertical();
+            GUILayout.Label(d.Nombre, new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, wordWrap = true });
             GUILayout.Label($"Tipo: {d.Type}");
             if (d.Coste.HasValue) GUILayout.Label($"Coste FD: {d.Coste}");
             if (d.Fd.HasValue) GUILayout.Label($"Genera FD: {d.Fd}");
@@ -984,6 +983,9 @@ namespace Game.Runtime.View
             if (!string.IsNullOrEmpty(d.Efecto)) GUILayout.Label($"Efecto: {d.Efecto}", _wrap);
 
             DrawHistoriaPieces(d, owner);
+            GUILayout.EndVertical();
+
+            GUILayout.EndHorizontal();
         }
 
         /// <summary>HISTORIA: lista sus 5 piezas con ✓ si ya están en campo del dueño.</summary>
