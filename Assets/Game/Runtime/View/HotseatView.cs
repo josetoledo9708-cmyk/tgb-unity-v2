@@ -676,35 +676,44 @@ namespace Game.Runtime.View
             DrawHistory(s);
         }
 
-        private bool _showLog = true;
+        private bool _showLog;            // minimizado por defecto (solo botón)
         private Vector2 _logScroll;
         private int _lastLogCount = -1;
         private GUIStyle _logStyle;
 
-        /// <summary>Historial: cola de eventos del motor (State.Log), auto-scroll al final.</summary>
+        /// <summary>
+        /// Historial: izquierda-centro (espejo del panel de fase/timer). Minimizado = un botón
+        /// "HISTORIAL"; al pulsarlo se expande el log (State.Log) con auto-scroll y un botón
+        /// "Minimizar" en la esquina para volver a botón.
+        /// </summary>
         private void DrawHistory(GameState s)
         {
-            const float w = 380f;
-            float h = _showLog ? 210f : 34f;
-            GUILayout.BeginArea(new Rect(12f, Screen.height - h - 12f, w, h), GUI.skin.box);
+            if (!_showLog)
+            {
+                const float bw = 150f, bh = 42f;
+                if (GUI.Button(new Rect(14f, (Screen.height - bh) * 0.5f, bw, bh), "HISTORIAL"))
+                    _showLog = true;
+                return;
+            }
+
+            const float w = 380f, h = 300f;
+            GUILayout.BeginArea(new Rect(14f, (Screen.height - h) * 0.5f, w, h), GUI.skin.box);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("HISTORIAL", new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold });
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button(_showLog ? "Ocultar" : "Mostrar", GUILayout.Width(72)))
-                _showLog = !_showLog;
+            if (GUILayout.Button("Minimizar", GUILayout.Width(90)))
+                _showLog = false;
             GUILayout.EndHorizontal();
 
-            if (_showLog)
-            {
-                if (s.Log.Count != _lastLogCount) { _lastLogCount = s.Log.Count; _logScroll.y = float.MaxValue; }
-                _logStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true };
-                _logScroll = GUILayout.BeginScrollView(_logScroll, GUILayout.ExpandHeight(true));
-                int start = Mathf.Max(0, s.Log.Count - 200); // últimos 200 eventos
-                for (int i = start; i < s.Log.Count; i++)
-                    GUILayout.Label(s.Log[i], _logStyle);
-                GUILayout.EndScrollView();
-            }
+            if (s.Log.Count != _lastLogCount) { _lastLogCount = s.Log.Count; _logScroll.y = float.MaxValue; }
+            _logStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true };
+            _logScroll = GUILayout.BeginScrollView(_logScroll, GUILayout.ExpandHeight(true));
+            int start = Mathf.Max(0, s.Log.Count - 200); // últimos 200 eventos
+            for (int i = start; i < s.Log.Count; i++)
+                GUILayout.Label(s.Log[i], _logStyle);
+            GUILayout.EndScrollView();
+
             GUILayout.EndArea();
         }
 
