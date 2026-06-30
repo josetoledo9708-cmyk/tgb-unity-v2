@@ -513,8 +513,10 @@ namespace Game.Runtime.View
 
             // Luz de relleno desde el lado IZQUIERDO (opuesto a la principal): suaviza la cara
             // oscura sin proyectar sombras dobles.
-            var fillGo = GameObject.Find("Fill Light Left") ?? new GameObject("Fill Light Left");
-            var fill = fillGo.GetComponent<Light>() ?? fillGo.AddComponent<Light>();
+            var fillGo = GameObject.Find("Fill Light Left");
+            if (fillGo == null) fillGo = new GameObject("Fill Light Left");
+            var fill = fillGo.GetComponent<Light>();
+            if (fill == null) fill = fillGo.AddComponent<Light>();
             fill.type = LightType.Directional;
             fill.intensity = lightIntensity * 0.5f;
             fill.transform.rotation = Quaternion.Euler(52f, 40f, 0f); // lado contrario
