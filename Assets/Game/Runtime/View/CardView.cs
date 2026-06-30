@@ -20,6 +20,8 @@ namespace Game.Runtime.View
         private Vector3 _basePos;
         private Quaternion _baseRot = Quaternion.identity;
         private bool _hovered;
+        private float _tapAngle;   // 0 = vertical, 90 = horizontal (tapeada)
+        private float _tapTarget;
         /// <summary>El jugador activo puede jugar esta carta (solo cartas de su mano).</summary>
         public bool Playable { get; set; }
 
@@ -126,6 +128,23 @@ namespace Game.Runtime.View
             ApplyTransform();
         }
 
+        /// <summary>Tapeada = girada 90° a horizontal. animate=true hace el giro suave.</summary>
+        public void SetTapped(bool tapped, bool animate = false)
+        {
+            _tapTarget = tapped ? 90f : 0f;
+            if (!animate) _tapAngle = _tapTarget;
+            ApplyTransform();
+        }
+
+        private void Update()
+        {
+            if (Mathf.Abs(_tapAngle - _tapTarget) > 0.05f)
+            {
+                _tapAngle = Mathf.MoveTowards(_tapAngle, _tapTarget, 540f * Time.deltaTime); // ~0.17s
+                ApplyTransform();
+            }
+        }
+
         private void ApplyTransform()
         {
             // Root (collider) fijo en la base; el Visual se levanta/escala -> sin parpadeo.
@@ -137,6 +156,7 @@ namespace Game.Runtime.View
             float lift = (Playable && !FaceDown ? 0.2f : 0f) + (_hovered ? 0.6f : 0f);
             _visual.localPosition = new Vector3(0f, lift, 0f);
             _visual.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
+            _visual.localRotation = Quaternion.Euler(0f, _tapAngle, 0f); // giro de tap (horizontal)
         }
 
         private static string Short(CardInstance c)

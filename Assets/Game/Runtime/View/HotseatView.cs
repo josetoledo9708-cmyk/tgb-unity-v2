@@ -70,6 +70,7 @@ namespace Game.Runtime.View
         private string _status = "";
 
         private readonly HashSet<int> _prevHandIds = new();
+        private readonly HashSet<int> _wasTapped = new();
         private readonly Dictionary<int, int>[] _serSlot = { new(), new() };
         private readonly Dictionary<int, int>[] _tierraSlot = { new(), new() };
         private readonly List<GameObject>[] _glowTierra = { new(), new() };
@@ -393,7 +394,10 @@ namespace Game.Runtime.View
 
                 var tSlots = AssignSlots(_tierraSlot[p], ps.Tierras.Cards, 7);
                 foreach (var t in ps.Tierras.Cards)
-                    Spawn(t, p, BoardLayout.Tierra(p, tSlots[t.InstanceId]), false);
+                {
+                    var tv = Spawn(t, p, BoardLayout.Tierra(p, tSlots[t.InstanceId]), false);
+                    tv.SetTapped(t.Tapped, animate: t.Tapped && !_wasTapped.Contains(t.InstanceId));
+                }
 
                 // Mazo: montón de reversos escalonados (parece pila de cartas).
                 if (ps.Mazo.Count > 0)
@@ -427,6 +431,12 @@ namespace Game.Runtime.View
 
             _prevHandIds.Clear();
             _prevHandIds.UnionWith(curHandIds); // base para detectar nuevas cartas el próximo rebuild
+
+            // Recordar qué TIERRAs ya estaban tapeadas (para animar solo el giro nuevo).
+            _wasTapped.Clear();
+            foreach (var pl in _engine.State.Players)
+                foreach (var t in pl.Tierras.Cards)
+                    if (t.Tapped) _wasTapped.Add(t.InstanceId);
         }
 
         private CardView Spawn(CardInstance c, int owner, Vector3 pos, bool faceDown,
