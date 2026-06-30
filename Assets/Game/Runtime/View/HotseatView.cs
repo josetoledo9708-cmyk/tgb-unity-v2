@@ -510,6 +510,17 @@ namespace Game.Runtime.View
             light.transform.rotation = Quaternion.Euler(52f, -28f, 0f); // angulada: da gradiente/volumen 3D
             light.shadows = LightShadows.Soft;                           // sombra suave del grosor de la carta
             light.shadowStrength = 0.45f;
+
+            // Luz de relleno desde el lado IZQUIERDO (opuesto a la principal): suaviza la cara
+            // oscura sin proyectar sombras dobles.
+            var fillGo = GameObject.Find("Fill Light Left") ?? new GameObject("Fill Light Left");
+            var fill = fillGo.GetComponent<Light>() ?? fillGo.AddComponent<Light>();
+            fill.type = LightType.Directional;
+            fill.intensity = lightIntensity * 0.5f;
+            fill.transform.rotation = Quaternion.Euler(52f, 40f, 0f); // lado contrario
+            fill.shadows = LightShadows.None;
+            fill.color = new Color(0.85f, 0.88f, 1f); // leve frío de relleno
+
             // Ambiente para levantar sombras sin lavar (materiales mate).
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.34f, 0.34f, 0.38f);
