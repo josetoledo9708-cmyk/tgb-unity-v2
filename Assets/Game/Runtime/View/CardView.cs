@@ -17,7 +17,6 @@ namespace Game.Runtime.View
         private MeshRenderer _renderer = null!;
 
         private Transform _visual = null!;
-        private GameObject? _aura;
         private Vector3 _basePos;
         private Quaternion _baseRot = Quaternion.identity;
         private bool _hovered;
@@ -45,23 +44,6 @@ namespace Game.Runtime.View
             var view = go.AddComponent<CardView>();
             view._renderer = cube.GetComponent<MeshRenderer>();
             view._visual = visual;
-
-            // Aura: quad dorado emisivo, algo mayor que la carta y justo bajo su cara superior;
-            // su borde sobresale como un halo. Apagada por defecto.
-            var aura = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Object.Destroy(aura.GetComponent<Collider>());
-            aura.transform.SetParent(visual, false);
-            aura.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // acostada, mirando arriba
-            aura.transform.localPosition = new Vector3(0f, 0.018f, 0f);
-            aura.transform.localScale = new Vector3(1.75f, 2.45f, 1f);
-            var am = aura.GetComponent<MeshRenderer>().material;
-            var gold = new Color(1f, 0.82f, 0.25f);
-            am.color = gold;
-            if (am.HasProperty("_BaseColor")) am.SetColor("_BaseColor", gold);
-            am.EnableKeyword("_EMISSION");
-            if (am.HasProperty("_EmissionColor")) am.SetColor("_EmissionColor", gold * 2.2f);
-            aura.SetActive(false);
-            view._aura = aura;
 
             var col = go.AddComponent<BoxCollider>();
             col.size = new Vector3(1.4f, 0.2f, 2.0f);
@@ -133,12 +115,6 @@ namespace Game.Runtime.View
             _basePos = pos;
             _baseRot = rot;
             ApplyTransform();
-        }
-
-        /// <summary>Aura dorada: la carta puede accionarse ahora (tapear/activar/jugar).</summary>
-        public void SetActionable(bool on)
-        {
-            if (_aura != null && _aura.activeSelf != on) _aura.SetActive(on);
         }
 
         public void SetHovered(bool hovered)
