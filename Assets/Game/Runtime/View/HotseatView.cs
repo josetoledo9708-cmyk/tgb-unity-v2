@@ -96,10 +96,22 @@ namespace Game.Runtime.View
                 SampleDeckBuilder.Build(catalog, historiaP1, 40, pieceCopies: 3),
                 seed, firstPlayer: 0);
 
+            EnsureResponseInHand(_engine.State.Players[0]); // P0 arranca con una trampa para probar
+
             _status = "Partida iniciada.";
             BuildBoard();
             Rebuild();
             MaybeRunAI();
+        }
+
+        /// <summary>Garantiza que la mano de apertura tenga una carta de respuesta (para probar trampas).</summary>
+        private void EnsureResponseInHand(PlayerState p)
+        {
+            if (p.Mano.Cards.Any(c => _engine.Effects.IsResponse(c.Def.Id))) return;
+            var trap = p.Mazo.Cards.FirstOrDefault(c => _engine.Effects.IsResponse(c.Def.Id));
+            if (trap == null) return;
+            p.Mazo.Remove(trap);
+            p.Mano.Add(trap);
         }
 
         private void MaybeRunAI()
