@@ -71,7 +71,10 @@ namespace Game.Core.AI
                     .Where(c => c.Type == CardType.Concepto && (c.Def.Coste ?? 0) <= p.Fd)
                     .OrderBy(c => c.Def.Coste ?? 0)
                     .FirstOrDefault();
-                if (con == null || !eng.PlayConcepto(con, faceDown: false).Ok) break;
+                if (con == null) break;
+                // Carta de respuesta: colocar boca abajo (trampa) si la zona CONC está libre.
+                bool asTrap = eng.Effects.IsResponse(con.Def.Id) && p.Concepto.Count == 0;
+                if (!eng.PlayConcepto(con, faceDown: asTrap).Ok) break;
             }
         }
     }

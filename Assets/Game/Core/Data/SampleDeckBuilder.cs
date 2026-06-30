@@ -22,9 +22,11 @@ namespace Game.Core.Data
 
         // CONCEPTOs de búsqueda/cava, ordenados por potencia para HALLAR PIEZAS rápido:
         // tutores directos primero (traen SER/TIERRA), luego cava profunda, luego robo simple.
+        // Se incluye un par de cartas de RESPUESTA (trampas) para probar sus interacciones.
         private static readonly string[] Spells =
         {
             "c35", "c24", "c08", "c39",   // tutores: SER a mano / TIERRA al campo (agarran piezas)
+            "c12", "c29",                 // RESPUESTA (trampa): anula el próximo efecto rival + roba
             "c41", "c30", "c28",          // cava: mira 3-5 y toma SER / carta
             "c09", "c04", "c01", "c38", "c16", "c27" // búsqueda TIERRA / robo simple
         };

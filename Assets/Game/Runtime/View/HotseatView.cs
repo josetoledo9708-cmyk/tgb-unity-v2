@@ -90,6 +90,7 @@ namespace Game.Runtime.View
 
             _auto = new AutoDecisionProvider(catalog); // IA consciente de sus piezas al usar tutores
             _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver(), Decisions = _auto };
+            _engine.ResponseWindow = OnResponseWindow; // permite activar trampas en el turno rival
             _engine.StartGame(
                 SampleDeckBuilder.Build(catalog, historiaP0, 40, pieceCopies: 3), // 3 copias de cada pieza
                 SampleDeckBuilder.Build(catalog, historiaP1, 40, pieceCopies: 3),
@@ -114,13 +115,24 @@ namespace Game.Runtime.View
             _engine.Decisions = _auto; // la IA decide sin UI
             yield return new WaitForSeconds(0.7f);
 
-            SimpleAI.PlayTurn(_engine);
+            // En hilo: así OnGUI sigue corriendo y puedes responder con una trampa.
+            var t1 = System.Threading.Tasks.Task.Run(() =>
+            {
+                try { SimpleAI.PlayTurn(_engine); }
+                catch (System.Exception e) { Debug.LogError(e); }
+            });
+            while (!t1.IsCompleted) yield return null;
             Rebuild();
             yield return new WaitForSeconds(0.6f);
 
             if (!_engine.State.IsOver)
             {
-                _engine.EndTurn();
+                var t2 = System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { _engine.EndTurn(); }
+                    catch (System.Exception e) { Debug.LogError(e); }
+                });
+                while (!t2.IsCompleted) yield return null;
                 Rebuild();
             }
             _aiRunning = false;
@@ -198,17 +210,32 @@ namespace Game.Runtime.View
             bool inField = Mathf.Abs(cv.transform.position.z) < BoardLayout.HandZ - 1f;
             if (inField && !_engine.State.IsOver)
             {
-                System.Func<CommandResult> cmd = card.Type switch
-                {
-                    CardType.Tierra => () => _engine.PlayTierra(card),
-                    CardType.Concepto => () => _engine.PlayConcepto(card, faceDown: false),
-                    _ => () => _engine.PlaySer(card)
-                };
+                if (card.Type == CardType.Concepto) { PlayOrPlaceConcepto(card); return; }
+                System.Func<CommandResult> cmd = card.Type == CardType.Tierra
+                    ? () => _engine.PlayTierra(card)
+                    : () => _engine.PlaySer(card);
                 RunHumanCommand(card.Nombre, cmd);
             }
             else
             {
                 Rebuild(); // snap-back
+            }
+        }
+
+        /// <summary>
+        /// CONCEPTO normal: se juega boca arriba. CONCEPTO de RESPUESTA: abre un modal para elegir
+        /// "Jugar ya" o "Boca abajo" (trampa).
+        /// </summary>
+        private void PlayOrPlaceConcepto(CardInstance card)
+        {
+            if (_engine.Effects.IsResponse(card.Def.Id))
+            {
+                _placeCard = card; _placePending = true;
+                Rebuild(); // devuelve la carta a la mano mientras el modal decide
+            }
+            else
+            {
+                RunHumanCommand(card.Nombre, () => _engine.PlayConcepto(card, faceDown: false));
             }
         }
 
@@ -301,12 +328,12 @@ namespace Game.Runtime.View
             else if (card.Type == CardType.Dia)
                 cmd = () => _engine.ActivateDia(useFree: false);   // activar el DÍA actual
             else if (p.Mano.Cards.Contains(card))                  // mano no arrastrable -> intentar jugar
-                cmd = card.Type switch
-                {
-                    CardType.Tierra => () => _engine.PlayTierra(card),
-                    CardType.Concepto => () => _engine.PlayConcepto(card, faceDown: false),
-                    _ => () => _engine.PlaySer(card)
-                };
+            {
+                if (card.Type == CardType.Concepto) { PlayOrPlaceConcepto(card); return; }
+                cmd = card.Type == CardType.Tierra
+                    ? () => _engine.PlayTierra(card)
+                    : () => _engine.PlaySer(card);
+            }
 
             if (cmd != null) RunHumanCommand(card.Nombre, cmd);
         }
@@ -674,6 +701,77 @@ namespace Game.Runtime.View
             }
 
             DrawHistory(s);
+
+            if (_respPending && _respTrap != null) DrawResponsePrompt();
+            else if (_placePending && _placeCard != null) DrawPlacement();
+        }
+
+        // --- cartas de respuesta (trampas) ---
+        private CardInstance? _placeCard;          // CONCEPTO respuesta esperando colocación
+        private bool _placePending;
+        private CardInstance? _respTrap;           // trampa que el humano puede activar
+        private string _respPrompt = "";
+        private volatile bool _respPending;
+        private bool _respResult;
+        private readonly System.Threading.ManualResetEventSlim _respDone = new(false);
+
+        /// <summary>
+        /// Ventana de respuesta (llamada por el motor en su hilo): el defensor puede activar una
+        /// trampa boca abajo. La IA responde automáticamente; el humano vía modal Sí/No.
+        /// </summary>
+        private CardInstance? OnResponseWindow(int defender, CardInstance attacker)
+        {
+            var dp = _engine.State.Players[defender];
+            var trap = dp.Concepto.Cards.FirstOrDefault(c =>
+                c.FaceDown && _engine.Effects.IsResponse(c.Def.Id) && dp.Fd >= (c.Def.Coste ?? 0));
+            if (trap == null) return null;
+
+            if (defender == aiPlayer) return trap; // la IA responde si puede
+
+            _respTrap = trap;
+            _respPrompt = $"¿Activar {trap.Nombre}?  (anula el efecto de {attacker.Nombre}, -{trap.Def.Coste ?? 0} FD)";
+            _respResult = false;
+            _respDone.Reset();
+            _respPending = true;
+            _respDone.Wait();        // bloquea el hilo del motor hasta que OnGUI responda
+            _respPending = false;
+            return _respResult ? trap : null;
+        }
+
+        private void DrawPlacement()
+        {
+            const float w = 320f, h = 130f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.Label($"{_placeCard!.Nombre} — carta de respuesta",
+                new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter });
+            GUILayout.Space(6);
+            if (GUILayout.Button("Jugar ya", GUILayout.Height(30)))
+            {
+                var c = _placeCard!; _placePending = false; _placeCard = null;
+                _deferredResolve = () => RunHumanCommand(c.Nombre, () => _engine.PlayConcepto(c, faceDown: false));
+            }
+            if (GUILayout.Button("Boca abajo (trampa)", GUILayout.Height(30)))
+            {
+                var c = _placeCard!; _placePending = false; _placeCard = null;
+                _deferredResolve = () => RunHumanCommand(c.Nombre, () => _engine.PlayConcepto(c, faceDown: true));
+            }
+            GUILayout.EndArea();
+        }
+
+        private void DrawResponsePrompt()
+        {
+            const float w = 380f, h = 120f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.Label(_respPrompt,
+                new GUIStyle(GUI.skin.label) { wordWrap = true, alignment = TextAnchor.MiddleCenter });
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Sí, activar", GUILayout.Height(30)))
+                _deferredResolve = () => { _respResult = true; _respPending = false; _respDone.Set(); };
+            if (GUILayout.Button("No", GUILayout.Height(30)))
+                _deferredResolve = () => { _respResult = false; _respPending = false; _respDone.Set(); };
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
         }
 
         private bool _showLog;            // minimizado por defecto (solo botón)
@@ -706,11 +804,11 @@ namespace Game.Runtime.View
                 _showLog = false;
             GUILayout.EndHorizontal();
 
-            if (s.Log.Count != _lastLogCount) { _lastLogCount = s.Log.Count; _logScroll.y = float.MaxValue; }
+            int n = s.Log.Count; // capturar (la IA escribe el log en otro hilo)
+            if (n != _lastLogCount) { _lastLogCount = n; _logScroll.y = float.MaxValue; }
             _logStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true };
             _logScroll = GUILayout.BeginScrollView(_logScroll, GUILayout.ExpandHeight(true));
-            int start = Mathf.Max(0, s.Log.Count - 200); // últimos 200 eventos
-            for (int i = start; i < s.Log.Count; i++)
+            for (int i = Mathf.Max(0, n - 200); i < n; i++) // últimos 200 eventos
                 GUILayout.Label(s.Log[i], _logStyle);
             GUILayout.EndScrollView();
 

@@ -32,6 +32,8 @@ namespace Game.Core.Effects
         private readonly EffectRegistry _registry;
         public RegistryEffectResolver(EffectRegistry registry) => _registry = registry;
 
+        public bool IsResponse(string cardId) => _registry.Has(cardId, EffectTrigger.Respuesta);
+
         public void Resolve(EffectContext ctx)
         {
             if (!_registry.TryGet(ctx.Self.Def.Id, ctx.Trigger, out var handler))

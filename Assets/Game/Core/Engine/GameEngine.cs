@@ -32,9 +32,30 @@ namespace Game.Core.Engine
         public CardInstance NewInstance(CardDefinition def, int owner)
             => new CardInstance(_nextInstanceId++, def, owner);
 
+        /// <summary>
+        /// Ventana de respuesta: antes de resolver un efecto "ofensivo", el rival puede activar
+        /// una trampa boca abajo. Devuelve la trampa a activar (o null). La capa de presentación
+        /// la asigna; si es null, no hay ventana (tests). Solo aplica a triggers ofensivos.
+        /// </summary>
+        public System.Func<int, CardInstance, CardInstance?>? ResponseWindow;
+
+        private static readonly EffectTrigger[] _respondable =
+        {
+            EffectTrigger.AlEntrar, EffectTrigger.EfectoActivado,
+            EffectTrigger.UsoUnico, EffectTrigger.AlActivarElDia
+        };
+
         /// <summary>Dispara un trigger de efecto sobre una carta.</summary>
         public void Fire(CardInstance card, EffectTrigger trigger)
-            => Effects.Resolve(new EffectContext(this, card, trigger));
+        {
+            if (ResponseWindow != null && System.Array.IndexOf(_respondable, trigger) >= 0)
+            {
+                int defender = 1 - card.OwnerId;
+                var trap = ResponseWindow(defender, card);
+                if (trap != null) ActivateResponse(trap); // anula el próximo efecto del atacante
+            }
+            Effects.Resolve(new EffectContext(this, card, trigger));
+        }
 
         public void StartGame(DeckDefinition deck0, DeckDefinition deck1,
                               ulong seed, int firstPlayer = 0)

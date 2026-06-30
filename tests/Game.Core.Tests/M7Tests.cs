@@ -106,6 +106,23 @@ namespace Game.Core.Tests
                 TestRunner.AreEqual(0, p1.Fd, "efecto anulado: no ganó FD");
             });
 
+            t.Case("M7 ResponseWindow: el defensor anula un efecto ofensivo automáticamente", () =>
+            {
+                var eng = NewGameFx(cat, 607, first: 0);
+                var atk = eng.State.Players[0];   // atacante (activo)
+                var def = eng.State.Players[1];   // defensor con trampa
+                var trap = eng.NewInstance(cat.Get("c03"), def.Id); trap.FaceDown = true; // c03 solo anula
+                def.Concepto.Add(trap); def.Fd = 9;
+                eng.ResponseWindow = (d, atkCard) =>
+                    d == def.Id ? def.Concepto.Cards.FirstOrDefault(c => c.FaceDown) : null;
+
+                int manoAntes = def.Mano.Count;                 // sa1 descartaría 1 al defensor
+                var serpiente = eng.NewInstance(cat.Get("sa1"), atk.Id);
+                eng.Fire(serpiente, EffectTrigger.AlEntrar);     // dispara ventana de respuesta
+                TestRunner.AreEqual(manoAntes, def.Mano.Count, "el descarte se anuló por la trampa");
+                TestRunner.IsTrue(!trap.FaceDown, "la trampa se reveló al activarse");
+            });
+
             t.Case("M7 José vuelve indestructibles a El Faraón y Egipto", () =>
             {
                 var eng = NewGameFx(cat, 607, h0: "h7");
