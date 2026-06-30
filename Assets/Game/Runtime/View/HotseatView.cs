@@ -939,7 +939,7 @@ namespace Game.Runtime.View
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(10, 10, 520, 300), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10, 10, 540, 320), GUI.skin.box);
             DrawDetailBody(cv.Card, cv.OwnerId);
             DrawActivationHint(cv);
             GUILayout.EndArea();
@@ -949,7 +949,7 @@ namespace Game.Runtime.View
         private void DrawCardDetailFor(CardInstance card, int owner)
         {
             _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
-            GUILayout.BeginArea(new Rect(Screen.width - 530f, 10f, 520f, 300f), GUI.skin.box); // arriba a la derecha
+            GUILayout.BeginArea(new Rect(Screen.width - 550f, 10f, 540f, 320f), GUI.skin.box); // arriba a la derecha
             DrawDetailBody(card, owner);
             GUILayout.EndArea();
         }
@@ -964,7 +964,7 @@ namespace Game.Runtime.View
             // Columna izquierda: imagen.
             var art = _art.Front(d.Nombre);
             if (art != null)
-                GUILayout.Label(art, GUILayout.Width(150), GUILayout.Height(214));
+                GUILayout.Label(art, GUILayout.Width(195), GUILayout.Height(278)); // +30%
 
             // Columna derecha: nombre, datos y efectos.
             GUILayout.BeginVertical();
