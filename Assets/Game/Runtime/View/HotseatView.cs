@@ -510,8 +510,9 @@ namespace Game.Runtime.View
             light.transform.rotation = Quaternion.Euler(52f, -28f, 0f); // angulada: da gradiente/volumen 3D
             light.shadows = LightShadows.Soft;                           // sombra suave del grosor de la carta
             light.shadowStrength = 0.45f;
+            light.color = new Color(1f, 0.93f, 0.80f);                   // cálida
 
-            // Luz de relleno desde el lado IZQUIERDO (opuesto a la principal): suaviza la cara
+            // Luz de relleno arriba y al lado CONTRARIO (más cenital, izquierda): suaviza la cara
             // oscura sin proyectar sombras dobles.
             var fillGo = GameObject.Find("Fill Light Left");
             if (fillGo == null) fillGo = new GameObject("Fill Light Left");
@@ -519,13 +520,13 @@ namespace Game.Runtime.View
             if (fill == null) fill = fillGo.AddComponent<Light>();
             fill.type = LightType.Directional;
             fill.intensity = lightIntensity * 0.5f;
-            fill.transform.rotation = Quaternion.Euler(52f, 40f, 0f); // lado contrario
+            fill.transform.rotation = Quaternion.Euler(70f, 48f, 0f);    // arriba, lado contrario
             fill.shadows = LightShadows.None;
-            fill.color = new Color(0.85f, 0.88f, 1f); // leve frío de relleno
+            fill.color = new Color(1f, 0.88f, 0.68f);                    // cálida
 
-            // Ambiente para levantar sombras sin lavar (materiales mate).
+            // Ambiente para levantar sombras sin lavar (materiales mate), tono cálido.
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.34f, 0.34f, 0.38f);
+            RenderSettings.ambientLight = new Color(0.38f, 0.35f, 0.30f);
         }
 
         // ---------------- tablero estático (mesa, zonas, etiquetas) ----------------
