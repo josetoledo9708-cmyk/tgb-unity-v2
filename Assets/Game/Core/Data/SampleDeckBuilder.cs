@@ -5,23 +5,28 @@ using Game.Core.Model;
 namespace Game.Core.Data
 {
     /// <summary>
-    /// Construye un mazo de muestra jugable para una HISTORIA: incluye sus 5 piezas y rellena
-    /// con un núcleo curado (TIERRAs para FD, SER baratos de robo/FD, CONCEPTOs de robo/búsqueda
-    /// y algunos SER fuertes), respetando 40 cartas y el máximo de copias.
+    /// Construye un mazo jugable y enfocado en GANAR por una HISTORIA: incluye varias copias de
+    /// sus 5 piezas y rellena con rampa de TIERRA (FD) + CONCEPTOs de robo/búsqueda para encontrar
+    /// las piezas. Importante: NO mete SER "de relleno", porque solo hay 3 ranuras SER y deben
+    /// quedar libres para las piezas SER de la historia.
     /// </summary>
     public static class SampleDeckBuilder
     {
-        // Núcleo en orden de prioridad; se añade ciclando (1 de cada, luego 2ª, luego 3ª copia).
-        private static readonly string[] Core =
+        // TIERRAs neutrales para FD (no son piezas de ninguna historia clave): rampa fiable.
+        private static readonly string[] Lands =
         {
-            "t03", "t06", "t07",                         // TIERRA básica (FD fiable)
-            "t17", "t20", "t12", "t10", "t05",           // TIERRA especial
-            "sa2", "sa3", "sh10", "sh06", "sh06b", "sh04", "sh22", // SER barato: robo/FD
-            "c04", "c09", "c24", "c27", "c16", "c38", "c01",       // CONCEPTO: robo/busca/revive
-            "sh23", "sh18", "sh19", "sh05"               // SER fuerte
+            "t17", "t18", "t19", "t20",   // Ríos Pisón/Gehón/Tigris/Éufrates (FD 1)
+            "t05", "t07", "t11",          // Canaán / Salem / Macpelá
+            "t14", "t15", "t16"           // Nod / Peniel / Dotán
         };
 
-        public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40, int pieceCopies = 1)
+        // CONCEPTOs de robo/búsqueda/recuperación para cavar hacia las piezas.
+        private static readonly string[] Spells =
+        {
+            "c04", "c09", "c24", "c01", "c38", "c16", "c27"
+        };
+
+        public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40, int pieceCopies = 3)
         {
             var historia = cat.FindHistoria(historiaId)!;
             var ids = new List<string>();
@@ -38,26 +43,38 @@ namespace Game.Core.Data
                 return true;
             }
 
-            // 1) Las 5 piezas (pieceCopies copias de cada una).
+            void CycleFill(IEnumerable<string> pool, int target)
+            {
+                bool progressed = true;
+                while (ids.Count < target && progressed)
+                {
+                    progressed = false;
+                    foreach (var id in pool)
+                    {
+                        if (ids.Count >= target) break;
+                        if (Add(id)) progressed = true;
+                    }
+                }
+            }
+
+            // 1) Las 5 piezas (pieceCopies copias de cada una). Prioridad máxima.
             foreach (var pieza in historia.Piezas)
             {
                 var id = cat.Cards.Values.First(x => x.Nombre == pieza).Id;
                 for (int k = 0; k < pieceCopies; k++) Add(id);
             }
 
-            // 2) Núcleo curado, ciclando hasta llenar.
-            bool progressed = true;
-            while (ids.Count < size && progressed)
-            {
-                progressed = false;
-                foreach (var id in Core)
-                {
-                    if (ids.Count >= size) break;
-                    if (Add(id)) progressed = true;
-                }
-            }
+            // 2) Rampa de TIERRA: ~60% del espacio restante para asegurar FD.
+            int landTarget = ids.Count + (size - ids.Count) * 6 / 10;
+            CycleFill(Lands, landTarget);
 
-            // 3) Relleno de seguridad (por si el núcleo no alcanza): cartas baratas.
+            // 3) CONCEPTOs de robo/búsqueda hasta llenar.
+            CycleFill(Spells, size);
+
+            // 4) Relleno de seguridad: más TIERRA (nunca SER de relleno).
+            CycleFill(Lands, size);
+
+            // 5) Último recurso: cualquier carta barata que no sea DÍA/HISTORIA.
             if (ids.Count < size)
                 foreach (var def in cat.Cards.Values
                              .Where(x => x.Type != CardType.Dia && x.Type != CardType.Historia)

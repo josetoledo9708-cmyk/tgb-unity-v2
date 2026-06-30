@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Game.Core.Engine;
 using Game.Core.Model;
@@ -5,8 +6,9 @@ using Game.Core.Model;
 namespace Game.Core.AI
 {
     /// <summary>
-    /// IA básica: juega el turno del jugador ACTIVO con heurísticas simples. No termina el
-    /// turno (el llamador llama EndTurn, para poder pausar/animar entre acciones).
+    /// IA básica orientada a GANAR por la HISTORIA: prioriza poner en campo las piezas (SER y
+    /// TIERRA), no desperdicia ranuras SER con duplicados, mantiene rampa de FD y cava con
+    /// CONCEPTOs de robo. No termina el turno (el llamador llama EndTurn).
     /// </summary>
     public static class SimpleAI
     {
@@ -16,20 +18,32 @@ namespace Game.Core.AI
             if (s.IsOver) return;
             var p = s.Active;
 
+            // Nombres de las piezas de la historia del jugador (prioridad de juego).
+            var pieces = eng.Catalog.FindHistoria(p.HistoriaId)?.Piezas ?? new List<string>();
+            bool IsPiece(CardInstance c) => pieces.Contains(c.Nombre);
+            bool InField(CardInstance c) =>
+                p.Seres.Cards.Any(f => f.Nombre == c.Nombre) || p.Tierras.Cards.Any(f => f.Nombre == c.Nombre);
+
             // 1) Tapear todas las TIERRAs para generar FD.
             foreach (var t in p.Tierras.Cards.Where(x => !x.Tapped).ToList())
                 eng.TapTierra(t);
 
-            // 2) Jugar 1 TIERRA de la mano (gratis, 1/turno).
-            var tierra = p.Mano.Cards.FirstOrDefault(c => c.Type == CardType.Tierra);
+            // 2) Jugar 1 TIERRA (gratis, 1/turno): preferir una pieza-TIERRA que falte en campo.
+            var tierra = p.Mano.Cards
+                .Where(c => c.Type == CardType.Tierra)
+                .OrderByDescending(c => IsPiece(c) && !InField(c))
+                .FirstOrDefault();
             if (tierra != null) eng.PlayTierra(tierra);
 
-            // 3) Jugar SER más baratos asequibles hasta llenar las 3 ranuras.
+            // 3) Llenar ranuras SER: primero piezas que falten, nunca un nombre ya en campo.
             while (!p.Seres.IsFull)
             {
                 var ser = p.Mano.Cards
-                    .Where(c => CardTypeNames.IsSer(c.Type) && (c.Def.Coste ?? 0) <= p.Fd)
-                    .OrderBy(c => c.Def.Coste ?? 0)
+                    .Where(c => CardTypeNames.IsSer(c.Type)
+                                && (c.Def.Coste ?? 0) <= p.Fd
+                                && !p.Seres.Cards.Any(f => f.Nombre == c.Nombre))
+                    .OrderByDescending(c => IsPiece(c))
+                    .ThenBy(c => c.Def.Coste ?? 0)
                     .FirstOrDefault();
                 if (ser == null || !eng.PlaySer(ser).Ok) break;
             }
@@ -50,12 +64,15 @@ namespace Game.Core.AI
                     eng.ActivateDia(useFree: false);
             }
 
-            // 5) Jugar un CONCEPTO barato beneficioso (robo/búsqueda) si alcanza el FD.
-            var con = p.Mano.Cards
-                .Where(c => c.Type == CardType.Concepto && (c.Def.Coste ?? 0) <= p.Fd)
-                .OrderBy(c => c.Def.Coste ?? 0)
-                .FirstOrDefault();
-            if (con != null) eng.PlayConcepto(con, faceDown: false);
+            // 5) Jugar CONCEPTOs baratos (robo/búsqueda) para cavar hacia las piezas.
+            for (int i = 0; i < 4; i++)
+            {
+                var con = p.Mano.Cards
+                    .Where(c => c.Type == CardType.Concepto && (c.Def.Coste ?? 0) <= p.Fd)
+                    .OrderBy(c => c.Def.Coste ?? 0)
+                    .FirstOrDefault();
+                if (con == null || !eng.PlayConcepto(con, faceDown: false).Ok) break;
+            }
         }
     }
 }
