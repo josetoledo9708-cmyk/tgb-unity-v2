@@ -323,7 +323,9 @@ namespace Game.Runtime.View
         private bool IsPlayable(PlayerState p, CardInstance c)
         {
             if (c.Type == CardType.Tierra) return !p.TierraPlayedThisTurn && !p.Tierras.IsFull;
-            if (c.Type == CardType.Concepto) return !p.ConceptosBlockedThisTurn && p.Fd >= (c.Def.Coste ?? 0);
+            if (c.Type == CardType.Concepto)
+                return !p.ConceptosBlockedThisTurn && p.Fd >= (c.Def.Coste ?? 0)
+                       && !p.Concepto.Cards.Any(x => x.FaceDown); // trampa boca abajo bloquea otros CONCEPTOS
             if (CardTypeNames.IsSer(c.Type)) return !p.Seres.IsFull && p.Fd >= (c.Def.Coste ?? 0);
             return false;
         }

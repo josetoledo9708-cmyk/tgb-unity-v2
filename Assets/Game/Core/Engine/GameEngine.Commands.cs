@@ -112,6 +112,8 @@ namespace Game.Core.Engine
             if (!p.Mano.Cards.Contains(card)) return CommandResult.Fail("La carta no está en tu mano.");
             if (card.Type != CardType.Concepto) return CommandResult.Fail("No es un CONCEPTO.");
             if (p.ConceptosBlockedThisTurn) return CommandResult.Fail("No puedes jugar CONCEPTOS este turno.");
+            if (p.Concepto.Cards.Any(c => c.FaceDown))
+                return CommandResult.Fail("Tienes una trampa boca abajo: no puedes jugar otro CONCEPTO.");
 
             if (faceDown)
             {
