@@ -22,7 +22,11 @@ namespace Game.Core.Tests
                 var winsByPlayer = new System.Collections.Generic.Dictionary<int, int>();
                 for (ulong seed = 1; seed <= total; seed++)
                 {
-                    var eng = new GameEngine(cat) { Effects = CardEffects.BuildResolver() };
+                    var eng = new GameEngine(cat)
+                    {
+                        Effects = CardEffects.BuildResolver(),
+                        Decisions = new AutoDecisionProvider(cat)
+                    };
                     eng.StartGame(
                         SampleDeckBuilder.Build(cat, "h1", 40, 3),
                         SampleDeckBuilder.Build(cat, "h2", 40, 3),

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Game.Core.Model;
 
 namespace Game.Core.Effects
@@ -19,12 +20,32 @@ namespace Game.Core.Effects
         IReadOnlyList<CardInstance> ChooseOrder(GameState s, IReadOnlyList<CardInstance> cards, string prompt);
     }
 
-    /// <summary>Elige siempre la primera opción legal. Para tests y como fallback.</summary>
+    /// <summary>
+    /// Elige automáticamente. Si se le pasa el catálogo, prefiere una PIEZA de la historia del
+    /// jugador activo que aún no esté en campo (para que los tutores de la IA caven hacia su
+    /// condición de victoria). Si no, elige la primera opción legal. Para tests y la IA.
+    /// </summary>
     public sealed class AutoDecisionProvider : IDecisionProvider
     {
+        private readonly CardCatalog? _cat;
+        public AutoDecisionProvider(CardCatalog? cat = null) => _cat = cat;
+
         public CardInstance? ChooseCard(GameState s, IReadOnlyList<CardInstance> options,
                                         string prompt, bool optional)
-            => options.Count > 0 ? options[0] : null;
+        {
+            if (options.Count == 0) return null;
+            var h = _cat?.FindHistoria(s.Active.HistoriaId);
+            if (h != null)
+            {
+                var p = s.Active;
+                bool InField(string n) =>
+                    p.Seres.Cards.Any(c => c.Nombre == n) || p.Tierras.Cards.Any(c => c.Nombre == n);
+                var pick = options.FirstOrDefault(o => h.Piezas.Contains(o.Nombre) && !InField(o.Nombre))
+                           ?? options.FirstOrDefault(o => h.Piezas.Contains(o.Nombre));
+                if (pick != null) return pick;
+            }
+            return options[0];
+        }
 
         public bool ChooseYesNo(GameState s, string prompt) => true;
 

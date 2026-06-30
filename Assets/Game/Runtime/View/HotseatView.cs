@@ -31,7 +31,7 @@ namespace Game.Runtime.View
         private int _timerTurn = -1;
 
         private readonly RuntimeDecisionProvider _decisions = new();
-        private readonly AutoDecisionProvider _auto = new();
+        private AutoDecisionProvider _auto = new();
         private bool _busy;
         private System.Threading.Tasks.Task? _cmdTask;
         private CommandResult _cmdResult;
@@ -88,6 +88,7 @@ namespace Game.Runtime.View
             if (!_art.Available)
                 Debug.LogWarning($"Sin arte de cartas en '{artFolder}' (se usan quads de color).");
 
+            _auto = new AutoDecisionProvider(catalog); // IA consciente de sus piezas al usar tutores
             _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver(), Decisions = _auto };
             _engine.StartGame(
                 SampleDeckBuilder.Build(catalog, historiaP0, 40, pieceCopies: 3), // 3 copias de cada pieza

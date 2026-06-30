@@ -20,10 +20,13 @@ namespace Game.Core.Data
             "t14", "t15", "t16"           // Nod / Peniel / Dotán
         };
 
-        // CONCEPTOs de robo/búsqueda/recuperación para cavar hacia las piezas.
+        // CONCEPTOs de búsqueda/cava, ordenados por potencia para HALLAR PIEZAS rápido:
+        // tutores directos primero (traen SER/TIERRA), luego cava profunda, luego robo simple.
         private static readonly string[] Spells =
         {
-            "c04", "c09", "c24", "c01", "c38", "c16", "c27"
+            "c35", "c24", "c08", "c39",   // tutores: SER a mano / TIERRA al campo (agarran piezas)
+            "c41", "c30", "c28",          // cava: mira 3-5 y toma SER / carta
+            "c09", "c04", "c01", "c38", "c16", "c27" // búsqueda TIERRA / robo simple
         };
 
         public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40, int pieceCopies = 3)
@@ -64,11 +67,11 @@ namespace Game.Core.Data
                 for (int k = 0; k < pieceCopies; k++) Add(id);
             }
 
-            // 2) Rampa de TIERRA: ~60% del espacio restante para asegurar FD.
-            int landTarget = ids.Count + (size - ids.Count) * 6 / 10;
+            // 2) Rampa de TIERRA: ~50% del espacio restante (FD suficiente, deja sitio a la cava).
+            int landTarget = ids.Count + (size - ids.Count) * 5 / 10;
             CycleFill(Lands, landTarget);
 
-            // 3) CONCEPTOs de robo/búsqueda hasta llenar.
+            // 3) CONCEPTOs de cava/tutor hasta llenar (densidad alta para hallar piezas rápido).
             CycleFill(Spells, size);
 
             // 4) Relleno de seguridad: más TIERRA (nunca SER de relleno).
