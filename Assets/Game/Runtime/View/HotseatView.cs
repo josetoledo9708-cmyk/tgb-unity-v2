@@ -158,6 +158,9 @@ namespace Game.Runtime.View
             // Resolver decisión (Aceptar) fuera del ciclo OnGUI para no romper el GUILayout.
             if (_deferredResolve != null) { var a = _deferredResolve; _deferredResolve = null; a(); }
 
+            SnapshotLog(); // congelar el log una vez por frame (la IA lo escribe en otro hilo)
+            _respShow = _respPending; // latch (lo activa el hilo de la IA): estable durante los pases de OnGUI
+
             // Comando humano en curso (en hilo): esperar a que termine o a resolver decisión.
             if (_busy)
             {
@@ -714,7 +717,7 @@ namespace Game.Runtime.View
 
             DrawHistory(s);
 
-            if (_respPending && _respTrap != null) DrawResponsePrompt();
+            if (_respShow && _respTrap != null) DrawResponsePrompt();
             else if (_placePending && _placeCard != null) DrawPlacement();
         }
 
@@ -724,6 +727,7 @@ namespace Game.Runtime.View
         private CardInstance? _respTrap;           // trampa que el humano puede activar
         private string _respPrompt = "";
         private volatile bool _respPending;
+        private bool _respShow;            // copia estable de _respPending para OnGUI
         private bool _respResult;
         private readonly System.Threading.ManualResetEventSlim _respDone = new(false);
 
@@ -790,6 +794,22 @@ namespace Game.Runtime.View
         private Vector2 _logScroll;
         private int _lastLogCount = -1;
         private GUIStyle _logStyle;
+        private readonly List<string> _logView = new(); // copia estable del log para OnGUI
+
+        /// <summary>Copia el final del log (en hilo principal) para que OnGUI no vea conteos cambiantes.</summary>
+        private void SnapshotLog()
+        {
+            var log = _engine.State.Log;
+            try
+            {
+                int n = log.Count;
+                int start = Mathf.Max(0, n - 200);
+                _logView.Clear();
+                for (int i = start; i < n && i < log.Count; i++) _logView.Add(log[i]);
+                if (n != _lastLogCount) { _lastLogCount = n; _logScroll.y = float.MaxValue; }
+            }
+            catch { /* el hilo de la IA reasignó la lista; se reintenta el próximo frame */ }
+        }
 
         /// <summary>
         /// Historial: izquierda-centro (espejo del panel de fase/timer). Minimizado = un botón
@@ -816,12 +836,10 @@ namespace Game.Runtime.View
                 _showLog = false;
             GUILayout.EndHorizontal();
 
-            int n = s.Log.Count; // capturar (la IA escribe el log en otro hilo)
-            if (n != _lastLogCount) { _lastLogCount = n; _logScroll.y = float.MaxValue; }
             _logStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true };
             _logScroll = GUILayout.BeginScrollView(_logScroll, GUILayout.ExpandHeight(true));
-            for (int i = Mathf.Max(0, n - 200); i < n; i++) // últimos 200 eventos
-                GUILayout.Label(s.Log[i], _logStyle);
+            for (int i = 0; i < _logView.Count; i++) // snapshot estable (mismo conteo Layout/Repaint)
+                GUILayout.Label(_logView[i], _logStyle);
             GUILayout.EndScrollView();
 
             GUILayout.EndArea();
