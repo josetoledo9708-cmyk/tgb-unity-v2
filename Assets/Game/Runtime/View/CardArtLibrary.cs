@@ -89,14 +89,8 @@ namespace Game.Runtime.View
         {
             if (_backTried) return _back;
             _backTried = true;
-            string? pick = null;
             foreach (var kv in _files)
-                if (kv.Key.Contains("dorso"))
-                {
-                    if (kv.Key.Contains("opaco")) { pick = kv.Value; break; } // preferir el dorso opaco
-                    pick ??= kv.Value;
-                }
-            if (pick != null) _back = Load(pick);
+                if (kv.Key.Contains("dorso")) { _back = Load(kv.Value); break; }
             return _back;
         }
 
