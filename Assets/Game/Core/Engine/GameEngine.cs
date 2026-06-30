@@ -48,7 +48,9 @@ namespace Game.Core.Engine
         /// <summary>Dispara un trigger de efecto sobre una carta.</summary>
         public void Fire(CardInstance card, EffectTrigger trigger)
         {
-            if (ResponseWindow != null && System.Array.IndexOf(_respondable, trigger) >= 0)
+            // Solo se ofrece responder si hay un efecto REAL que anular (no cartas vanilla).
+            if (ResponseWindow != null && System.Array.IndexOf(_respondable, trigger) >= 0
+                && Effects.HasEffect(card.Def.Id, trigger))
             {
                 int defender = 1 - card.OwnerId;
                 var trap = ResponseWindow(defender, card);

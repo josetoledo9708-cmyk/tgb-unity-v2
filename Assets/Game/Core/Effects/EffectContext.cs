@@ -30,6 +30,9 @@ namespace Game.Core.Effects
 
         /// <summary>True si la carta tiene un efecto de RESPUESTA (trampa boca abajo).</summary>
         bool IsResponse(string cardId);
+
+        /// <summary>True si la carta tiene un handler registrado para ese trigger.</summary>
+        bool HasEffect(string cardId, EffectTrigger trigger);
     }
 
     /// <summary>No hace nada (M2: estructura sin efectos). M4 lo reemplaza por el registry.</summary>
@@ -37,5 +40,6 @@ namespace Game.Core.Effects
     {
         public void Resolve(EffectContext ctx) { }
         public bool IsResponse(string cardId) => false;
+        public bool HasEffect(string cardId, EffectTrigger trigger) => false;
     }
 }
