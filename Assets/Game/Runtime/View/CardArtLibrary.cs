@@ -90,7 +90,7 @@ namespace Game.Runtime.View
             if (_backTried) return _back;
             _backTried = true;
             foreach (var kv in _files)
-                if (kv.Key.StartsWith("dorso")) { _back = Load(kv.Value); break; }
+                if (kv.Key.Contains("dorso")) { _back = Load(kv.Value); break; }
             return _back;
         }
 
