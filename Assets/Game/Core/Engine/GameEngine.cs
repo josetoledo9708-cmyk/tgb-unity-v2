@@ -37,7 +37,7 @@ namespace Game.Core.Engine
         /// una trampa boca abajo. Devuelve la trampa a activar (o null). La capa de presentación
         /// la asigna; si es null, no hay ventana (tests). Solo aplica a triggers ofensivos.
         /// </summary>
-        public System.Func<int, CardInstance, CardInstance?>? ResponseWindow;
+        public System.Func<int, CardInstance, EffectCategory, CardInstance?>? ResponseWindow;
 
         private static readonly EffectTrigger[] _respondable =
         {
@@ -53,7 +53,8 @@ namespace Game.Core.Engine
                 && Effects.HasEffect(card.Def.Id, trigger))
             {
                 int defender = 1 - card.OwnerId;
-                var trap = ResponseWindow(defender, card);
+                var cat = ResponseRules.CategoryOf(card.Def.Id, trigger);
+                var trap = ResponseWindow(defender, card, cat);
                 if (trap != null) ActivateResponse(trap); // anula el próximo efecto del atacante
             }
             Effects.Resolve(new EffectContext(this, card, trigger));

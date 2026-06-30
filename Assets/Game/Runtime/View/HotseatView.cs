@@ -737,11 +737,12 @@ namespace Game.Runtime.View
         /// Ventana de respuesta (llamada por el motor en su hilo): el defensor puede activar una
         /// trampa boca abajo. La IA responde automáticamente; el humano vía modal Sí/No.
         /// </summary>
-        private CardInstance? OnResponseWindow(int defender, CardInstance attacker)
+        private CardInstance? OnResponseWindow(int defender, CardInstance attacker, EffectCategory cat)
         {
             var dp = _engine.State.Players[defender];
             var trap = dp.Concepto.Cards.FirstOrDefault(c =>
-                c.FaceDown && _engine.Effects.IsResponse(c.Def.Id) && dp.Fd >= (c.Def.Coste ?? 0));
+                c.FaceDown && _engine.Effects.IsResponse(c.Def.Id) && dp.Fd >= (c.Def.Coste ?? 0)
+                && ResponseRules.Applies(c.Def.Id, cat)); // la trampa debe aplicar a esa categoría
             if (trap == null) return null;
 
             if (defender == aiPlayer) return trap; // la IA responde si puede

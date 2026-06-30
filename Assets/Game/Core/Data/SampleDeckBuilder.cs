@@ -26,7 +26,7 @@ namespace Game.Core.Data
         private static readonly string[] Spells =
         {
             "c35", "c24", "c08", "c39",   // tutores: SER a mano / TIERRA al campo (agarran piezas)
-            "c19",                        // RESPUESTA (trampa): niega CUALQUIER efecto rival
+            "c19", "c29",                 // RESPUESTA: niega cualquier efecto / cancela activar DÍA rival
             "c41", "c30", "c28",          // cava: mira 3-5 y toma SER / carta
             "c09", "c04", "c01", "c38", "c16", "c27" // búsqueda TIERRA / robo simple
         };

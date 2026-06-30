@@ -111,9 +111,9 @@ namespace Game.Core.Tests
                 var eng = NewGameFx(cat, 607, first: 0);
                 var atk = eng.State.Players[0];   // atacante (activo)
                 var def = eng.State.Players[1];   // defensor con trampa
-                var trap = eng.NewInstance(cat.Get("c03"), def.Id); trap.FaceDown = true; // c03 solo anula
+                var trap = eng.NewInstance(cat.Get("c19"), def.Id); trap.FaceDown = true; // c19 niega cualquiera
                 def.Concepto.Add(trap); def.Fd = 9;
-                eng.ResponseWindow = (d, atkCard) =>
+                eng.ResponseWindow = (d, atkCard, category) =>
                     d == def.Id ? def.Concepto.Cards.FirstOrDefault(c => c.FaceDown) : null;
 
                 int manoAntes = def.Mano.Count;                 // sa1 descartaría 1 al defensor
@@ -121,6 +121,18 @@ namespace Game.Core.Tests
                 eng.Fire(serpiente, EffectTrigger.AlEntrar);     // dispara ventana de respuesta
                 TestRunner.AreEqual(manoAntes, def.Mano.Count, "el descarte se anuló por la trampa");
                 TestRunner.IsTrue(!trap.FaceDown, "la trampa se reveló al activarse");
+            });
+
+            t.Case("M7 ResponseRules: categorías y condiciones de cada trampa", () =>
+            {
+                TestRunner.AreEqual(EffectCategory.ActivaDia, ResponseRules.CategoryOf("dia3", EffectTrigger.AlActivarElDia), "activar DÍA");
+                TestRunner.AreEqual(EffectCategory.DestruyeTierra, ResponseRules.CategoryOf("sh03", EffectTrigger.AlEntrar), "Caín destruye TIERRA");
+                TestRunner.AreEqual(EffectCategory.Otro, ResponseRules.CategoryOf("sa1", EffectTrigger.AlEntrar), "descarte genérico = Otro");
+                TestRunner.IsTrue(ResponseRules.Applies("c19", EffectCategory.Otro), "c19 niega cualquiera");
+                TestRunner.IsTrue(ResponseRules.Applies("c12", EffectCategory.DestruyeTierra), "c12 aplica a destruir TIERRA");
+                TestRunner.IsTrue(!ResponseRules.Applies("c12", EffectCategory.Otro), "c12 NO aplica a un efecto cualquiera");
+                TestRunner.IsTrue(ResponseRules.Applies("c29", EffectCategory.ActivaDia), "c29 cancela activar DÍA");
+                TestRunner.IsTrue(!ResponseRules.Applies("c29", EffectCategory.DestruyeTierra), "c29 NO cancela destruir TIERRA");
             });
 
             t.Case("M7 José vuelve indestructibles a El Faraón y Egipto", () =>
