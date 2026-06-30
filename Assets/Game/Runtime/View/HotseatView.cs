@@ -537,8 +537,9 @@ namespace Game.Runtime.View
             BuildGlow();     // resaltados de zona (ocultos hasta arrastrar)
             BuildHudLabels(); // contadores FD (mundo) + mano (al hover)
 
-            // Si hay imagen de fondo, la usamos como campo y ocultamos las zonas procedurales.
+            // Fondo del campo: ruta de archivo si se indicó, si no el asset en Resources.
             var bg = LoadTextureFromFile(backgroundPath);
+            if (bg == null) bg = Resources.Load<Texture2D>("FieldBackground");
             if (bg != null) { BuildBackground(bg); return; }
 
             var table = new Color(0.16f, 0.12f, 0.08f);
