@@ -228,7 +228,8 @@ namespace Game.Runtime.Menu
             vp.isLooping = true;
             vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
             vp.targetTexture = rt;
-            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
+            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None; // sin sonido
+            vp.controlledAudioTrackCount = 0;
             vp.playOnAwake = true;
             vp.aspectRatio = UnityEngine.Video.VideoAspectRatio.FitOutside; // cubre la pantalla
             vp.Play();
