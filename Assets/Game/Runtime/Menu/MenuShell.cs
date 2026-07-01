@@ -143,52 +143,60 @@ namespace Game.Runtime.Menu
         private RectTransform BuildMainMenu()
         {
             var screen = NewScreen("MainMenu", "main_menu_bg");
-            TopBar(screen, withCoins: true);
 
-            // Opciones + Tutorial en la esquina superior derecha
-            var opt = MenuTheme.TextButton(screen, "OPCIONES", 15, () => Push(Screen.Opciones), 130f, 42f);
-            MenuTheme.Anchor((RectTransform)opt.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-146f, -58f), new Vector2(-16f, -16f));
-            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 15, LaunchGame, 130f, 42f);
-            MenuTheme.Anchor((RectTransform)tut.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-286f, -58f), new Vector2(-156f, -16f));
+            // --- Perfil arriba-izquierda ---
+            var prof = MenuTheme.Rect(screen, "Profile", new Color(0.10f, 0.09f, 0.16f, 0.85f));
+            MenuTheme.Anchor((RectTransform)prof.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -74f), new Vector2(280f, -16f));
+            prof.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var av = MenuTheme.Rect(prof.transform, "Avatar", new Color(0.30f, 0.28f, 0.55f, 1f));
+            MenuTheme.Anchor((RectTransform)av.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, -22f), new Vector2(52f, 22f));
+            MenuTheme.Label(av.transform, "W", 22, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var pname = MenuTheme.Label(prof.transform, "Jugador", 18, MenuTheme.Gold, TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)pname.transform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(62f, -4f), new Vector2(-6f, -6f));
+            var pinfo = MenuTheme.Label(prof.transform, "Nv 1 · 0 amigos", 13, new Color(0.75f, 0.72f, 0.6f), TextAnchor.LowerLeft);
+            MenuTheme.Anchor((RectTransform)pinfo.transform, new Vector2(0f, 0f), new Vector2(1f, 0.5f), new Vector2(62f, 6f), new Vector2(-6f, 0f));
 
-            // Logo
+            // --- Cluster arriba-derecha: monedas + tutorial + engranaje ---
+            var coinIcon = MenuTheme.Picture(screen, "CoinIcon", MenuAssets.Sprite("Moneda"));
+            MenuTheme.Anchor((RectTransform)coinIcon.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-300f, -56f), new Vector2(-262f, -18f));
+            var coinLbl = MenuTheme.Label(screen, PlayerData.Monedas.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)coinLbl.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-256f, -56f), new Vector2(-150f, -18f));
+            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, LaunchGame, 110f, 38f);
+            MenuTheme.Anchor((RectTransform)tut.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-146f, -56f), new Vector2(-52f, -18f));
+            var gear = MenuTheme.TextButton(screen, "⚙", 22, () => Push(Screen.Opciones), 40f, 40f);
+            MenuTheme.Anchor((RectTransform)gear.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-46f, -56f), new Vector2(-8f, -16f));
+
+            // --- Logo centrado ---
             var logo = MenuTheme.Picture(screen, "Logo", MenuAssets.Sprite("logo_tgb"));
-            MenuTheme.Anchor((RectTransform)logo.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-260f, -280f), new Vector2(260f, -70f));
+            MenuTheme.Anchor((RectTransform)logo.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-180f, -250f), new Vector2(180f, -40f));
 
-            // Lista central de botones-imagen
-            var list = MenuTheme.VBox(screen, 12f, 0, TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 120f), new Vector2(190f, 470f));
-            AddMenuButton(list.transform, "buttons/btn_historias", "HISTORIAS", () => Push(Screen.Historias));
-            AddMenuButton(list.transform, "buttons/btn_contra_ia", "CONTRA IA", () => Push(Screen.ContraIA));
-            AddMenuButton(list.transform, "buttons/btn_multijugador", "MULTIJUGADOR", () => Push(Screen.Multijugador));
-            AddMenuButton(list.transform, "buttons/btn_constructor", "CONSTRUCTOR", () => Push(Screen.MisMazos));
-            AddMenuButton(list.transform, "buttons/btn_misiones", "MISIONES", () => Push(Screen.Misiones));
+            // --- 4 botones centrados (como el Godot) ---
+            var list = MenuTheme.VBox(screen, 10f, 0, TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-170f, -130f), new Vector2(170f, 90f));
+            AddMenuButton(list.transform, "buttons/btn_historias", "HISTORIAS", () => Push(Screen.Historias), 330f, 48f);
+            AddMenuButton(list.transform, "buttons/btn_multijugador", "MULTIJUGADOR", () => Push(Screen.Multijugador), 330f, 48f);
+            AddMenuButton(list.transform, "buttons/btn_constructor", "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos), 330f, 48f);
+            AddMenuButton(list.transform, "buttons/btn_misiones", "MISIONES Y LOGROS", () => Push(Screen.Misiones), 330f, 48f);
 
-            // Tienda + Tomos flotantes (abajo)
+            // --- Tienda = estandarte a la izquierda-centro ---
             var tienda = FloatingIcon(screen, "buttons/btn_tienda", "TIENDA", () => Push(Screen.Tienda));
-            MenuTheme.Anchor((RectTransform)tienda.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 24f), new Vector2(144f, 144f));
-            var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
-            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-144f, 24f), new Vector2(-24f, 144f));
+            MenuTheme.Anchor((RectTransform)tienda.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(34f, -120f), new Vector2(150f, 120f));
 
-            // Salir
-            var salir = MenuTheme.TextButton(screen, "SALIR", 16, Quit, 120f, 44f);
-            MenuTheme.Anchor((RectTransform)salir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-60f, 24f), new Vector2(60f, 68f));
+            // --- Tomos = libro ornamentado a la derecha-centro ---
+            var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
+            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-200f, -110f), new Vector2(-40f, 110f));
             return screen;
         }
 
-        private void AddMenuButton(Transform parent, string sprite, string fallbackText, System.Action onClick)
+        private void AddMenuButton(Transform parent, string sprite, string fallbackText, System.Action onClick,
+                                   float width = 340f, float height = 58f)
         {
             var s = MenuAssets.Sprite(sprite);
-            if (s != null)
-            {
-                var b = MenuTheme.ImageButton(parent, s, onClick, 340f, 60f);
-                b.gameObject.AddComponent<LayoutElement>().preferredHeight = 60f;
-            }
-            else
-            {
-                var b = MenuTheme.TextButton(parent, fallbackText, 20, onClick, 340f, 58f);
-                b.gameObject.AddComponent<LayoutElement>().preferredHeight = 58f;
-            }
+            var b = s != null
+                ? MenuTheme.ImageButton(parent, s, onClick, width, height)
+                : MenuTheme.TextButton(parent, fallbackText, 20, onClick, width, height);
+            var le = b.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = width; le.preferredHeight = height;
         }
 
         private Button FloatingIcon(RectTransform screen, string sprite, string fallback, System.Action onClick)
