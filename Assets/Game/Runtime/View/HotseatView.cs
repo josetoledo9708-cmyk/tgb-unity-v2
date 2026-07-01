@@ -590,8 +590,10 @@ namespace Game.Runtime.View
             var m = go.GetComponent<MeshRenderer>().material;
             m.color = Color.white;
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", Color.white);
-            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f); // mate, sin glare
-            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
+            // Mismos ajustes que las cartas (Inspector aprobado).
+            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0.716f);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.31f);
+            if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", 0.31f);
             m.mainTexture = tex;
             if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
             // Misma corrección 180° que las cartas (cara superior del cubo mapea "de cabeza").
