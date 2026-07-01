@@ -15,11 +15,11 @@ namespace Game.Runtime.Menu
         // Paradas de 0 (abajo) a 1 (arriba): base → veta oscura → brillo → oro → borde superior.
         private static readonly (float t, Color c)[] Stops =
         {
-            (0.00f, new Color(0.80f, 0.58f, 0.20f)),
-            (0.45f, new Color(0.48f, 0.34f, 0.09f)),
-            (0.53f, new Color(1.00f, 0.96f, 0.72f)),
-            (0.75f, new Color(0.96f, 0.82f, 0.44f)),
-            (1.00f, new Color(0.86f, 0.68f, 0.32f)),
+            (0.00f, new Color(0.72f, 0.55f, 0.22f)),
+            (0.42f, new Color(0.50f, 0.36f, 0.12f)),  // veta oscura
+            (0.52f, new Color(1.00f, 0.92f, 0.60f)),  // brillo dorado (no blanco)
+            (0.72f, new Color(0.95f, 0.85f, 0.52f)),  // ≈ oro del tema
+            (1.00f, new Color(0.80f, 0.66f, 0.34f)),
         };
 
         private static Color Sample(float t)
