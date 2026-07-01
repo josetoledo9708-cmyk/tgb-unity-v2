@@ -16,6 +16,7 @@ namespace Game.Editor
             ti.mipmapEnabled = false;
             ti.wrapMode = TextureWrapMode.Clamp;
             ti.textureCompression = TextureImporterCompression.Uncompressed;
+            ti.isReadable = true; // permite samplear pixeles en código (p.ej. MetallicGoldGradient)
         }
     }
 }
