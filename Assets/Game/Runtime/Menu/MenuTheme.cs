@@ -140,6 +140,7 @@ namespace Game.Runtime.Menu
             cols.fadeDuration = 0.08f;
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
+            root.AddComponent<HoverScale>(); // agranda al pasar el cursor
 
             var inner = new GameObject("Inner", typeof(RectTransform), typeof(Image));
             inner.transform.SetParent(rrt, false);
