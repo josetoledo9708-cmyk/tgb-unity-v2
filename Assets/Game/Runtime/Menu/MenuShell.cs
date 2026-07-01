@@ -228,7 +228,6 @@ namespace Game.Runtime.Menu
             vp.isLooping = true;
             vp.skipOnDrop = true;
             vp.waitForFirstFrame = true;
-            vp.updateMode = UnityEngine.Video.VideoTimeUpdateMode.UnscaledGameTime;
             vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
             vp.targetTexture = rt;
             vp.aspectRatio = UnityEngine.Video.VideoAspectRatio.FitOutside; // cubre la pantalla
