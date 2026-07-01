@@ -16,7 +16,8 @@ namespace Game.Runtime.Menu
         private static Texture2D _goldTex;
         private static bool _goldTried;
 
-        private static Texture2D GoldTexture()
+        /// <summary>Textura dorao.png cacheada (null si no está disponible/legible).</summary>
+        public static Texture2D GoldTexture()
         {
             if (_goldTried) return _goldTex;
             _goldTried = true;

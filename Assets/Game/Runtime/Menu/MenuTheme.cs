@@ -129,7 +129,7 @@ namespace Game.Runtime.Menu
             frame.sprite = MenuGraphics.Rounded(64, 18);
             frame.type = Image.Type.Sliced;
             frame.color = Color.white;
-            frame.gameObject.AddComponent<MetallicGoldGradient>(); // borde oro metalizado
+            ApplyGoldFill(frame); // borde con la textura dorao.png real (per-pixel, no por vértice)
 
             var btn = root.GetComponent<Button>();
             btn.targetGraphic = frame;
@@ -173,9 +173,36 @@ namespace Game.Runtime.Menu
 
             var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             t.raycastTarget = false;
-            t.gameObject.AddComponent<MetallicGoldGradient>(); // texto oro metalizado
             Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(46f, 0f), new Vector2(-16f, 0f));
+            ApplyGoldFill(t); // texto con la textura dorao.png real (clip per-pixel sobre los glifos)
             return btn;
+        }
+
+        /// <summary>
+        /// Tiñe la forma de <paramref name="shape"/> (Image de borde o Text) con la textura
+        /// dorao.png REAL, per-pixel: usa un Mask (la forma/glifos de shape como máscara de
+        /// visibilidad) + un RawImage hijo con la textura, en vez de tintar por vértice (que
+        /// aplana el detalle del metal). Si la textura no está disponible, cae al degradado
+        /// procedural por vértice (MetallicGoldGradient).
+        /// </summary>
+        public static void ApplyGoldFill(Graphic shape)
+        {
+            var tex = MetallicGoldGradient.GoldTexture();
+            if (tex == null) { shape.gameObject.AddComponent<MetallicGoldGradient>(); return; }
+
+            var go = shape.gameObject;
+            shape.color = Color.white; // el Mask solo usa su alfa; el color no debe teñir
+            var mask = go.GetComponent<Mask>() ?? go.AddComponent<Mask>();
+            mask.showMaskGraphic = false; // oculta el relleno propio, solo actúa de máscara
+
+            var raw = new GameObject("GoldFill", typeof(RectTransform), typeof(RawImage));
+            raw.transform.SetParent(go.transform, false);
+            raw.transform.SetAsFirstSibling();
+            var rrt = (RectTransform)raw.transform;
+            Stretch(rrt);
+            var ri = raw.GetComponent<RawImage>();
+            ri.texture = tex;
+            ri.raycastTarget = false;
         }
 
         private static void AddGoldBorder(RectTransform target)
