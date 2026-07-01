@@ -219,6 +219,7 @@ namespace Game.Runtime.Menu
             go.transform.SetParent(screen, false);
             go.transform.SetSiblingIndex(1); // encima del BG estático, debajo de la UI
             MenuTheme.Stretch((RectTransform)go.transform);
+            go.transform.localScale = new Vector3(1f, 1.19f, 1f); // escala Y del video
 
             var raw = go.GetComponent<RawImage>();
             raw.texture = rt;
