@@ -1,0 +1,174 @@
+using System;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Game.Runtime.Menu
+{
+    /// <summary>
+    /// Tema visual del menú (réplica del Godot: dorado sobre fondo oscuro, fuente Cinzel) + fábrica
+    /// de widgets uGUI generados por código para no depender de prefabs.
+    /// </summary>
+    public static class MenuTheme
+    {
+        public static readonly Color Gold     = new(0.97f, 0.87f, 0.55f, 1f);
+        public static readonly Color GoldDim  = new(0.65f, 0.55f, 0.28f, 1f);
+        public static readonly Color DarkBg   = new(0.04f, 0.05f, 0.13f, 0.88f);
+        public static readonly Color PanelBg  = new(0.06f, 0.05f, 0.02f, 0.92f);
+        public static readonly Color HoverBg  = new(0.10f, 0.09f, 0.04f, 0.95f);
+
+        // --- contenedores ---
+
+        public static RectTransform Panel(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            Stretch(rt);
+            return rt;
+        }
+
+        public static Image Rect(Transform parent, string name, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.color = color;
+            Stretch((RectTransform)go.transform);
+            return img;
+        }
+
+        public static Image Picture(Transform parent, string name, Sprite sprite, bool preserveAspect = true)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.preserveAspect = preserveAspect;
+            img.color = sprite != null ? Color.white : new Color(1, 1, 1, 0f);
+            return img;
+        }
+
+        public static Text Label(Transform parent, string text, int size, Color color,
+                                 TextAnchor anchor = TextAnchor.MiddleCenter, FontStyle style = FontStyle.Normal)
+        {
+            var go = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            go.transform.SetParent(parent, false);
+            var t = go.GetComponent<Text>();
+            t.font = MenuAssets.Font();
+            t.text = text;
+            t.fontSize = size;
+            t.color = color;
+            t.alignment = anchor;
+            t.fontStyle = style;
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            t.verticalOverflow = VerticalWrapMode.Truncate;
+            return t;
+        }
+
+        // --- botones ---
+
+        /// <summary>Botón de texto con StyleBox dorado/oscuro (como el MainMenu de Godot).</summary>
+        public static Button TextButton(Transform parent, string label, int size, Action onClick,
+                                        float width = 320f, float height = 54f)
+        {
+            var go = new GameObject("Btn_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(width, height);
+            var img = go.GetComponent<Image>();
+            img.color = DarkBg;
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            var cols = btn.colors;
+            cols.normalColor = Color.white;
+            cols.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
+            cols.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            cols.fadeDuration = 0.08f;
+            btn.colors = cols;
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+
+            var txt = Label(rt, label, size, Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Stretch((RectTransform)txt.transform);
+            AddGoldBorder(rt);
+            return btn;
+        }
+
+        /// <summary>Botón hecho de una imagen (btn_historias.png, etc.).</summary>
+        public static Button ImageButton(Transform parent, Sprite sprite, Action onClick,
+                                         float width, float height)
+        {
+            var go = new GameObject("ImgBtn", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(width, height);
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.preserveAspect = true;
+            img.color = sprite != null ? Color.white : GoldDim;
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            var cols = btn.colors;
+            cols.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+            btn.colors = cols;
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            return btn;
+        }
+
+        private static void AddGoldBorder(RectTransform target)
+        {
+            var outline = target.gameObject.AddComponent<Outline>();
+            outline.effectColor = GoldDim;
+            outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        // --- layout helpers ---
+
+        public static void Stretch(RectTransform rt)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        public static void Anchor(RectTransform rt, Vector2 anchorMin, Vector2 anchorMax,
+                                  Vector2 offsetMin, Vector2 offsetMax)
+        {
+            rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
+            rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
+        }
+
+        public static VerticalLayoutGroup VBox(Transform parent, float spacing, int pad = 0,
+                                               TextAnchor align = TextAnchor.UpperCenter)
+        {
+            var go = new GameObject("VBox", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            go.transform.SetParent(parent, false);
+            var v = go.GetComponent<VerticalLayoutGroup>();
+            v.spacing = spacing;
+            v.childAlignment = align;
+            v.childForceExpandWidth = false;
+            v.childForceExpandHeight = false;
+            v.childControlWidth = false;
+            v.childControlHeight = false;
+            v.padding = new RectOffset(pad, pad, pad, pad);
+            return v;
+        }
+
+        public static HorizontalLayoutGroup HBox(Transform parent, float spacing, int pad = 0,
+                                                 TextAnchor align = TextAnchor.MiddleCenter)
+        {
+            var go = new GameObject("HBox", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            go.transform.SetParent(parent, false);
+            var h = go.GetComponent<HorizontalLayoutGroup>();
+            h.spacing = spacing;
+            h.childAlignment = align;
+            h.childForceExpandWidth = false;
+            h.childForceExpandHeight = false;
+            h.childControlWidth = false;
+            h.childControlHeight = false;
+            h.padding = new RectOffset(pad, pad, pad, pad);
+            return h;
+        }
+    }
+}
