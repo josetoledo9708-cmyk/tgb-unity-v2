@@ -71,8 +71,10 @@ namespace Game.Runtime.View
             FaceDown = faceDown;
 
             var mat = _renderer.material; // instancia propia para no pisar el shared
-            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f); // mate, sin glare
-            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+            // Ajustes de material para TODAS las cartas y el dorso (según Inspector aprobado).
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.716f);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.271f); // URP Lit
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.271f); // shader Standard
             var tex = faceDown ? back : front;
 
             if (tex != null)
