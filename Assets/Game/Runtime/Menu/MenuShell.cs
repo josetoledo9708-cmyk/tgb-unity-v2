@@ -230,7 +230,7 @@ namespace Game.Runtime.Menu
             vp.targetTexture = rt;
             vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
             vp.playOnAwake = true;
-            vp.aspectRatio = UnityEngine.Video.VideoAspectRatio.FitOuter; // cubre la pantalla
+            vp.aspectRatio = UnityEngine.Video.VideoAspectRatio.FitOutside; // cubre la pantalla
             vp.Play();
         }
 
