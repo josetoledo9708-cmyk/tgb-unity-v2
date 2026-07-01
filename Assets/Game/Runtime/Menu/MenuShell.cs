@@ -226,12 +226,19 @@ namespace Game.Runtime.Menu
             var vp = go.GetComponent<UnityEngine.Video.VideoPlayer>();
             vp.clip = clip;
             vp.isLooping = true;
+            vp.skipOnDrop = true;
+            vp.waitForFirstFrame = true;
+            vp.updateMode = UnityEngine.Video.VideoTimeUpdateMode.UnscaledGameTime;
             vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
             vp.targetTexture = rt;
-            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None; // sin sonido
-            vp.controlledAudioTrackCount = 0;
-            vp.playOnAwake = true;
             vp.aspectRatio = UnityEngine.Video.VideoAspectRatio.FitOutside; // cubre la pantalla
+            // Audio Direct con la pista muteada (settings del Inspector).
+            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.Direct;
+            vp.controlledAudioTrackCount = 1;
+            vp.EnableAudioTrack(0, true);
+            vp.SetDirectAudioMute(0, true);
+            vp.prepareCompleted += p => p.SetDirectAudioMute(0, true); // asegura mute tras preparar
+            vp.playOnAwake = true;
             vp.Play();
         }
 
