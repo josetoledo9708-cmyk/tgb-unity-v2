@@ -5,26 +5,13 @@ using UnityEngine.UI;
 namespace Game.Runtime.Menu
 {
     /// <summary>
-    /// Efecto de malla que tiñe cualquier Graphic (Image de borde o Text) con la textura
-    /// "dorao.png" (oro metalizado real), muestreada por la posición local del vértice. Si la
-    /// textura no está disponible, cae a un degradado procedural de oro metalizado.
-    /// Multiplica sobre el color existente para respetar alpha y el tinte de hover del botón.
+    /// Efecto de malla que aplica un degradado vertical de ORO METALIZADO (banda de brillo + veta
+    /// oscura) a cualquier Graphic (Image de borde o Text). Multiplica sobre el color existente para
+    /// respetar alpha y el tinte de hover del botón.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class MetallicGoldGradient : BaseMeshEffect
     {
-        private static Texture2D _goldTex;
-        private static bool _goldTried;
-
-        private static Texture2D GoldTexture()
-        {
-            if (_goldTried) return _goldTex;
-            _goldTried = true;
-            var sprite = MenuAssets.Sprite("dorao");
-            _goldTex = sprite != null && sprite.texture.isReadable ? sprite.texture : null;
-            return _goldTex;
-        }
-
         // Paradas de 0 (abajo) a 1 (arriba): base → veta oscura → brillo → oro → borde superior.
         private static readonly (float t, Color c)[] Stops =
         {
@@ -55,23 +42,19 @@ namespace Game.Runtime.Menu
             vh.GetUIVertexStream(_verts);
             if (_verts.Count == 0) return;
 
-            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
             for (int i = 0; i < _verts.Count; i++)
             {
-                var p = _verts[i].position;
-                if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-                if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+                float y = _verts[i].position.y;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
             }
-            float w = Mathf.Max(0.0001f, maxX - minX);
             float h = Mathf.Max(0.0001f, maxY - minY);
-            var tex = GoldTexture();
 
             for (int i = 0; i < _verts.Count; i++)
             {
                 var v = _verts[i];
-                float u = (v.position.x - minX) / w;
-                float t = (v.position.y - minY) / h;
-                var g = tex != null ? tex.GetPixelBilinear(u, t) : Sample(t);
+                var g = Sample((v.position.y - minY) / h);
                 v.color = new Color32(
                     (byte)(g.r * v.color.r), (byte)(g.g * v.color.g),
                     (byte)(g.b * v.color.b), v.color.a);
