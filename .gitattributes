@@ -3,3 +3,4 @@
 *.json text
 *.md text
 *.png filter=lfs diff=lfs merge=lfs -text
+*.ogv filter=lfs diff=lfs merge=lfs -text

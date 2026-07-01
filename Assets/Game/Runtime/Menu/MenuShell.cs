@@ -143,6 +143,7 @@ namespace Game.Runtime.Menu
         private RectTransform BuildMainMenu()
         {
             var screen = NewScreen("MainMenu", "main_menu_bg");
+            TryVideoBackground(screen, "Menu/MM"); // video en bucle detrás (fallback = imagen estática)
 
             // --- Perfil arriba-izquierda ---
             var prof = MenuTheme.Rect(screen, "Profile", new Color(0.10f, 0.09f, 0.16f, 0.85f));
@@ -205,6 +206,32 @@ namespace Game.Runtime.Menu
             return s != null
                 ? MenuTheme.ImageButton(screen, s, onClick, 120f, 120f)
                 : MenuTheme.TextButton(screen, fallback, 16, onClick, 120f, 60f);
+        }
+
+        /// <summary>Fondo de video en bucle (si el VideoClip existe en Resources); si no, no hace nada.</summary>
+        private void TryVideoBackground(RectTransform screen, string clipPath)
+        {
+            var clip = Resources.Load<UnityEngine.Video.VideoClip>(clipPath);
+            if (clip == null) return;
+
+            var rt = new RenderTexture(1280, 720, 0) { name = "MenuBGVideoRT" };
+            var go = new GameObject("BGVideo", typeof(RectTransform), typeof(RawImage), typeof(UnityEngine.Video.VideoPlayer));
+            go.transform.SetParent(screen, false);
+            go.transform.SetSiblingIndex(1); // encima del BG estático, debajo de la UI
+            MenuTheme.Stretch((RectTransform)go.transform);
+
+            var raw = go.GetComponent<RawImage>();
+            raw.texture = rt;
+
+            var vp = go.GetComponent<UnityEngine.Video.VideoPlayer>();
+            vp.clip = clip;
+            vp.isLooping = true;
+            vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
+            vp.targetTexture = rt;
+            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
+            vp.playOnAwake = true;
+            vp.aspectRatio = UnityEngine.Video.VideoAspectRatio.FitOuter; // cubre la pantalla
+            vp.Play();
         }
 
         // --- pantallas simples (título + texto + volver) ---
