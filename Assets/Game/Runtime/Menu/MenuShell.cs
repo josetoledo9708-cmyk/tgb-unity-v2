@@ -171,13 +171,13 @@ namespace Game.Runtime.Menu
             var logo = MenuTheme.Picture(screen, "Logo", MenuAssets.Sprite("logo_tgb"));
             MenuTheme.Anchor((RectTransform)logo.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-180f, -250f), new Vector2(180f, -40f));
 
-            // --- 4 botones centrados (como el Godot) ---
-            var list = MenuTheme.VBox(screen, 10f, 0, TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-170f, -130f), new Vector2(170f, 90f));
-            AddMenuButton(list.transform, "buttons/btn_historias", "HISTORIAS", () => Push(Screen.Historias), 330f, 48f);
-            AddMenuButton(list.transform, "buttons/btn_multijugador", "MULTIJUGADOR", () => Push(Screen.Multijugador), 330f, 48f);
-            AddMenuButton(list.transform, "buttons/btn_constructor", "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos), 330f, 48f);
-            AddMenuButton(list.transform, "buttons/btn_misiones", "MISIONES Y LOGROS", () => Push(Screen.Misiones), 330f, 48f);
+            // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
+            var list = MenuTheme.VBox(screen, 12f, 0, TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-175f, -135f), new Vector2(175f, 95f));
+            DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
+            DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
+            DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos));
+            DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
 
             // --- Tienda = estandarte a la izquierda-centro ---
             var tienda = FloatingIcon(screen, "buttons/btn_tienda", "TIENDA", () => Push(Screen.Tienda));
@@ -187,6 +187,14 @@ namespace Game.Runtime.Menu
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
             MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-200f, -110f), new Vector2(-40f, 110f));
             return screen;
+        }
+
+        private void DesignedMenuButton(Transform parent, string label, System.Action onClick,
+                                        float width = 340f, float height = 50f)
+        {
+            var b = MenuTheme.DesignedButton(parent, label, onClick, width, height);
+            var le = b.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = width; le.preferredHeight = height;
         }
 
         private void AddMenuButton(Transform parent, string sprite, string fallbackText, System.Action onClick,

@@ -115,6 +115,66 @@ namespace Game.Runtime.Menu
             return btn;
         }
 
+        /// <summary>Botón diseñado con uGUI (sin PNG): marco dorado redondeado + interior oscuro con
+        /// brillo superior + diamante dorado + texto Cinzel. Hover ilumina el marco.</summary>
+        public static Button DesignedButton(Transform parent, string label, Action onClick,
+                                            float width = 330f, float height = 50f)
+        {
+            var root = new GameObject("DBtn_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
+            root.transform.SetParent(parent, false);
+            var rrt = (RectTransform)root.transform;
+            rrt.sizeDelta = new Vector2(width, height);
+
+            var frame = root.GetComponent<Image>();
+            frame.sprite = MenuGraphics.Rounded(64, 18);
+            frame.type = Image.Type.Sliced;
+            frame.color = Gold;
+
+            var btn = root.GetComponent<Button>();
+            btn.targetGraphic = frame;
+            var cols = btn.colors;
+            cols.normalColor = Color.white;
+            cols.highlightedColor = new Color(1.3f, 1.25f, 1f, 1f);
+            cols.pressedColor = new Color(0.8f, 0.72f, 0.4f, 1f);
+            cols.fadeDuration = 0.08f;
+            btn.colors = cols;
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+
+            var inner = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+            inner.transform.SetParent(rrt, false);
+            var innerImg = inner.GetComponent<Image>();
+            innerImg.sprite = MenuGraphics.Rounded(64, 16);
+            innerImg.type = Image.Type.Sliced;
+            innerImg.color = new Color(0.05f, 0.04f, 0.02f, 0.97f);
+            innerImg.raycastTarget = false;
+            Anchor((RectTransform)inner.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+
+            var gloss = new GameObject("Gloss", typeof(RectTransform), typeof(Image));
+            gloss.transform.SetParent(rrt, false);
+            var gImg = gloss.GetComponent<Image>();
+            gImg.sprite = MenuGraphics.VGradient(new Color(1f, 0.9f, 0.6f, 0.16f), new Color(1f, 1f, 1f, 0f));
+            gImg.raycastTarget = false;
+            Anchor((RectTransform)gloss.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+
+            var pip = new GameObject("Pip", typeof(RectTransform), typeof(Image));
+            pip.transform.SetParent(rrt, false);
+            var pImg = pip.GetComponent<Image>();
+            pImg.sprite = MenuGraphics.Rounded(16, 3);
+            pImg.type = Image.Type.Sliced;
+            pImg.color = Gold;
+            pImg.raycastTarget = false;
+            var prt = (RectTransform)pip.transform;
+            prt.sizeDelta = new Vector2(12f, 12f);
+            prt.anchorMin = prt.anchorMax = new Vector2(0f, 0.5f);
+            prt.anchoredPosition = new Vector2(26f, 0f);
+            prt.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+            var t = Label(rrt, label, 20, Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            t.raycastTarget = false;
+            Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(46f, 0f), new Vector2(-16f, 0f));
+            return btn;
+        }
+
         private static void AddGoldBorder(RectTransform target)
         {
             var outline = target.gameObject.AddComponent<Outline>();
