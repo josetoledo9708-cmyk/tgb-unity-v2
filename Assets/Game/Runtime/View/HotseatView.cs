@@ -503,28 +503,20 @@ namespace Game.Runtime.View
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
+            // Una sola luz, al centro de donde estaban las 2 anteriores: promedio de (52,-28) y (70,48).
+            var oldFill = GameObject.Find("Fill Light Left");
+            if (oldFill != null) Destroy(oldFill);
+
             var light = FindAnyObjectByType<Light>();
             if (light == null) light = new GameObject("Directional Light").AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = lightIntensity; // ajustable en el Inspector
-            light.transform.rotation = Quaternion.Euler(52f, -28f, 0f); // angulada: da gradiente/volumen 3D
-            light.shadows = LightShadows.Soft;                           // sombra suave del grosor de la carta
+            light.transform.rotation = Quaternion.Euler(61f, 10f, 0f); // centro de las 2 luces previas
+            light.shadows = LightShadows.Soft;                          // sombra suave del grosor de la carta
             light.shadowStrength = 0.45f;
-            light.color = new Color(1f, 0.93f, 0.80f);                   // cálida
+            light.color = new Color(1f, 0.93f, 0.80f);                  // cálida
 
-            // Luz de relleno arriba y al lado CONTRARIO (más cenital, izquierda): suaviza la cara
-            // oscura sin proyectar sombras dobles.
-            var fillGo = GameObject.Find("Fill Light Left");
-            if (fillGo == null) fillGo = new GameObject("Fill Light Left");
-            var fill = fillGo.GetComponent<Light>();
-            if (fill == null) fill = fillGo.AddComponent<Light>();
-            fill.type = LightType.Directional;
-            fill.intensity = lightIntensity * 0.5f;
-            fill.transform.rotation = Quaternion.Euler(70f, 48f, 0f);    // arriba, lado contrario
-            fill.shadows = LightShadows.None;
-            fill.color = new Color(1f, 0.88f, 0.68f);                    // cálida
-
-            // Ambiente para levantar sombras sin lavar (materiales mate), tono cálido.
+            // Ambiente para levantar sombras sin lavar, tono cálido.
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.38f, 0.35f, 0.30f);
         }
