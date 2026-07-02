@@ -75,7 +75,7 @@ namespace Game.Runtime.Menu
         private RectTransform Build(Screen s) => s switch
         {
             Screen.MainMenu     => BuildMainMenu(),
-            Screen.Historias    => BuildListScreen("HISTORIAS", "fondo_historias", HistoriaButtons()),
+            Screen.Historias    => BuildHistorias(),
             Screen.ContraIA     => BuildContraIA(),
             Screen.Multijugador => BuildSimple("MULTIJUGADOR", "Partida LAN 1v1 — próximamente."),
             Screen.MisMazos     => BuildMisMazos(),
@@ -295,6 +295,110 @@ namespace Game.Runtime.Menu
                 items.Add((nombres[i], () => { PlayerData.SelectedHistoriaId = "h" + (idx + 1); LaunchGame(); }));
             }
             return items;
+        }
+
+        // --- HISTORIAS: grid de tarjetas por campaña (color + estrellas + estado) ---
+
+        private struct HistoriaCard
+        {
+            public string label, historiaId, desc;
+            public int stars;      // 1-4
+            public bool completed; // TODO: progreso real cuando exista guardado
+            public Color color;
+        }
+
+        private static readonly HistoriaCard[] Historias =
+        {
+            new HistoriaCard { label = "Tutorial", historiaId = null, stars = 1,
+                desc = "Aprende las mecánicas del juego.", completed = true, color = new Color(0.10f, 0.35f, 0.15f) },
+            new HistoriaCard { label = "La Caída del Edén", historiaId = "h1", stars = 1,
+                desc = "El Jardín, el fruto prohibido, la serpiente.", completed = true, color = new Color(0.55f, 0.10f, 0.35f) },
+            new HistoriaCard { label = "El Primer Fratricidio", historiaId = "h5", stars = 2,
+                desc = "Adán, Eva y la maldición de Caín.", completed = true, color = new Color(0.45f, 0.10f, 0.08f) },
+            new HistoriaCard { label = "El Diluvio Universal", historiaId = "h2", stars = 2,
+                desc = "Noé, el Arca y el monte Ararat.", completed = true, color = new Color(0.10f, 0.25f, 0.55f) },
+            new HistoriaCard { label = "La Alianza con Abraham", historiaId = "h3", stars = 3,
+                desc = "Abraham, Sara y el pacto en Canaán.", completed = true, color = new Color(0.55f, 0.42f, 0.08f) },
+            new HistoriaCard { label = "La Destrucción de Sodoma", historiaId = "h4", stars = 3,
+                desc = "Lot, los ángeles y el fuego del cielo.", completed = true, color = new Color(0.55f, 0.28f, 0.08f) },
+            new HistoriaCard { label = "La Escalera al Cielo", historiaId = "h6", stars = 4,
+                desc = "Jacob, Esaú y los ángeles en Betel.", completed = true, color = new Color(0.30f, 0.12f, 0.45f) },
+            new HistoriaCard { label = "José, el Salvador de Egipto", historiaId = "h7", stars = 4,
+                desc = "José, el Faraón y la tierra de Gosén.", completed = false, color = new Color(0.50f, 0.40f, 0.10f) },
+        };
+
+        private RectTransform BuildHistorias()
+        {
+            var screen = NewScreen("Historias", "fondo_historias", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            Title(screen, "HISTORIAS");
+            BackButton(screen);
+
+            var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
+            grid.transform.SetParent(screen, false);
+            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-460f, 40f), new Vector2(460f, -90f));
+            grid.cellSize = new Vector2(440f, 106f);
+            grid.spacing = new Vector2(20f, 14f);
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 2;
+            grid.childAlignment = TextAnchor.UpperCenter;
+
+            foreach (var d in Historias) BuildHistoriaCard(grid.transform, d);
+            return screen;
+        }
+
+        private void BuildHistoriaCard(Transform parent, HistoriaCard d)
+        {
+            var card = new GameObject("Card_" + d.label, typeof(RectTransform), typeof(Image), typeof(Button));
+            card.transform.SetParent(parent, false);
+            var img = card.GetComponent<Image>();
+            img.sprite = MenuGraphics.Rounded(64, 10);
+            img.type = Image.Type.Sliced;
+            img.color = d.color;
+
+            var btn = card.GetComponent<Button>();
+            var cols = btn.colors;
+            cols.highlightedColor = new Color(1.18f, 1.18f, 1.18f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+            btn.colors = cols;
+            btn.onClick.AddListener(() =>
+            {
+                if (d.historiaId != null) PlayerData.SelectedHistoriaId = d.historiaId;
+                LaunchGame();
+            });
+            card.AddComponent<HoverScale>();
+
+            var title = MenuTheme.Label(card.transform, d.label, 20, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -36f), new Vector2(-16f, -8f));
+
+            var starsGo = new GameObject("Stars", typeof(RectTransform), typeof(Text));
+            starsGo.transform.SetParent(card.transform, false);
+            var starsTxt = starsGo.GetComponent<Text>();
+            starsTxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); // glifos ★/☆ fiables
+            starsTxt.fontSize = 16;
+            starsTxt.alignment = TextAnchor.MiddleLeft;
+            starsTxt.supportRichText = true;
+            starsTxt.text = StarsRichText(d.stars);
+            MenuTheme.Anchor((RectTransform)starsGo.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(16f, 10f), new Vector2(80f, -38f));
+
+            var desc = MenuTheme.Label(card.transform, d.desc, 15, new Color(0.9f, 0.88f, 0.8f), TextAnchor.MiddleLeft);
+            MenuTheme.Anchor((RectTransform)desc.transform, new Vector2(0f, 0f), new Vector2(0.72f, 1f), new Vector2(84f, 10f), new Vector2(0f, -38f));
+
+            var status = MenuTheme.Label(card.transform, d.completed ? "COMPLETADA ✓" : "DISPONIBLE", 16,
+                d.completed ? new Color(0.55f, 0.85f, 0.55f) : new Color(0.85f, 0.85f, 0.8f), TextAnchor.MiddleRight, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)status.transform, new Vector2(0.68f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-16f, 0f));
+        }
+
+        private static string StarsRichText(int filled)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<color=#FFFFFF>");
+            for (int i = 0; i < filled; i++) sb.Append('★');
+            sb.Append("</color><color=#665544>");
+            for (int i = filled; i < 4; i++) sb.Append('☆');
+            sb.Append("</color>");
+            return sb.ToString();
         }
 
         // --- CONTRA IA: seleccionar mazo ---
