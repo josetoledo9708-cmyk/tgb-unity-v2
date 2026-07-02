@@ -12,14 +12,15 @@ namespace Game.Runtime.Menu
     [DisallowMultipleComponent]
     public sealed class MetallicGoldGradient : BaseMeshEffect
     {
-        // Paradas de 0 (abajo) a 1 (arriba): base → veta oscura → brillo → oro → borde superior.
+        // Paradas de 0 (abajo) a 1 (arriba), centradas en BC8041 (0.737,0.502,0.255):
+        // borde oscuro → veta oscura → brillo metálico → BC8041 exacto → borde superior oscuro.
         private static readonly (float t, Color c)[] Stops =
         {
-            (0.00f, new Color(0.72f, 0.55f, 0.22f)),
-            (0.42f, new Color(0.50f, 0.36f, 0.12f)),  // veta oscura
-            (0.52f, new Color(1.00f, 0.92f, 0.60f)),  // brillo dorado (no blanco)
-            (0.72f, new Color(0.95f, 0.85f, 0.52f)),  // ≈ oro del tema
-            (1.00f, new Color(0.80f, 0.66f, 0.34f)),
+            (0.00f, new Color(0.60f, 0.41f, 0.20f)),
+            (0.40f, new Color(0.40f, 0.27f, 0.13f)),  // veta oscura
+            (0.50f, new Color(1.00f, 0.90f, 0.62f)),  // brillo metálico
+            (0.75f, new Color(0.737f, 0.502f, 0.255f)), // BC8041 exacto
+            (1.00f, new Color(0.55f, 0.37f, 0.17f)),
         };
 
         private static Color Sample(float t)

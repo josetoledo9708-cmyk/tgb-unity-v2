@@ -129,7 +129,8 @@ namespace Game.Runtime.Menu
             var frame = root.GetComponent<Image>();
             frame.sprite = MenuGraphics.Rounded(64, 18);
             frame.type = Image.Type.Sliced;
-            frame.color = MetalGold; // marco: color plano BC8041
+            frame.color = Color.white;
+            frame.gameObject.AddComponent<MetallicGoldGradient>(); // marco: metálico centrado en BC8041
 
             var btn = root.GetComponent<Button>();
             btn.targetGraphic = frame;
@@ -171,8 +172,9 @@ namespace Game.Runtime.Menu
             prt.anchoredPosition = new Vector2(26f, 0f);
             prt.localRotation = Quaternion.Euler(0f, 0f, 45f);
 
-            var t = Label(rrt, label, 20, MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold); // texto: color plano BC8041
+            var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             t.raycastTarget = false;
+            t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
             Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(46f, 0f), new Vector2(-16f, 0f));
             return btn;
         }
