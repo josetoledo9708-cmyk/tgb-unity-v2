@@ -567,7 +567,7 @@ namespace Game.Runtime.Menu
         }
 
         private void BuildMazoNewCard(Transform parent, System.Action onClick,
-                                      string plusLabel = "+", string bottomLabel = "CREAR\nNUEVO MAZO")
+                                      string plusLabel = "+", string bottomLabel = "CREAR NUEVA\nHISTORIA")
         {
             var card = BookFrame(parent, out var inner);
             var plus = MenuTheme.Label(inner, plusLabel, 40, MenuTheme.MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold);
