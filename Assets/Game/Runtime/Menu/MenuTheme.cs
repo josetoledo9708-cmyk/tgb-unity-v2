@@ -12,6 +12,7 @@ namespace Game.Runtime.Menu
     {
         public static readonly Color Gold     = new(0.97f, 0.87f, 0.55f, 1f);
         public static readonly Color GoldDim  = new(0.65f, 0.55f, 0.28f, 1f);
+        public static readonly Color MetalGold = new Color32(0xBC, 0x80, 0x41, 0xFF); // marco/texto de botones
         public static readonly Color DarkBg   = new(0.04f, 0.05f, 0.13f, 0.88f);
         public static readonly Color PanelBg  = new(0.06f, 0.05f, 0.02f, 0.92f);
         public static readonly Color HoverBg  = new(0.10f, 0.09f, 0.04f, 0.95f);
@@ -128,8 +129,7 @@ namespace Game.Runtime.Menu
             var frame = root.GetComponent<Image>();
             frame.sprite = MenuGraphics.Rounded(64, 18);
             frame.type = Image.Type.Sliced;
-            frame.color = Color.white;
-            frame.gameObject.AddComponent<MetallicGoldGradient>(); // borde oro metalizado
+            frame.color = MetalGold; // marco: color plano BC8041
 
             var btn = root.GetComponent<Button>();
             btn.targetGraphic = frame;
@@ -171,9 +171,8 @@ namespace Game.Runtime.Menu
             prt.anchoredPosition = new Vector2(26f, 0f);
             prt.localRotation = Quaternion.Euler(0f, 0f, 45f);
 
-            var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var t = Label(rrt, label, 20, MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold); // texto: color plano BC8041
             t.raycastTarget = false;
-            t.gameObject.AddComponent<MetallicGoldGradient>(); // texto oro metalizado
             Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(46f, 0f), new Vector2(-16f, 0f));
             return btn;
         }
