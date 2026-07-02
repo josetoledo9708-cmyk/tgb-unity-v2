@@ -173,7 +173,7 @@ namespace Game.Runtime.Menu
 
             // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
             var list = MenuTheme.VBox(screen, 12f, 0, TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-200f, -185f), new Vector2(200f, 95f));
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -235f), new Vector2(240f, 95f));
             DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias), icon: MenuIcons.Book);
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador), icon: MenuIcons.People);
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos), icon: MenuIcons.Cards);
@@ -190,7 +190,7 @@ namespace Game.Runtime.Menu
         }
 
         private void DesignedMenuButton(Transform parent, string label, System.Action onClick,
-                                        float width = 391f, float height = 58f, // +15% del tamaño original
+                                        float width = 469f, float height = 70f, // +15% y luego +20% mas
                                         System.Func<Transform, RectTransform> icon = null)
         {
             var b = MenuTheme.DesignedButton(parent, label, onClick, width, height, icon);
