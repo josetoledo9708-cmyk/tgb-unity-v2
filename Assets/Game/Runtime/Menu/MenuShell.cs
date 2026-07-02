@@ -500,9 +500,10 @@ namespace Game.Runtime.Menu
                 var deck = m;
                 BuildMazoBookCard(grid.transform, deck, () => { PlayerData.SelectedDeck = deck.cartas; LaunchGame(); });
             }
-            // Sin mazo guardado (o para variar): el campo arma uno automático para esa historia.
+            // Sin mazo propio guardado: se usa el mismo mazo por defecto que arma el rival IA
+            // para esa historia (SampleDeckBuilder), no un mazo al azar.
             BuildMazoNewCard(grid.transform, () => { PlayerData.SelectedDeck = null; LaunchGame(); },
-                             plusLabel: "🎲", bottomLabel: "MAZO\nALEATORIO");
+                             plusLabel: "★", bottomLabel: "MAZO\nPOR DEFECTO");
             return screen;
         }
 
