@@ -16,11 +16,12 @@ namespace Game.Runtime.Menu
         // borde oscuro → veta oscura → brillo metálico → BC8041 exacto → borde superior oscuro.
         private static readonly (float t, Color c)[] Stops =
         {
-            (0.00f, new Color(0.60f, 0.41f, 0.20f)),
-            (0.40f, new Color(0.40f, 0.27f, 0.13f)),  // veta oscura
-            (0.50f, new Color(1.00f, 0.90f, 0.62f)),  // brillo metálico
-            (0.75f, new Color(0.737f, 0.502f, 0.255f)), // BC8041 exacto
-            (1.00f, new Color(0.55f, 0.37f, 0.17f)),
+            (0.00f, new Color(0.68f, 0.47f, 0.24f)),
+            (0.36f, new Color(0.42f, 0.29f, 0.14f)),  // veta oscura
+            (0.50f, new Color(1.15f, 1.08f, 0.85f)),  // brillo metálico (sobreexpuesto)
+            (0.62f, new Color(1.00f, 0.90f, 0.62f)),  // realce entre brillo y BC8041
+            (0.80f, new Color(0.737f, 0.502f, 0.255f)), // BC8041 exacto
+            (1.00f, new Color(0.60f, 0.41f, 0.20f)),
         };
 
         private static Color Sample(float t)
@@ -57,8 +58,10 @@ namespace Game.Runtime.Menu
                 var v = _verts[i];
                 var g = Sample((v.position.y - minY) / h);
                 v.color = new Color32(
-                    (byte)(g.r * v.color.r), (byte)(g.g * v.color.g),
-                    (byte)(g.b * v.color.b), v.color.a);
+                    (byte)Mathf.Clamp(g.r * v.color.r, 0f, 255f),
+                    (byte)Mathf.Clamp(g.g * v.color.g, 0f, 255f),
+                    (byte)Mathf.Clamp(g.b * v.color.b, 0f, 255f),
+                    v.color.a);
                 _verts[i] = v;
             }
             vh.Clear();

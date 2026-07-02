@@ -155,7 +155,7 @@ namespace Game.Runtime.Menu
             var gloss = new GameObject("Gloss", typeof(RectTransform), typeof(Image));
             gloss.transform.SetParent(rrt, false);
             var gImg = gloss.GetComponent<Image>();
-            gImg.sprite = MenuGraphics.VGradient(new Color(1f, 0.9f, 0.6f, 0.16f), new Color(1f, 1f, 1f, 0f));
+            gImg.sprite = MenuGraphics.VGradient(new Color(1f, 0.92f, 0.65f, 0.30f), new Color(1f, 1f, 1f, 0f));
             gImg.raycastTarget = false;
             Anchor((RectTransform)gloss.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
 
