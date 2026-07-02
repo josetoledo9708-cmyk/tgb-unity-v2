@@ -454,10 +454,11 @@ namespace Game.Runtime.Menu
 
         private RectTransform BuildMisMazos()
         {
-            var screen = NewScreen("MisMazos", "fondo_constructor", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            var screen = NewScreen("MisMazos", "creador/Fondo", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.35f));
             Title(screen, "MIS HISTORIAS"); // mismo rótulo que usa el Godot para esta pantalla
             BackButton(screen);
+            DecorBook(screen);
 
             var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
             grid.transform.SetParent(screen, false);
@@ -478,10 +479,11 @@ namespace Game.Runtime.Menu
         /// <summary>Tras elegir una HISTORIA: qué mazo usar para jugarla (mismos "libros" que Mis Mazos).</summary>
         private RectTransform BuildSelectDeck()
         {
-            var screen = NewScreen("SelectDeck", "fondo_constructor", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            var screen = NewScreen("SelectDeck", "creador/Fondo", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.35f));
             Title(screen, "ELIGE TU MAZO");
             BackButton(screen);
+            DecorBook(screen);
 
             var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
             grid.transform.SetParent(screen, false);
@@ -503,30 +505,59 @@ namespace Game.Runtime.Menu
             // Sin mazo propio guardado: se usa el mismo mazo por defecto que arma el rival IA
             // para esa historia (SampleDeckBuilder), no un mazo al azar.
             BuildMazoNewCard(grid.transform, () => { PlayerData.SelectedDeck = null; LaunchGame(); },
-                             plusLabel: "★", bottomLabel: "MAZO\nPOR DEFECTO");
+                             plusLabel: "★", bottomLabel: "MAZO\nPOR DEFECTO", useCreateAsset: false);
             return screen;
         }
 
-        /// <summary>Marco "libro" común: borde dorado redondeado + interior negro con padding.</summary>
+        /// <summary>Decoración esquina inferior-derecha (libro cerrado), como en la referencia.</summary>
+        private void DecorBook(RectTransform screen)
+        {
+            var sp = MenuAssets.Sprite("creador/LibroDecor");
+            if (sp == null) return;
+            var img = MenuTheme.Picture(screen, "DecorBook", sp);
+            img.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-170f, 10f), new Vector2(10f, 190f));
+        }
+
+        /// <summary>Marco "libro" común. Usa Mazo.png si está disponible; si no, fallback procedural
+        /// (borde dorado redondeado + interior negro).</summary>
         private RectTransform BookFrame(Transform parent, out RectTransform inner)
         {
             var go = new GameObject("Book", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
             var img = go.GetComponent<Image>();
-            img.sprite = MenuGraphics.Rounded(64, 14);
-            img.type = Image.Type.Sliced;
-            img.color = MenuTheme.MetalGold;
+            var mazoSprite = MenuAssets.Sprite("creador/Mazo");
 
-            var inn = new GameObject("Inner", typeof(RectTransform), typeof(Image));
-            inn.transform.SetParent(go.transform, false);
-            var iimg = inn.GetComponent<Image>();
-            iimg.sprite = MenuGraphics.Rounded(64, 12);
-            iimg.type = Image.Type.Sliced;
-            iimg.color = Color.black;
-            iimg.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)inn.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            RectTransform inn;
+            if (mazoSprite != null)
+            {
+                img.sprite = mazoSprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
 
-            inner = (RectTransform)inn.transform;
+                var innGo = new GameObject("Inner", typeof(RectTransform));
+                innGo.transform.SetParent(go.transform, false);
+                inn = (RectTransform)innGo.transform;
+                MenuTheme.Anchor(inn, Vector2.zero, Vector2.one, new Vector2(24f, 30f), new Vector2(-24f, -30f));
+            }
+            else
+            {
+                img.sprite = MenuGraphics.Rounded(64, 14);
+                img.type = Image.Type.Sliced;
+                img.color = MenuTheme.MetalGold;
+
+                var innGo = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+                innGo.transform.SetParent(go.transform, false);
+                var iimg = innGo.GetComponent<Image>();
+                iimg.sprite = MenuGraphics.Rounded(64, 12);
+                iimg.type = Image.Type.Sliced;
+                iimg.color = Color.black;
+                iimg.raycastTarget = false;
+                inn = (RectTransform)innGo.transform;
+                MenuTheme.Anchor(inn, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            }
+
+            inner = inn;
             return (RectTransform)go.transform;
         }
 
@@ -536,8 +567,13 @@ namespace Game.Runtime.Menu
             var hid = m.historiaId ?? ""; // saneo: datos viejos podrían no traer historiaId
 
             var coverColor = HistoriaColor.TryGetValue(hid, out var c) ? c : MenuTheme.PanelBg;
-            var cover = MenuTheme.Rect(inner, "Cover", coverColor);
-            MenuTheme.Anchor((RectTransform)cover.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(6f, -118f), new Vector2(-6f, -6f));
+            var hojaSprite = MenuAssets.Sprite("creador/Hoja");
+            var cover = hojaSprite != null
+                ? MenuTheme.Picture(inner, "Cover", hojaSprite, preserveAspect: false)
+                : MenuTheme.Rect(inner, "Cover", coverColor);
+            cover.color = coverColor;
+            cover.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)cover.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(2f, -110f), new Vector2(-2f, -2f));
 
             var badge = MenuTheme.Rect(inner, "Badge", MenuTheme.MetalGold);
             badge.sprite = MenuGraphics.Rounded(32, 16);
@@ -567,18 +603,35 @@ namespace Game.Runtime.Menu
         }
 
         private void BuildMazoNewCard(Transform parent, System.Action onClick,
-                                      string plusLabel = "+", string bottomLabel = "CREAR NUEVA\nHISTORIA")
+                                      string plusLabel = "+", string bottomLabel = "CREAR NUEVA\nHISTORIA",
+                                      bool useCreateAsset = true)
         {
-            var card = BookFrame(parent, out var inner);
-            var plus = MenuTheme.Label(inner, plusLabel, 40, MenuTheme.MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)plus.transform, new Vector2(0f, 0.35f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
-            var lbl = MenuTheme.Label(inner, bottomLabel, 14, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)lbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0.35f), new Vector2(6f, 6f), new Vector2(-6f, 0f));
+            var createSprite = useCreateAsset ? MenuAssets.Sprite("creador/BotonCrearNueva") : null;
+            GameObject card;
+            if (createSprite != null)
+            {
+                // La imagen ya trae el icono + texto "CREAR NUEVA HISTORIA" baked.
+                card = new GameObject("Book_Nuevo", typeof(RectTransform), typeof(Image));
+                card.transform.SetParent(parent, false);
+                var img = card.GetComponent<Image>();
+                img.sprite = createSprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+            }
+            else
+            {
+                var cardRt = BookFrame(parent, out var inner);
+                card = cardRt.gameObject;
+                var plus = MenuTheme.Label(inner, plusLabel, 40, MenuTheme.MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)plus.transform, new Vector2(0f, 0.35f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+                var lbl = MenuTheme.Label(inner, bottomLabel, 14, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)lbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0.35f), new Vector2(6f, 6f), new Vector2(-6f, 0f));
+            }
 
-            var btn = card.gameObject.AddComponent<Button>();
+            var btn = card.AddComponent<Button>();
             btn.targetGraphic = card.GetComponent<Image>();
             btn.onClick.AddListener(() => onClick());
-            card.gameObject.AddComponent<HoverScale>();
+            card.AddComponent<HoverScale>();
         }
 
         // --- CONSTRUCTOR (resumen 3 pasos) ---
