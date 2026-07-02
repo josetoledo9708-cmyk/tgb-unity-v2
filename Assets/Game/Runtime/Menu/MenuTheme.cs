@@ -120,7 +120,8 @@ namespace Game.Runtime.Menu
         /// <summary>Botón diseñado con uGUI (sin PNG): marco dorado redondeado + interior oscuro con
         /// brillo superior + diamante dorado + texto Cinzel. Hover ilumina el marco.</summary>
         public static Button DesignedButton(Transform parent, string label, Action onClick,
-                                            float width = 330f, float height = 50f)
+                                            float width = 330f, float height = 50f,
+                                            Func<Transform, RectTransform> icon = null)
         {
             var root = new GameObject("DBtn_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
             root.transform.SetParent(parent, false);
@@ -160,10 +161,12 @@ namespace Game.Runtime.Menu
             gImg.raycastTarget = false;
             Anchor((RectTransform)gloss.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
 
+            if (icon != null) icon(rrt);
+            float leftPad = icon != null ? 46f : 16f;
             var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             t.raycastTarget = false;
             t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
-            Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
+            Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(leftPad, 0f), new Vector2(-16f, 0f));
             return btn;
         }
 

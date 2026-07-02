@@ -174,10 +174,10 @@ namespace Game.Runtime.Menu
             // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
             var list = MenuTheme.VBox(screen, 12f, 0, TextAnchor.MiddleCenter);
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-175f, -135f), new Vector2(175f, 95f));
-            DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
-            DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
-            DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos));
-            DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
+            DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias), icon: MenuIcons.Book);
+            DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador), icon: MenuIcons.People);
+            DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos), icon: MenuIcons.Cards);
+            DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones), icon: MenuIcons.Medal);
 
             // --- Tienda = estandarte a la izquierda-centro ---
             var tienda = FloatingIcon(screen, "buttons/btn_tienda", "TIENDA", () => Push(Screen.Tienda));
@@ -190,9 +190,10 @@ namespace Game.Runtime.Menu
         }
 
         private void DesignedMenuButton(Transform parent, string label, System.Action onClick,
-                                        float width = 340f, float height = 50f)
+                                        float width = 340f, float height = 50f,
+                                        System.Func<Transform, RectTransform> icon = null)
         {
-            var b = MenuTheme.DesignedButton(parent, label, onClick, width, height);
+            var b = MenuTheme.DesignedButton(parent, label, onClick, width, height, icon);
             var le = b.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = width; le.preferredHeight = height;
         }
