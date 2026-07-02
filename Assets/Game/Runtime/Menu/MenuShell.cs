@@ -715,13 +715,17 @@ namespace Game.Runtime.Menu
             var irt = (RectTransform)innGo.transform;
             MenuTheme.Anchor(irt, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
 
+            // Orden vertical (como la referencia): título arriba → imagen en medio → condición/efecto abajo.
+            var title = MenuTheme.Label(irt, def.Nombre, 16, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 0.87f), new Vector2(1f, 1f), new Vector2(8f, 0f), new Vector2(-40f, 0f));
+
             var texture = _cardArt != null && _cardArt.Available ? _cardArt.Front(def.Nombre) : null;
             if (texture != null)
             {
                 var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 var pic = MenuTheme.Picture(irt, "Art", sprite, preserveAspect: false);
                 pic.raycastTarget = false;
-                MenuTheme.Anchor((RectTransform)pic.transform, new Vector2(0f, 0.42f), new Vector2(1f, 1f), new Vector2(4f, 0f), new Vector2(-4f, -4f));
+                MenuTheme.Anchor((RectTransform)pic.transform, new Vector2(0f, 0.34f), new Vector2(1f, 0.85f), new Vector2(4f, 0f), new Vector2(-4f, 0f));
             }
 
             var badge = MenuTheme.Rect(irt, "Badge", MenuTheme.MetalGold);
@@ -733,14 +737,11 @@ namespace Game.Runtime.Menu
             var idxLbl = MenuTheme.Label(badge.transform, def.Id.Replace("dia", ""), 14, Color.black, TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Stretch((RectTransform)idxLbl.transform);
 
-            var title = MenuTheme.Label(irt, def.Nombre, 16, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 0.34f), new Vector2(1f, 0.42f), new Vector2(8f, 0f), new Vector2(-8f, 0f));
-
             var lines = new List<string>();
             if (!string.IsNullOrEmpty(def.Condicion)) lines.Add($"Condición: {def.Condicion}");
             if (!string.IsNullOrEmpty(def.Efecto)) lines.Add($"Efecto: {def.Efecto}");
             var info = MenuTheme.Label(irt, string.Join("\n\n", lines), 11, new Color(0.85f, 0.82f, 0.72f), TextAnchor.UpperLeft);
-            MenuTheme.Anchor((RectTransform)info.transform, new Vector2(0f, 0f), new Vector2(1f, 0.34f), new Vector2(8f, 6f), new Vector2(-8f, -4f));
+            MenuTheme.Anchor((RectTransform)info.transform, new Vector2(0f, 0f), new Vector2(1f, 0.32f), new Vector2(8f, 6f), new Vector2(-8f, -4f));
         }
 
         /// <summary>Panel modal: usa minimenu/fondo (marco real) si está disponible; si no, fallback
