@@ -28,6 +28,13 @@ namespace Game.Editor
                 ti.spriteBorder = new Vector4(30f, 30f, 30f, 30f);
             else if (name == "BotonCrearNueva")
                 ti.spriteBorder = new Vector4(24f, 24f, 24f, 24f);
+            // Modal "opciones de mazo": botones pequeños + fondos grandes, todos con esquinas
+            // redondeadas transparentes. Border generoso para 9-slice sin deformar.
+            else if (name is "borrar" or "cerrar" or "renombrar" or "cancelar" or "btn_aceptar"
+                          or "cambiar_portada" or "editar_cartas")
+                ti.spriteBorder = new Vector4(26f, 26f, 26f, 26f);
+            else if (name is "fondo" or "renombrar_marco" or "fondo_portada")
+                ti.spriteBorder = new Vector4(90f, 90f, 90f, 90f);
         }
     }
 }

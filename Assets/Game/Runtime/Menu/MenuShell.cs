@@ -554,11 +554,11 @@ namespace Game.Runtime.Menu
 
             var list = MenuTheme.VBox(inner, 12f, 0, TextAnchor.UpperCenter);
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.6f), new Vector2(-220f, 24f), new Vector2(220f, -8f));
-            AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); });
-            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sin sistema de portada personalizada aún */ CloseModal(); });
-            AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index));
-            AddModalOption(list.transform, "BORRAR", new Color(0.85f, 0.28f, 0.28f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); });
-            AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal);
+            AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); }, spriteKey: "minimenu/editar_cartas");
+            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sin sistema de portada personalizada aún */ CloseModal(); }, spriteKey: "minimenu/cambiar_portada");
+            AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index), spriteKey: "minimenu/renombrar");
+            AddModalOption(list.transform, "BORRAR", new Color(0.85f, 0.28f, 0.28f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); }, spriteKey: "minimenu/borrar");
+            AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, spriteKey: "minimenu/cerrar");
         }
 
         private void ShowRenameDialog(int index)
@@ -573,16 +573,45 @@ namespace Game.Runtime.Menu
             _modal = overlay.gameObject;
             MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
 
-            ModalPanel(overlay, 440f, 210f, out var inner);
+            var marcoSprite = MenuAssets.Sprite("minimenu/renombrar_marco");
+            RectTransform inner;
+            RectTransform inputArea;
+            RectTransform btnArea;
 
-            var title = MenuTheme.Label(inner, "RENOMBRAR MAZO", 20, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, -8f));
+            if (marcoSprite != null)
+            {
+                // El marco ya trae el título "RENOMBRAR HISTORIA" y el recuadro del campo baked.
+                var go = new GameObject("Marco", typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(overlay, false);
+                var img = go.GetComponent<Image>();
+                img.sprite = marcoSprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+                const float w = 560f;
+                float h = w * marcoSprite.rect.height / marcoSprite.rect.width;
+                MenuTheme.Anchor((RectTransform)go.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(-w / 2f, -h / 2f + 40f), new Vector2(w / 2f, h / 2f + 40f));
+                inner = (RectTransform)go.transform;
+                inputArea = inner; // el campo se ancla dentro del recuadro baked (posición aproximada)
+                btnArea = inner;
+            }
+            else
+            {
+                ModalPanel(overlay, 440f, 210f, out inner);
+                var title = MenuTheme.Label(inner, "RENOMBRAR MAZO", 20, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, -8f));
+                inputArea = inner;
+                btnArea = inner;
+            }
 
             var inputGo = new GameObject("Input", typeof(RectTransform), typeof(Image), typeof(InputField));
-            inputGo.transform.SetParent(inner, false);
+            inputGo.transform.SetParent(inputArea, false);
             var inputImg = inputGo.GetComponent<Image>();
-            inputImg.color = new Color(0.12f, 0.11f, 0.08f, 1f);
-            MenuTheme.Anchor((RectTransform)inputGo.transform, new Vector2(0.08f, 0.42f), new Vector2(0.92f, 0.68f), Vector2.zero, Vector2.zero);
+            inputImg.color = marcoSprite != null ? new Color(0f, 0f, 0f, 0.001f) : new Color(0.12f, 0.11f, 0.08f, 1f); // sobre el recuadro baked, casi invisible
+            MenuTheme.Anchor((RectTransform)inputGo.transform,
+                marcoSprite != null ? new Vector2(0.12f, 0.30f) : new Vector2(0.08f, 0.42f),
+                marcoSprite != null ? new Vector2(0.88f, 0.46f) : new Vector2(0.92f, 0.68f),
+                Vector2.zero, Vector2.zero);
             var field = inputGo.GetComponent<InputField>();
             var textGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
             textGo.transform.SetParent(inputGo.transform, false);
@@ -597,7 +626,7 @@ namespace Game.Runtime.Menu
             field.text = m.nombre;
             field.characterLimit = 24;
 
-            var save = AddModalOption(inner, "GUARDAR", MenuTheme.Gold, () =>
+            void DoSave()
             {
                 var latest = PlayerData.Mazos();
                 if (index >= 0 && index < latest.Count && !string.IsNullOrWhiteSpace(field.text))
@@ -607,11 +636,13 @@ namespace Game.Runtime.Menu
                 }
                 CloseModal();
                 RefreshMisMazos();
-            }, width: 180f);
-            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0.08f), new Vector2(0.5f, 0.08f), new Vector2(-190f, 0f), new Vector2(-10f, 44f));
+            }
 
-            var cancel = AddModalOption(inner, "CANCELAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 180f);
-            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0.08f), new Vector2(0.5f, 0.08f), new Vector2(10f, 0f), new Vector2(190f, 44f));
+            var save = AddModalOption(btnArea, "GUARDAR", MenuTheme.Gold, DoSave, width: 180f, spriteKey: "minimenu/btn_aceptar");
+            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(-190f, 0f), new Vector2(-10f, 44f));
+
+            var cancel = AddModalOption(btnArea, "CANCELAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 180f, spriteKey: "minimenu/cancelar");
+            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(10f, 0f), new Vector2(190f, 44f));
         }
 
         private static void DeleteMazo(int index)
@@ -629,15 +660,32 @@ namespace Game.Runtime.Menu
         }
 
         /// <summary>Panel modal común: marco dorado redondeado + interior oscuro, centrado.</summary>
+        /// <summary>Panel modal: usa minimenu/fondo (marco real) si está disponible; si no, fallback
+        /// procedural (marco dorado redondeado + interior oscuro).</summary>
         private RectTransform ModalPanel(RectTransform overlay, float width, float height, out RectTransform inner)
         {
+            var fondoSprite = MenuAssets.Sprite("minimenu/fondo");
             var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(overlay, false);
             var pimg = panel.GetComponent<Image>();
+            var prt = (RectTransform)panel.transform;
+
+            if (fondoSprite != null)
+            {
+                pimg.sprite = fondoSprite;
+                pimg.type = Image.Type.Sliced;
+                pimg.color = Color.white;
+                MenuTheme.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-width / 2f, -height / 2f), new Vector2(width / 2f, height / 2f));
+                var innGo0 = new GameObject("Inner", typeof(RectTransform));
+                innGo0.transform.SetParent(panel.transform, false);
+                inner = (RectTransform)innGo0.transform;
+                MenuTheme.Anchor(inner, Vector2.zero, Vector2.one, new Vector2(28f, 28f), new Vector2(-28f, -28f));
+                return prt;
+            }
+
             pimg.sprite = MenuGraphics.Rounded(64, 18);
             pimg.type = Image.Type.Sliced;
             pimg.color = MenuTheme.MetalGold;
-            var prt = (RectTransform)panel.transform;
             MenuTheme.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-width / 2f, -height / 2f), new Vector2(width / 2f, height / 2f));
 
             var innGo = new GameObject("Inner", typeof(RectTransform), typeof(Image));
@@ -653,24 +701,37 @@ namespace Game.Runtime.Menu
             return prt;
         }
 
-        private Button AddModalOption(Transform parent, string label, Color color, System.Action onClick, float width = 440f)
+        /// <summary>Opción del modal. Si <paramref name="spriteKey"/> carga, usa esa imagen (icono+texto
+        /// baked); si no, cae al botón de texto plano.</summary>
+        private Button AddModalOption(Transform parent, string label, Color color, System.Action onClick,
+                                      float width = 440f, string spriteKey = null)
         {
+            var sprite = spriteKey != null ? MenuAssets.Sprite(spriteKey) : null;
             var go = new GameObject("Opt_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             var rt = (RectTransform)go.transform;
             rt.sizeDelta = new Vector2(width, 48f);
             var img = go.GetComponent<Image>();
-            img.color = new Color(0.04f, 0.03f, 0.02f, 0.92f);
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             var cols = btn.colors;
             cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
-            var txt = MenuTheme.Label(rt, label, 18, color, TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Stretch((RectTransform)txt.transform);
             go.AddComponent<HoverScale>();
             go.AddComponent<LayoutElement>().preferredHeight = 48f;
+
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+                return btn;
+            }
+
+            img.color = new Color(0.04f, 0.03f, 0.02f, 0.92f);
+            var txt = MenuTheme.Label(rt, label, 18, color, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Stretch((RectTransform)txt.transform);
             return btn;
         }
 
