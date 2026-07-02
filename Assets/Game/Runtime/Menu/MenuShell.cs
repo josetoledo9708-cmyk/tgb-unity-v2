@@ -13,7 +13,7 @@ namespace Game.Runtime.Menu
     /// </summary>
     public sealed class MenuShell : MonoBehaviour
     {
-        public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
+        public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, SelectDeck, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
 
         private Canvas _canvas;
         private RectTransform _root;      // contenedor de la pantalla activa
@@ -79,6 +79,7 @@ namespace Game.Runtime.Menu
             Screen.ContraIA     => BuildContraIA(),
             Screen.Multijugador => BuildSimple("MULTIJUGADOR", "Partida LAN 1v1 — próximamente."),
             Screen.MisMazos     => BuildMisMazos(),
+            Screen.SelectDeck   => BuildSelectDeck(),
             Screen.DeckBuilder  => BuildDeckBuilder(),
             Screen.Misiones     => BuildSimple("MISIONES Y LOGROS", "Completa misiones para ganar monedas."),
             Screen.Tienda       => BuildTienda(),
@@ -364,8 +365,9 @@ namespace Game.Runtime.Menu
             btn.colors = cols;
             btn.onClick.AddListener(() =>
             {
-                if (d.historiaId != null) PlayerData.SelectedHistoriaId = d.historiaId;
-                LaunchGame();
+                if (d.historiaId == null) { LaunchGame(); return; } // Tutorial: sin elegir mazo
+                PlayerData.SelectedHistoriaId = d.historiaId;
+                Push(Screen.SelectDeck); // a continuación, elegir con qué mazo jugar
             });
             card.AddComponent<HoverScale>();
 
@@ -467,8 +469,40 @@ namespace Game.Runtime.Menu
             grid.constraintCount = 4;
             grid.childAlignment = TextAnchor.UpperCenter;
 
-            foreach (var m in PlayerData.Mazos()) BuildMazoBookCard(grid.transform, m);
-            BuildMazoNewCard(grid.transform);
+            foreach (var m in PlayerData.Mazos())
+                BuildMazoBookCard(grid.transform, m, () => Push(Screen.DeckBuilder)); // click = editar
+            BuildMazoNewCard(grid.transform, () => Push(Screen.DeckBuilder));
+            return screen;
+        }
+
+        /// <summary>Tras elegir una HISTORIA: qué mazo usar para jugarla (mismos "libros" que Mis Mazos).</summary>
+        private RectTransform BuildSelectDeck()
+        {
+            var screen = NewScreen("SelectDeck", "fondo_constructor", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            Title(screen, "ELIGE TU MAZO");
+            BackButton(screen);
+
+            var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
+            grid.transform.SetParent(screen, false);
+            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-480f, 40f), new Vector2(480f, -90f));
+            grid.cellSize = new Vector2(220f, 300f);
+            grid.spacing = new Vector2(18f, 18f);
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 4;
+            grid.childAlignment = TextAnchor.UpperCenter;
+
+            var hid = PlayerData.SelectedHistoriaId;
+            foreach (var m in PlayerData.Mazos())
+            {
+                if (m.historiaId != hid) continue; // solo mazos de la historia elegida
+                var deck = m;
+                BuildMazoBookCard(grid.transform, deck, () => { PlayerData.SelectedDeck = deck.cartas; LaunchGame(); });
+            }
+            // Sin mazo guardado (o para variar): el campo arma uno automático para esa historia.
+            BuildMazoNewCard(grid.transform, () => { PlayerData.SelectedDeck = null; LaunchGame(); },
+                             plusLabel: "🎲", bottomLabel: "MAZO\nALEATORIO");
             return screen;
         }
 
@@ -495,7 +529,7 @@ namespace Game.Runtime.Menu
             return (RectTransform)go.transform;
         }
 
-        private void BuildMazoBookCard(Transform parent, DeckEntry m)
+        private void BuildMazoBookCard(Transform parent, DeckEntry m, System.Action onClick)
         {
             var card = BookFrame(parent, out var inner);
             var hid = m.historiaId ?? ""; // saneo: datos viejos podrían no traer historiaId
@@ -527,21 +561,22 @@ namespace Game.Runtime.Menu
 
             var btn = card.gameObject.AddComponent<Button>();
             btn.targetGraphic = card.GetComponent<Image>();
-            btn.onClick.AddListener(() => Push(Screen.DeckBuilder));
+            btn.onClick.AddListener(() => onClick());
             card.gameObject.AddComponent<HoverScale>();
         }
 
-        private void BuildMazoNewCard(Transform parent)
+        private void BuildMazoNewCard(Transform parent, System.Action onClick,
+                                      string plusLabel = "+", string bottomLabel = "CREAR\nNUEVO MAZO")
         {
             var card = BookFrame(parent, out var inner);
-            var plus = MenuTheme.Label(inner, "+", 48, MenuTheme.MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var plus = MenuTheme.Label(inner, plusLabel, 40, MenuTheme.MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)plus.transform, new Vector2(0f, 0.35f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
-            var lbl = MenuTheme.Label(inner, "CREAR\nNUEVO MAZO", 14, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            var lbl = MenuTheme.Label(inner, bottomLabel, 14, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)lbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0.35f), new Vector2(6f, 6f), new Vector2(-6f, 0f));
 
             var btn = card.gameObject.AddComponent<Button>();
             btn.targetGraphic = card.GetComponent<Image>();
-            btn.onClick.AddListener(() => Push(Screen.DeckBuilder));
+            btn.onClick.AddListener(() => onClick());
             card.gameObject.AddComponent<HoverScale>();
         }
 
