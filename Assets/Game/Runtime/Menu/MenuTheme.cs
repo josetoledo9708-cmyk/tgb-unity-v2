@@ -77,7 +77,7 @@ namespace Game.Runtime.Menu
             var rt = (RectTransform)go.transform;
             rt.sizeDelta = new Vector2(width, height);
             var img = go.GetComponent<Image>();
-            img.color = DarkBg;
+            img.color = Color.black;
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             var cols = btn.colors;
@@ -88,7 +88,8 @@ namespace Game.Runtime.Menu
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
 
-            var txt = Label(rt, label, size, Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var txt = Label(rt, label, size, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
             AddGoldBorder(rt);
             return btn;
@@ -148,7 +149,7 @@ namespace Game.Runtime.Menu
             var innerImg = inner.GetComponent<Image>();
             innerImg.sprite = MenuGraphics.Rounded(64, 16);
             innerImg.type = Image.Type.Sliced;
-            innerImg.color = new Color(0.05f, 0.04f, 0.02f, 0.97f);
+            innerImg.color = Color.black;
             innerImg.raycastTarget = false;
             Anchor((RectTransform)inner.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
 
@@ -159,23 +160,10 @@ namespace Game.Runtime.Menu
             gImg.raycastTarget = false;
             Anchor((RectTransform)gloss.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
 
-            var pip = new GameObject("Pip", typeof(RectTransform), typeof(Image));
-            pip.transform.SetParent(rrt, false);
-            var pImg = pip.GetComponent<Image>();
-            pImg.sprite = MenuGraphics.Rounded(16, 3);
-            pImg.type = Image.Type.Sliced;
-            pImg.color = Gold;
-            pImg.raycastTarget = false;
-            var prt = (RectTransform)pip.transform;
-            prt.sizeDelta = new Vector2(12f, 12f);
-            prt.anchorMin = prt.anchorMax = new Vector2(0f, 0.5f);
-            prt.anchoredPosition = new Vector2(26f, 0f);
-            prt.localRotation = Quaternion.Euler(0f, 0f, 45f);
-
             var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             t.raycastTarget = false;
             t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
-            Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(46f, 0f), new Vector2(-16f, 0f));
+            Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
             return btn;
         }
 
