@@ -167,13 +167,13 @@ namespace Game.Runtime.Menu
             var gear = MenuTheme.TextButton(screen, "⚙", 22, () => Push(Screen.Opciones), 40f, 40f);
             MenuTheme.Anchor((RectTransform)gear.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-46f, -56f), new Vector2(-8f, -16f));
 
-            // --- Logo centrado ---
+            // --- Logo centrado (+30%, crece simétrico desde su propio centro) ---
             var logo = MenuTheme.Picture(screen, "Logo", MenuAssets.Sprite("logo_tgb"));
-            MenuTheme.Anchor((RectTransform)logo.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-180f, -250f), new Vector2(180f, -40f));
+            MenuTheme.Anchor((RectTransform)logo.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-234f, -281.5f), new Vector2(234f, -8.5f));
 
             // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
-            var list = MenuTheme.VBox(screen, 12f, 0, TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -235f), new Vector2(240f, 95f));
+            var list = MenuTheme.VBox(screen, 6f, 0, TextAnchor.MiddleCenter); // mas juntos
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -280f), new Vector2(240f, 50f));
             DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias), icon: MenuIcons.Book);
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador), icon: MenuIcons.People);
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos), icon: MenuIcons.Cards);
