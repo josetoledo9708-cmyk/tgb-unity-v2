@@ -1,8 +1,12 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Game.Core.Model;
+using Game.Runtime; // UnityCatalogLoader
+using Game.Runtime.View; // CardArtLibrary
 
 namespace Game.Runtime.Menu
 {
@@ -21,9 +25,24 @@ namespace Game.Runtime.Menu
         private GameObject _modal; // overlay opcional (opciones de mazo, renombrar) encima de la pantalla activa
         private readonly List<Screen> _stack = new();
         private Game.Runtime.View.HotseatView _board;
+        private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
+        private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
 
         /// <summary>El campo a activar cuando el jugador entra a una partida (se deja desactivado).</summary>
         public void SetBoard(Game.Runtime.View.HotseatView board) => _board = board;
+
+        /// <summary>Carga perezosa del catálogo + arte de carta (solo la primera vez que se necesita).</summary>
+        private void EnsureCatalog()
+        {
+            if (_catalog != null) return;
+            try
+            {
+                var path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
+                if (File.Exists(path)) _catalog = UnityCatalogLoader.FromJson(File.ReadAllText(path));
+            }
+            catch (System.Exception e) { Debug.LogWarning("Menú: no se pudo cargar el catálogo: " + e.Message); }
+            _cardArt = new CardArtLibrary(@"C:\Users\Rinco\Downloads"); // misma carpeta que HotseatView.artFolder
+        }
 
         private void Start()
         {
@@ -539,12 +558,20 @@ namespace Game.Runtime.Menu
             var m = mazos[index];
 
             CloseModal();
+            EnsureCatalog();
             var overlay = MenuTheme.Panel(_root, "MazoModal");
             overlay.transform.SetAsLastSibling();
             _modal = overlay.gameObject;
             MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
 
-            ModalPanel(overlay, 760f, 520f, out var inner);
+            const float panelW = 760f, panelH = 520f;
+            ModalPanel(overlay, panelW, panelH, out var inner);
+
+            // Carta representativa (real, con arte): el DÍA de esa historia, elegido de forma
+            // determinística por mazo (mismo mazo siempre muestra la misma carta).
+            int diaNum = 1 + System.Math.Abs((m.nombre + "|" + m.historiaId).GetHashCode()) % 7;
+            if (_catalog != null && _catalog.TryGet("dia" + diaNum, out var diaDef))
+                BuildCardPreview(overlay, diaDef, panelW, panelH);
 
             var title = MenuTheme.Label(inner, m.nombre, 30, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -66f), new Vector2(0f, -12f));
@@ -659,7 +686,63 @@ namespace Game.Runtime.Menu
             if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.MisMazos) Show(Screen.MisMazos);
         }
 
-        /// <summary>Panel modal común: marco dorado redondeado + interior oscuro, centrado.</summary>
+        /// <summary>
+        /// Miniatura de carta REAL (arte + nombre + condición/efecto) flotando junto al panel del
+        /// modal, superpuesta al borde izquierdo. Usa CardArtLibrary (misma carpeta que el campo).
+        /// </summary>
+        private void BuildCardPreview(RectTransform overlay, CardDefinition def, float panelWidth, float panelHeight)
+        {
+            const float w = 230f, h = 340f;
+            float cx = -(panelWidth / 2f) + 40f; // se superpone al borde izquierdo del panel
+
+            var box = new GameObject("CardPreview", typeof(RectTransform), typeof(Image));
+            box.transform.SetParent(overlay, false);
+            var bimg = box.GetComponent<Image>();
+            bimg.sprite = MenuGraphics.Rounded(64, 10);
+            bimg.type = Image.Type.Sliced;
+            bimg.color = MenuTheme.MetalGold;
+            var brt = (RectTransform)box.transform;
+            MenuTheme.Anchor(brt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(cx - w / 2f, -h / 2f), new Vector2(cx + w / 2f, h / 2f));
+            // Sibling por defecto (último = encima): visible sobre Dim y superpuesto al panel.
+
+            var innGo = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+            innGo.transform.SetParent(brt, false);
+            var iimg = innGo.GetComponent<Image>();
+            iimg.sprite = MenuGraphics.Rounded(64, 8);
+            iimg.type = Image.Type.Sliced;
+            iimg.color = new Color(0.04f, 0.05f, 0.10f, 0.98f);
+            iimg.raycastTarget = false;
+            var irt = (RectTransform)innGo.transform;
+            MenuTheme.Anchor(irt, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+
+            var texture = _cardArt != null && _cardArt.Available ? _cardArt.Front(def.Nombre) : null;
+            if (texture != null)
+            {
+                var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                var pic = MenuTheme.Picture(irt, "Art", sprite, preserveAspect: false);
+                pic.raycastTarget = false;
+                MenuTheme.Anchor((RectTransform)pic.transform, new Vector2(0f, 0.42f), new Vector2(1f, 1f), new Vector2(4f, 0f), new Vector2(-4f, -4f));
+            }
+
+            var badge = MenuTheme.Rect(irt, "Badge", MenuTheme.MetalGold);
+            badge.sprite = MenuGraphics.Rounded(32, 16);
+            var badgeRt = (RectTransform)badge.transform;
+            badgeRt.sizeDelta = new Vector2(30f, 30f);
+            badgeRt.anchorMin = badgeRt.anchorMax = new Vector2(1f, 1f);
+            badgeRt.anchoredPosition = new Vector2(-18f, -18f);
+            var idxLbl = MenuTheme.Label(badge.transform, def.Id.Replace("dia", ""), 14, Color.black, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Stretch((RectTransform)idxLbl.transform);
+
+            var title = MenuTheme.Label(irt, def.Nombre, 16, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 0.34f), new Vector2(1f, 0.42f), new Vector2(8f, 0f), new Vector2(-8f, 0f));
+
+            var lines = new List<string>();
+            if (!string.IsNullOrEmpty(def.Condicion)) lines.Add($"Condición: {def.Condicion}");
+            if (!string.IsNullOrEmpty(def.Efecto)) lines.Add($"Efecto: {def.Efecto}");
+            var info = MenuTheme.Label(irt, string.Join("\n\n", lines), 11, new Color(0.85f, 0.82f, 0.72f), TextAnchor.UpperLeft);
+            MenuTheme.Anchor((RectTransform)info.transform, new Vector2(0f, 0f), new Vector2(1f, 0.34f), new Vector2(8f, 6f), new Vector2(-8f, -4f));
+        }
+
         /// <summary>Panel modal: usa minimenu/fondo (marco real) si está disponible; si no, fallback
         /// procedural (marco dorado redondeado + interior oscuro).</summary>
         private RectTransform ModalPanel(RectTransform overlay, float width, float height, out RectTransform inner)
