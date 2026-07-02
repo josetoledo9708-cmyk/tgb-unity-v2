@@ -433,26 +433,116 @@ namespace Game.Runtime.Menu
             return screen;
         }
 
-        // --- MIS MAZOS ---
+        // --- MIS MAZOS (grid de "libros", uno por mazo guardado) ---
+
+        private static readonly Dictionary<string, Color> HistoriaColor = new()
+        {
+            { "h1", new Color(0.55f, 0.10f, 0.35f) }, { "h2", new Color(0.10f, 0.25f, 0.55f) },
+            { "h3", new Color(0.55f, 0.42f, 0.08f) }, { "h4", new Color(0.55f, 0.28f, 0.08f) },
+            { "h5", new Color(0.45f, 0.10f, 0.08f) }, { "h6", new Color(0.30f, 0.12f, 0.45f) },
+            { "h7", new Color(0.50f, 0.40f, 0.10f) },
+        };
+
+        private static string HistoriaName(string id) => id switch
+        {
+            "h1" => "La Caída del Edén", "h2" => "El Diluvio Universal", "h3" => "La Alianza con Abraham",
+            "h4" => "La Destrucción de Sodoma", "h5" => "El Primer Fratricidio", "h6" => "La Escalera al Cielo",
+            "h7" => "José, el Salvador de Egipto", _ => id ?? "Sin historia"
+        };
 
         private RectTransform BuildMisMazos()
         {
             var screen = NewScreen("MisMazos", "fondo_constructor", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.5f));
-            Title(screen, "MIS MAZOS");
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            Title(screen, "MIS HISTORIAS"); // mismo rótulo que usa el Godot para esta pantalla
             BackButton(screen);
 
-            var list = MenuTheme.VBox(screen, 12f, 0, TextAnchor.UpperCenter);
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-240f, 40f), new Vector2(240f, -90f));
+            var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
+            grid.transform.SetParent(screen, false);
+            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-480f, 40f), new Vector2(480f, -90f));
+            grid.cellSize = new Vector2(220f, 300f);
+            grid.spacing = new Vector2(18f, 18f);
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 4;
+            grid.childAlignment = TextAnchor.UpperCenter;
 
-            foreach (var m in PlayerData.Mazos())
-            {
-                var b = MenuTheme.TextButton(list.transform, $"{m.nombre}  ({m.cartas.Count})", 18, () => Push(Screen.DeckBuilder), 460f, 50f);
-                b.gameObject.AddComponent<LayoutElement>().preferredHeight = 50f;
-            }
-            var nuevo = MenuTheme.TextButton(list.transform, "+ CREAR NUEVO MAZO", 20, () => Push(Screen.DeckBuilder), 460f, 56f);
-            nuevo.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
+            foreach (var m in PlayerData.Mazos()) BuildMazoBookCard(grid.transform, m);
+            BuildMazoNewCard(grid.transform);
             return screen;
+        }
+
+        /// <summary>Marco "libro" común: borde dorado redondeado + interior negro con padding.</summary>
+        private RectTransform BookFrame(Transform parent, out RectTransform inner)
+        {
+            var go = new GameObject("Book", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = MenuGraphics.Rounded(64, 14);
+            img.type = Image.Type.Sliced;
+            img.color = MenuTheme.MetalGold;
+
+            var inn = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+            inn.transform.SetParent(go.transform, false);
+            var iimg = inn.GetComponent<Image>();
+            iimg.sprite = MenuGraphics.Rounded(64, 12);
+            iimg.type = Image.Type.Sliced;
+            iimg.color = Color.black;
+            iimg.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)inn.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+
+            inner = (RectTransform)inn.transform;
+            return (RectTransform)go.transform;
+        }
+
+        private void BuildMazoBookCard(Transform parent, DeckEntry m)
+        {
+            var card = BookFrame(parent, out var inner);
+            var hid = m.historiaId ?? ""; // saneo: datos viejos podrían no traer historiaId
+
+            var coverColor = HistoriaColor.TryGetValue(hid, out var c) ? c : MenuTheme.PanelBg;
+            var cover = MenuTheme.Rect(inner, "Cover", coverColor);
+            MenuTheme.Anchor((RectTransform)cover.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(6f, -118f), new Vector2(-6f, -6f));
+
+            var badge = MenuTheme.Rect(inner, "Badge", MenuTheme.MetalGold);
+            badge.sprite = MenuGraphics.Rounded(32, 16);
+            var brt = (RectTransform)badge.transform;
+            brt.sizeDelta = new Vector2(28f, 28f);
+            brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f);
+            brt.anchoredPosition = new Vector2(-20f, -20f);
+            var idxLabel = MenuTheme.Label(badge.transform, string.IsNullOrEmpty(hid) ? "?" : hid.Replace("h", ""), 14, Color.black, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Stretch((RectTransform)idxLabel.transform);
+
+            var histName = MenuTheme.Label(inner, HistoriaName(m.historiaId), 12, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)histName.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 80f), new Vector2(-6f, 112f));
+
+            var countLbl = MenuTheme.Label(inner, $"{m.cartas.Count} cartas", 11, new Color(0.7f, 0.66f, 0.55f), TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)countLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 62f), new Vector2(-6f, 80f));
+
+            var mazoLbl = MenuTheme.Label(inner, "MAZO", 13, new Color(0.8f, 0.76f, 0.6f), TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)mazoLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 34f), new Vector2(-6f, 58f));
+
+            var nameLbl = MenuTheme.Label(inner, m.nombre.ToUpperInvariant(), 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)nameLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 4f), new Vector2(-6f, 34f));
+
+            var btn = card.gameObject.AddComponent<Button>();
+            btn.targetGraphic = card.GetComponent<Image>();
+            btn.onClick.AddListener(() => Push(Screen.DeckBuilder));
+            card.gameObject.AddComponent<HoverScale>();
+        }
+
+        private void BuildMazoNewCard(Transform parent)
+        {
+            var card = BookFrame(parent, out var inner);
+            var plus = MenuTheme.Label(inner, "+", 48, MenuTheme.MetalGold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)plus.transform, new Vector2(0f, 0.35f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            var lbl = MenuTheme.Label(inner, "CREAR\nNUEVO MAZO", 14, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)lbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0.35f), new Vector2(6f, 6f), new Vector2(-6f, 0f));
+
+            var btn = card.gameObject.AddComponent<Button>();
+            btn.targetGraphic = card.GetComponent<Image>();
+            btn.onClick.AddListener(() => Push(Screen.DeckBuilder));
+            card.gameObject.AddComponent<HoverScale>();
         }
 
         // --- CONSTRUCTOR (resumen 3 pasos) ---
