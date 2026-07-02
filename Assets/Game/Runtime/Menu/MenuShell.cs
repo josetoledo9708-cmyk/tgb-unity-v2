@@ -18,6 +18,7 @@ namespace Game.Runtime.Menu
         private Canvas _canvas;
         private RectTransform _root;      // contenedor de la pantalla activa
         private GameObject _current;
+        private GameObject _modal; // overlay opcional (opciones de mazo, renombrar) encima de la pantalla activa
         private readonly List<Screen> _stack = new();
         private Game.Runtime.View.HotseatView _board;
 
@@ -68,8 +69,14 @@ namespace Game.Runtime.Menu
 
         private void Show(Screen s)
         {
+            CloseModal();
             if (_current != null) Destroy(_current);
             _current = Build(s).gameObject;
+        }
+
+        private void CloseModal()
+        {
+            if (_modal != null) { Destroy(_modal); _modal = null; }
         }
 
         private RectTransform Build(Screen s) => s switch
@@ -470,8 +477,12 @@ namespace Game.Runtime.Menu
             grid.constraintCount = 4;
             grid.childAlignment = TextAnchor.UpperCenter;
 
-            foreach (var m in PlayerData.Mazos())
-                BuildMazoBookCard(grid.transform, m, () => Push(Screen.DeckBuilder)); // click = editar
+            var mazosGuardados = PlayerData.Mazos();
+            for (int i = 0; i < mazosGuardados.Count; i++)
+            {
+                int idx = i; // captura por valor: cada tarjeta abre el modal de SU mazo
+                BuildMazoBookCard(grid.transform, mazosGuardados[i], () => ShowMazoOptions(idx));
+            }
             BuildMazoNewCard(grid.transform, () => Push(Screen.DeckBuilder));
             return screen;
         }
@@ -517,6 +528,150 @@ namespace Game.Runtime.Menu
             var img = MenuTheme.Picture(screen, "DecorBook", sp);
             img.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-170f, 10f), new Vector2(10f, 190f));
+        }
+
+        // --- opciones de un mazo guardado (modal: Editar/Portada/Renombrar/Borrar/Cerrar) ---
+
+        private void ShowMazoOptions(int index)
+        {
+            var mazos = PlayerData.Mazos();
+            if (index < 0 || index >= mazos.Count) return;
+            var m = mazos[index];
+
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "MazoModal");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+
+            ModalPanel(overlay, 760f, 520f, out var inner);
+
+            var title = MenuTheme.Label(inner, m.nombre, 30, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -66f), new Vector2(0f, -12f));
+
+            var sub = MenuTheme.Label(inner, $"Historia: {HistoriaName(m.historiaId)}\n{m.cartas.Count} cartas", 17, new Color(0.85f, 0.82f, 0.72f));
+            MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0f, 0.62f), new Vector2(1f, 0.85f), Vector2.zero, Vector2.zero);
+
+            var list = MenuTheme.VBox(inner, 12f, 0, TextAnchor.UpperCenter);
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.6f), new Vector2(-220f, 24f), new Vector2(220f, -8f));
+            AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); });
+            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sin sistema de portada personalizada aún */ CloseModal(); });
+            AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index));
+            AddModalOption(list.transform, "BORRAR", new Color(0.85f, 0.28f, 0.28f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); });
+            AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal);
+        }
+
+        private void ShowRenameDialog(int index)
+        {
+            var mazos = PlayerData.Mazos();
+            if (index < 0 || index >= mazos.Count) return;
+            var m = mazos[index];
+
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "RenameModal");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+
+            ModalPanel(overlay, 440f, 210f, out var inner);
+
+            var title = MenuTheme.Label(inner, "RENOMBRAR MAZO", 20, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, -8f));
+
+            var inputGo = new GameObject("Input", typeof(RectTransform), typeof(Image), typeof(InputField));
+            inputGo.transform.SetParent(inner, false);
+            var inputImg = inputGo.GetComponent<Image>();
+            inputImg.color = new Color(0.12f, 0.11f, 0.08f, 1f);
+            MenuTheme.Anchor((RectTransform)inputGo.transform, new Vector2(0.08f, 0.42f), new Vector2(0.92f, 0.68f), Vector2.zero, Vector2.zero);
+            var field = inputGo.GetComponent<InputField>();
+            var textGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            textGo.transform.SetParent(inputGo.transform, false);
+            var txt = textGo.GetComponent<Text>();
+            txt.font = MenuAssets.Font();
+            txt.color = MenuTheme.Gold;
+            txt.fontSize = 18;
+            txt.alignment = TextAnchor.MiddleLeft;
+            txt.supportRichText = false;
+            MenuTheme.Anchor((RectTransform)textGo.transform, Vector2.zero, Vector2.one, new Vector2(10f, 4f), new Vector2(-10f, -4f));
+            field.textComponent = txt;
+            field.text = m.nombre;
+            field.characterLimit = 24;
+
+            var save = AddModalOption(inner, "GUARDAR", MenuTheme.Gold, () =>
+            {
+                var latest = PlayerData.Mazos();
+                if (index >= 0 && index < latest.Count && !string.IsNullOrWhiteSpace(field.text))
+                {
+                    latest[index].nombre = field.text.Trim();
+                    PlayerData.SaveMazos(latest);
+                }
+                CloseModal();
+                RefreshMisMazos();
+            }, width: 180f);
+            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0.08f), new Vector2(0.5f, 0.08f), new Vector2(-190f, 0f), new Vector2(-10f, 44f));
+
+            var cancel = AddModalOption(inner, "CANCELAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 180f);
+            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0.08f), new Vector2(0.5f, 0.08f), new Vector2(10f, 0f), new Vector2(190f, 44f));
+        }
+
+        private static void DeleteMazo(int index)
+        {
+            var mazos = PlayerData.Mazos();
+            if (index < 0 || index >= mazos.Count) return;
+            mazos.RemoveAt(index);
+            PlayerData.SaveMazos(mazos);
+        }
+
+        /// <summary>Reconstruye la pantalla Mis Mazos in-place (tras borrar/renombrar).</summary>
+        private void RefreshMisMazos()
+        {
+            if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.MisMazos) Show(Screen.MisMazos);
+        }
+
+        /// <summary>Panel modal común: marco dorado redondeado + interior oscuro, centrado.</summary>
+        private RectTransform ModalPanel(RectTransform overlay, float width, float height, out RectTransform inner)
+        {
+            var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(overlay, false);
+            var pimg = panel.GetComponent<Image>();
+            pimg.sprite = MenuGraphics.Rounded(64, 18);
+            pimg.type = Image.Type.Sliced;
+            pimg.color = MenuTheme.MetalGold;
+            var prt = (RectTransform)panel.transform;
+            MenuTheme.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-width / 2f, -height / 2f), new Vector2(width / 2f, height / 2f));
+
+            var innGo = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+            innGo.transform.SetParent(panel.transform, false);
+            var iimg = innGo.GetComponent<Image>();
+            iimg.sprite = MenuGraphics.Rounded(64, 16);
+            iimg.type = Image.Type.Sliced;
+            iimg.color = new Color(0.05f, 0.06f, 0.12f, 0.98f);
+            iimg.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)innGo.transform, Vector2.zero, Vector2.one, new Vector2(6f, 6f), new Vector2(-6f, -6f));
+
+            inner = (RectTransform)innGo.transform;
+            return prt;
+        }
+
+        private Button AddModalOption(Transform parent, string label, Color color, System.Action onClick, float width = 440f)
+        {
+            var go = new GameObject("Opt_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(width, 48f);
+            var img = go.GetComponent<Image>();
+            img.color = new Color(0.04f, 0.03f, 0.02f, 0.92f);
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            var cols = btn.colors;
+            cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
+            btn.colors = cols;
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            var txt = MenuTheme.Label(rt, label, 18, color, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Stretch((RectTransform)txt.transform);
+            go.AddComponent<HoverScale>();
+            go.AddComponent<LayoutElement>().preferredHeight = 48f;
+            return btn;
         }
 
         /// <summary>Marco "libro" común. Usa Mazo.png si está disponible; si no, fallback procedural
