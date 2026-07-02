@@ -117,8 +117,9 @@ namespace Game.Runtime.Menu
             return btn;
         }
 
-        /// <summary>Botón diseñado con uGUI (sin PNG): marco dorado redondeado + interior oscuro con
-        /// brillo superior + diamante dorado + texto Cinzel. Hover ilumina el marco.</summary>
+        /// <summary>Botón usando el asset Botones.png (marco+interior+brillo baked) con icono y
+        /// texto Cinzel superpuestos. Si el asset no está disponible, cae al diseño procedural
+        /// (marco redondeado + interior oscuro + brillo, generados con las herramientas de Unity).</summary>
         public static Button DesignedButton(Transform parent, string label, Action onClick,
                                             float width = 330f, float height = 50f,
                                             Func<Transform, RectTransform> icon = null)
@@ -129,37 +130,48 @@ namespace Game.Runtime.Menu
             rrt.sizeDelta = new Vector2(width, height);
 
             var frame = root.GetComponent<Image>();
-            frame.sprite = MenuGraphics.Rounded(64, 18);
-            frame.type = Image.Type.Sliced;
-            frame.color = Color.white;
-            frame.gameObject.AddComponent<MetallicGoldGradient>(); // marco: metálico centrado en BC8041
+            var botonesSprite = MenuAssets.Sprite("Botones");
+            if (botonesSprite != null)
+            {
+                frame.sprite = botonesSprite;
+                frame.type = Image.Type.Sliced;
+                frame.color = Color.white; // asset ya trae el color/brillo baked
+            }
+            else
+            {
+                // Fallback procedural: marco redondeado + interior oscuro + brillo superior.
+                frame.sprite = MenuGraphics.Rounded(64, 18);
+                frame.type = Image.Type.Sliced;
+                frame.color = Color.white;
+                frame.gameObject.AddComponent<MetallicGoldGradient>();
+
+                var inner = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+                inner.transform.SetParent(rrt, false);
+                var innerImg = inner.GetComponent<Image>();
+                innerImg.sprite = MenuGraphics.Rounded(64, 16);
+                innerImg.type = Image.Type.Sliced;
+                innerImg.color = Color.black;
+                innerImg.raycastTarget = false;
+                Anchor((RectTransform)inner.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+
+                var gloss = new GameObject("Gloss", typeof(RectTransform), typeof(Image));
+                gloss.transform.SetParent(rrt, false);
+                var gImg = gloss.GetComponent<Image>();
+                gImg.sprite = MenuGraphics.VGradient(new Color(1f, 0.92f, 0.65f, 0.30f), new Color(1f, 1f, 1f, 0f));
+                gImg.raycastTarget = false;
+                Anchor((RectTransform)gloss.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            }
 
             var btn = root.GetComponent<Button>();
             btn.targetGraphic = frame;
             var cols = btn.colors;
             cols.normalColor = Color.white;
-            cols.highlightedColor = new Color(1.3f, 1.25f, 1f, 1f);
-            cols.pressedColor = new Color(0.8f, 0.72f, 0.4f, 1f);
+            cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f);
             cols.fadeDuration = 0.08f;
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             root.AddComponent<HoverScale>(); // agranda al pasar el cursor
-
-            var inner = new GameObject("Inner", typeof(RectTransform), typeof(Image));
-            inner.transform.SetParent(rrt, false);
-            var innerImg = inner.GetComponent<Image>();
-            innerImg.sprite = MenuGraphics.Rounded(64, 16);
-            innerImg.type = Image.Type.Sliced;
-            innerImg.color = Color.black;
-            innerImg.raycastTarget = false;
-            Anchor((RectTransform)inner.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
-
-            var gloss = new GameObject("Gloss", typeof(RectTransform), typeof(Image));
-            gloss.transform.SetParent(rrt, false);
-            var gImg = gloss.GetComponent<Image>();
-            gImg.sprite = MenuGraphics.VGradient(new Color(1f, 0.92f, 0.65f, 0.30f), new Color(1f, 1f, 1f, 0f));
-            gImg.raycastTarget = false;
-            Anchor((RectTransform)gloss.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
 
             if (icon != null) icon(rrt);
             float leftPad = icon != null ? 46f : 16f;
