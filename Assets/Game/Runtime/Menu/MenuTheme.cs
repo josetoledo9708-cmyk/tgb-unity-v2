@@ -130,12 +130,16 @@ namespace Game.Runtime.Menu
             rrt.sizeDelta = new Vector2(width, height);
 
             var frame = root.GetComponent<Image>();
-            var botonesSprite = MenuAssets.Sprite("Botones");
-            if (botonesSprite != null)
+            // Botón de borde brillante (Blender): interior negro + glow dorado + picos ornamentales.
+            // Type.Simple: los picos van al centro; NO 9-slice (estiraría los picos). El sprite tiene
+            // la misma proporción (~6.6:1) que los botones del menú, así que escala sin deformarse.
+            var glowSprite = MenuAssets.Sprite("GlowDorado");
+            if (glowSprite != null)
             {
-                frame.sprite = botonesSprite;
-                frame.type = Image.Type.Sliced;
-                frame.color = Color.white; // asset ya trae el color/brillo baked
+                frame.sprite = glowSprite;
+                frame.type = Image.Type.Simple;
+                frame.preserveAspect = false;
+                frame.color = Color.white;
             }
             else
             {
