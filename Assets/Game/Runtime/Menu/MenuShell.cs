@@ -581,11 +581,11 @@ namespace Game.Runtime.Menu
 
             var list = MenuTheme.VBox(inner, 12f, 0, TextAnchor.UpperCenter);
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.6f), new Vector2(-220f, 24f), new Vector2(220f, -8f));
-            AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); }, spriteKey: "minimenu/editar_cartas");
-            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sin sistema de portada personalizada aún */ CloseModal(); }, spriteKey: "minimenu/cambiar_portada");
-            AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index), spriteKey: "minimenu/renombrar");
-            AddModalOption(list.transform, "BORRAR", new Color(0.85f, 0.28f, 0.28f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); }, spriteKey: "minimenu/borrar");
-            AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, spriteKey: "minimenu/cerrar");
+            AddModalOption(list.transform, "EDITAR CARTAS", () => { CloseModal(); Push(Screen.DeckBuilder); });
+            AddModalOption(list.transform, "CAMBIAR PORTADA", () => { /* pendiente: sin sistema de portada personalizada aún */ CloseModal(); });
+            AddModalOption(list.transform, "RENOMBRAR", () => ShowRenameDialog(index));
+            AddModalOption(list.transform, "BORRAR", () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); }, frameKey: "BtnRojo");
+            AddModalOption(list.transform, "CERRAR", CloseModal);
         }
 
         private void ShowRenameDialog(int index)
@@ -665,11 +665,11 @@ namespace Game.Runtime.Menu
                 RefreshMisMazos();
             }
 
-            var save = AddModalOption(btnArea, "GUARDAR", MenuTheme.Gold, DoSave, width: 180f, spriteKey: "minimenu/btn_aceptar");
-            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(-190f, 0f), new Vector2(-10f, 44f));
+            var save = AddModalOption(btnArea, "GUARDAR", DoSave, width: 180f, frameKey: "BtnVerde");
+            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(-190f, 0f), new Vector2(-10f, 48f));
 
-            var cancel = AddModalOption(btnArea, "CANCELAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 180f, spriteKey: "minimenu/cancelar");
-            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(10f, 0f), new Vector2(190f, 44f));
+            var cancel = AddModalOption(btnArea, "CANCELAR", CloseModal, width: 180f);
+            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(10f, 0f), new Vector2(190f, 48f));
         }
 
         private static void DeleteMazo(int index)
@@ -785,12 +785,13 @@ namespace Game.Runtime.Menu
             return prt;
         }
 
-        /// <summary>Opción del modal. Si <paramref name="spriteKey"/> carga, usa esa imagen (icono+texto
-        /// baked); si no, cae al botón de texto plano.</summary>
-        private Button AddModalOption(Transform parent, string label, Color color, System.Action onClick,
-                                      float width = 440f, string spriteKey = null)
+        /// <summary>Opción del modal. Usa el marco universal (Blender) 9-slice —
+        /// <paramref name="frameKey"/> elige color (BtnGold / BtnRojo / BtnVerde)— con texto Cinzel
+        /// superpuesto. Cae a un botón de texto plano si el asset no está.</summary>
+        private Button AddModalOption(Transform parent, string label, System.Action onClick,
+                                      float width = 440f, string frameKey = "BtnGold")
         {
-            var sprite = spriteKey != null ? MenuAssets.Sprite(spriteKey) : null;
+            var frame = MenuAssets.Sprite(frameKey);
             var go = new GameObject("Opt_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             var rt = (RectTransform)go.transform;
@@ -799,23 +800,29 @@ namespace Game.Runtime.Menu
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             var cols = btn.colors;
-            cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
+            cols.normalColor = Color.white;
+            cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f);
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             go.AddComponent<HoverScale>();
             go.AddComponent<LayoutElement>().preferredHeight = 48f;
 
-            if (sprite != null)
+            if (frame != null)
             {
-                img.sprite = sprite;
+                img.sprite = frame;
                 img.type = Image.Type.Sliced;
                 img.color = Color.white;
-                return btn;
             }
+            else img.color = new Color(0.04f, 0.03f, 0.02f, 0.92f);
 
-            img.color = new Color(0.04f, 0.03f, 0.02f, 0.92f);
-            var txt = MenuTheme.Label(rt, label, 18, color, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var txt = MenuTheme.Label(rt, label, 18, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            txt.raycastTarget = false;
             MenuTheme.Stretch((RectTransform)txt.transform);
+            if (frameKey == "BtnGold")
+                txt.gameObject.AddComponent<MetallicGoldGradient>();
+            else
+                txt.color = new Color(1f, 0.96f, 0.9f, 1f);
             return btn;
         }
 

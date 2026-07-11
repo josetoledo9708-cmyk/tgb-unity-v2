@@ -77,21 +77,31 @@ namespace Game.Runtime.Menu
             var rt = (RectTransform)go.transform;
             rt.sizeDelta = new Vector2(width, height);
             var img = go.GetComponent<Image>();
-            img.color = Color.black;
+            // Mismo marco universal (Blender) 9-slice que los demás botones; cae a negro+borde
+            // procedural si el asset no está.
+            var frameSprite = MenuAssets.Sprite("BtnGold");
+            if (frameSprite != null)
+            {
+                img.sprite = frameSprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+            }
+            else img.color = Color.black;
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             var cols = btn.colors;
             cols.normalColor = Color.white;
-            cols.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
-            cols.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f);
             cols.fadeDuration = 0.08f;
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
 
             var txt = Label(rt, label, size, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            txt.raycastTarget = false;
             txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
-            AddGoldBorder(rt);
+            if (frameSprite == null) AddGoldBorder(rt);
             return btn;
         }
 
@@ -122,7 +132,8 @@ namespace Game.Runtime.Menu
         /// (marco redondeado + interior oscuro + brillo, generados con las herramientas de Unity).</summary>
         public static Button DesignedButton(Transform parent, string label, Action onClick,
                                             float width = 330f, float height = 50f,
-                                            Func<Transform, RectTransform> icon = null)
+                                            Func<Transform, RectTransform> icon = null,
+                                            string frameKey = "BtnGold")
         {
             var root = new GameObject("DBtn_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
             root.transform.SetParent(parent, false);
@@ -130,14 +141,14 @@ namespace Game.Runtime.Menu
             rrt.sizeDelta = new Vector2(width, height);
 
             var frame = root.GetComponent<Image>();
-            // Botón de borde brillante (Blender): interior negro + glow dorado + picos ornamentales.
-            // Type.Simple: los picos van al centro; NO 9-slice (estiraría los picos). El sprite tiene
-            // la misma proporción (~6.6:1) que los botones del menú, así que escala sin deformarse.
-            var glowSprite = MenuAssets.Sprite("GlowDorado");
+            // Botón universal (Blender): marco metálico + centro liso, esquinas redondeadas.
+            // Type.Sliced con spriteBorder → mismo grosor de marco a cualquier tamaño (menú
+            // principal, modales, volver...). frameKey elige color: BtnGold / BtnRojo / BtnVerde.
+            var glowSprite = MenuAssets.Sprite(frameKey);
             if (glowSprite != null)
             {
                 frame.sprite = glowSprite;
-                frame.type = Image.Type.Simple;
+                frame.type = Image.Type.Sliced;
                 frame.preserveAspect = false;
                 frame.color = Color.white;
             }
@@ -181,7 +192,10 @@ namespace Game.Runtime.Menu
             float leftPad = icon != null ? 46f : 16f;
             var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             t.raycastTarget = false;
-            t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
+            if (frameKey == "BtnGold")
+                t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico dorado sobre BC8041
+            else
+                t.color = new Color(1f, 0.96f, 0.9f, 1f);         // rojo/verde: texto claro legible
             Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(leftPad, 0f), new Vector2(-16f, 0f));
             return btn;
         }
