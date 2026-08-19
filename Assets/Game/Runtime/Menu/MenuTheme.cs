@@ -80,7 +80,7 @@ namespace Game.Runtime.Menu
             // Estándar: mismo recuadro Botones.png (9-slice) que los botones principales. En botones
             // diminutos (iconos como engranaje/tutorial) el border 90 no cabe, así que ahí se cae al
             // fondo negro + borde dorado procedural.
-            var frameSprite = width >= 160f ? MenuAssets.Sprite("Botones") : null;
+            var frameSprite = width >= 100f ? MenuAssets.Sprite("Botones") : null;
             if (frameSprite != null)
             {
                 img.sprite = frameSprite;
@@ -212,6 +212,15 @@ namespace Game.Runtime.Menu
             ol.effectColor = Color.white;               // el degradado lo vuelve oro
             ol.effectDistance = new Vector2(0.1f, 0.1f);
             ol.useGraphicAlpha = true;
+        }
+
+        /// <summary>Aplica el estilo de texto ORO del juego (grosor + degradado metálico, SIN glint)
+        /// a un Text común del menú, para que combine con el texto de los botones.</summary>
+        public static void GoldMetalText(Text t)
+        {
+            t.color = Color.white; // base blanco: el degradado metálico multiplica igual que en botones
+            ThickenText(t);
+            t.gameObject.AddComponent<MetallicGoldGradient>();
         }
 
         // --- layout helpers ---
