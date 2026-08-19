@@ -89,6 +89,7 @@ namespace Game.Runtime.Menu
             if (onClick != null) btn.onClick.AddListener(() => onClick());
 
             var txt = Label(rt, label, size, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            ThickenText(txt);                                    // más espesor (faux-bold)
             txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
             AddGoldBorder(rt);
@@ -178,6 +179,7 @@ namespace Game.Runtime.Menu
             float leftPad = icon != null ? 46f : 16f;
             var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             t.raycastTarget = false;
+            ThickenText(t);                                    // más espesor (faux-bold)
             t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
             Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(leftPad, 0f), new Vector2(-16f, 0f));
             root.AddComponent<GlintOnHover>(); // reflejo solo con hover/selección
@@ -189,6 +191,17 @@ namespace Game.Runtime.Menu
             var outline = target.gameObject.AddComponent<Outline>();
             outline.effectColor = GoldDim;
             outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        /// <summary>Engrosa un Text (faux-bold): Outline blanco que duplica el glifo en las 4
+        /// diagonales. Se añade ANTES del MetallicGoldGradient para que las copias también reciban
+        /// el degradado dorado (letra más gruesa, mismo oro).</summary>
+        private static void ThickenText(Text t)
+        {
+            var ol = t.gameObject.AddComponent<Outline>();
+            ol.effectColor = Color.white;               // el degradado lo vuelve oro
+            ol.effectDistance = new Vector2(1.3f, 1.3f);
+            ol.useGraphicAlpha = true;
         }
 
         // --- layout helpers ---
