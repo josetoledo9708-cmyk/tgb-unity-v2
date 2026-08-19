@@ -215,7 +215,7 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -280f), new Vector2(240f, 50f));
             DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
-            DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos));
+            DesignedMenuButton(list.transform, "CONSTRUCTOR DE HISTORIAS", () => Push(Screen.MisMazos));
             DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
 
             // --- Tienda = estandarte a la izquierda-centro ---
@@ -530,7 +530,7 @@ namespace Game.Runtime.Menu
         private RectTransform BuildMisMazos()
         {
             var screen = NewScreen("MisMazos", "creador/Fondo", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.35f));
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.15f)); // fondo más iluminado (como el Godot)
             Title(screen, "MIS HISTORIAS"); // mismo rótulo que usa el Godot para esta pantalla
             BackButton(screen);
             DecorBook(screen);
@@ -545,13 +545,16 @@ namespace Game.Runtime.Menu
             grid.constraintCount = 4;
             grid.childAlignment = TextAnchor.UpperCenter;
 
+            // "Crear Nueva Historia" SIEMPRE primero: así nunca desaparece de la 1ª pantalla al
+            // tener muchas historias (a diferencia del Godot, donde iba al final).
+            BuildMazoNewCard(grid.transform, () => Push(Screen.DeckBuilder));
+
             var mazosGuardados = PlayerData.Mazos();
             for (int i = 0; i < mazosGuardados.Count; i++)
             {
                 int idx = i; // captura por valor: cada tarjeta abre el modal de SU mazo
                 BuildMazoBookCard(grid.transform, mazosGuardados[i], () => ShowMazoOptions(idx));
             }
-            BuildMazoNewCard(grid.transform, () => Push(Screen.DeckBuilder));
             return screen;
         }
 
@@ -595,7 +598,8 @@ namespace Game.Runtime.Menu
             if (sp == null) return;
             var img = MenuTheme.Picture(screen, "DecorBook", sp);
             img.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-170f, 10f), new Vector2(10f, 190f));
+            // más grande y más al rincón inferior-derecho (como el Godot).
+            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-330f, -20f), new Vector2(30f, 300f));
         }
 
         // --- opciones de un mazo guardado (modal: Editar/Portada/Renombrar/Borrar/Cerrar) ---
