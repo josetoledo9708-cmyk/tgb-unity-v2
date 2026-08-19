@@ -599,7 +599,7 @@ namespace Game.Runtime.Menu
             var img = MenuTheme.Picture(screen, "DecorBook", sp);
             img.raycastTarget = false;
             // más grande y más al rincón inferior-derecho (como el Godot).
-            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-330f, -20f), new Vector2(30f, 300f));
+            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-402f, -60f), new Vector2(30f, 324f));
         }
 
         // --- opciones de un mazo guardado (modal: Editar/Portada/Renombrar/Borrar/Cerrar) ---
