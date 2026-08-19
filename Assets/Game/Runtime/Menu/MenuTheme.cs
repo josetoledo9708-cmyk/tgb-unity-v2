@@ -88,7 +88,7 @@ namespace Game.Runtime.Menu
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
 
-            var txt = Label(rt, label, size, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var txt = Label(rt, label, Mathf.RoundToInt(size * 1.1f), Color.white, TextAnchor.MiddleCenter, FontStyle.Bold); // +10%
             ThickenText(txt);                                    // más espesor (faux-bold)
             txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
@@ -177,7 +177,7 @@ namespace Game.Runtime.Menu
 
             if (icon != null) icon(rrt);
             float leftPad = icon != null ? 46f : 16f;
-            var t = Label(rrt, label, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var t = Label(rrt, label, 22, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold); // +10%
             t.raycastTarget = false;
             ThickenText(t);                                    // más espesor (faux-bold)
             t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
@@ -200,7 +200,7 @@ namespace Game.Runtime.Menu
         {
             var ol = t.gameObject.AddComponent<Outline>();
             ol.effectColor = Color.white;               // el degradado lo vuelve oro
-            ol.effectDistance = new Vector2(0.5f, 0.5f);
+            ol.effectDistance = new Vector2(0.3f, 0.3f);
             ol.useGraphicAlpha = true;
         }
 
