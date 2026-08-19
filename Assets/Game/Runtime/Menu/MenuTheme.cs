@@ -77,13 +77,23 @@ namespace Game.Runtime.Menu
             var rt = (RectTransform)go.transform;
             rt.sizeDelta = new Vector2(width, height);
             var img = go.GetComponent<Image>();
-            img.color = Color.black;
+            // Estándar: mismo recuadro Botones.png (9-slice) que los botones principales. En botones
+            // diminutos (iconos como engranaje/tutorial) el border 90 no cabe, así que ahí se cae al
+            // fondo negro + borde dorado procedural.
+            var frameSprite = width >= 160f ? MenuAssets.Sprite("Botones") : null;
+            if (frameSprite != null)
+            {
+                img.sprite = frameSprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+            }
+            else img.color = Color.black;
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             var cols = btn.colors;
             cols.normalColor = Color.white;
-            cols.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
-            cols.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f);
             cols.fadeDuration = 0.08f;
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
@@ -92,7 +102,7 @@ namespace Game.Runtime.Menu
             ThickenText(txt);                                    // más espesor (faux-bold)
             txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
-            AddGoldBorder(rt);
+            if (frameSprite == null) AddGoldBorder(rt);          // borde procedural solo sin recuadro
             go.AddComponent<GlintOnHover>(); // reflejo solo con hover/selección
             return btn;
         }
