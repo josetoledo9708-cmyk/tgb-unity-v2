@@ -200,7 +200,7 @@ namespace Game.Runtime.Menu
         {
             var ol = t.gameObject.AddComponent<Outline>();
             ol.effectColor = Color.white;               // el degradado lo vuelve oro
-            ol.effectDistance = new Vector2(1.3f, 1.3f);
+            ol.effectDistance = new Vector2(0.65f, 0.65f);
             ol.useGraphicAlpha = true;
         }
 
