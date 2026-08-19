@@ -23,12 +23,6 @@ namespace Game.Editor
             var name = Path.GetFileNameWithoutExtension(assetPath);
             if (name == "Botones")
                 ti.spriteBorder = new Vector4(90f, 90f, 90f, 90f);
-            // Botones universales (Blender): marco metálico + centro liso, esquinas redondeadas
-            // (~19px en el render 480x185). Border 20 (>= radio) para 9-slice sin deformar el marco:
-            // 20+20=40 encaja hasta en los botones pequeños (engranaje/tutorial ~40px) y deja centro
-            // estirable en los normales (48-70px).
-            else if (name is "BtnGold" or "BtnRojo" or "BtnVerde")
-                ti.spriteBorder = new Vector4(20f, 20f, 20f, 20f);
             // Marco de libro (Constructor de mazos): borde ornamentado, 9-slice sin deformarlo.
             else if (name == "Mazo")
                 ti.spriteBorder = new Vector4(30f, 30f, 30f, 30f);
