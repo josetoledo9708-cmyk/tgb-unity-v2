@@ -406,6 +406,7 @@ namespace Game.Runtime.Menu
                 Push(Screen.SelectDeck); // a continuación, elegir con qué mazo jugar
             });
             card.AddComponent<HoverScale>();
+            card.AddComponent<GlintOnHover>(); // reflejo luminoso del título dorado al pasar el cursor
 
             // Fondo del recuadro = imagen de la historia (recortada al aspecto), enmascarada a las
             // esquinas redondeadas + scrim izquierdo para legibilidad. Si no hay imagen, color plano.
