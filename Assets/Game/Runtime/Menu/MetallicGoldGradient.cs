@@ -14,18 +14,26 @@ namespace Game.Runtime.Menu
     public sealed class MetallicGoldGradient : BaseMeshEffect
     {
         [Header("Reflejo animado (glint)")]
-        [Tooltip("Activa el reflejo de luz que barre el texto de izquierda a derecha.")]
-        public bool animateGlint = true;
-        [Tooltip("Segundos entre cada pasada del reflejo.")]
-        public float glintPeriod = 3.6f;
+        [Tooltip("Reflejo activo. Se enciende solo con hover/selección vía GlintOnHover.")]
+        public bool animateGlint = false;
+        [Tooltip("Segundos entre cada pasada del reflejo mientras está activo.")]
+        public float glintPeriod = 2.2f;
         [Tooltip("Fracción del periodo que dura la pasada (resto: sin reflejo).")]
-        public float glintSweep = 0.30f;
+        public float glintSweep = 0.38f;
         [Tooltip("Intensidad del reflejo (0 = nada).")]
         public float glintStrength = 0.9f;
         [Tooltip("Ancho de la banda de reflejo (en fracción del ancho del texto).")]
         public float glintWidth = 0.11f;
-        [Tooltip("Desfase inicial en segundos (para que no barran todos a la vez).")]
-        public float glintOffset = 0f;
+
+        private float _glintT0;   // instante en que se activó (para barrer desde el inicio)
+
+        /// <summary>Enciende/apaga el reflejo. Al encender, arranca la pasada desde el inicio.</summary>
+        public void SetGlint(bool on)
+        {
+            animateGlint = on;
+            if (on) _glintT0 = Time.time;
+            if (graphic != null) graphic.SetVerticesDirty(); // redibuja (glint o estático)
+        }
 
         // Paradas de 0 (abajo) a 1 (arriba): bronce profundo → oro → banda especular (sostenida) →
         // oro → oro superior. Más contraste/saturación que antes para que lea como oro brillante.
@@ -56,21 +64,13 @@ namespace Game.Runtime.Menu
         {
             if (!animateGlint || glintStrength <= 0f) return 99f;
             float period = Mathf.Max(0.05f, glintPeriod);
-            float phase = Mathf.Repeat(Time.time + glintOffset, period) / period;
+            float phase = Mathf.Repeat(Time.time - _glintT0, period) / period;
             float sweep = Mathf.Clamp01(glintSweep);
             if (phase >= sweep) return 99f;                       // pausa entre pasadas
             return Mathf.Lerp(-0.15f, 1.15f, phase / sweep);      // barre izq→der
         }
 
         private static readonly List<UIVertex> _verts = new();
-
-        protected override void Start()
-        {
-            base.Start();
-            // desfase aleatorio para que cada botón/etiqueta refleje en momentos distintos
-            if (animateGlint && Mathf.Approximately(glintOffset, 0f))
-                glintOffset = Random.value * Mathf.Max(0.05f, glintPeriod);
-        }
 
         private void Update()
         {

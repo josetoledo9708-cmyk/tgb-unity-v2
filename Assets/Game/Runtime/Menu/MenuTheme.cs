@@ -92,6 +92,7 @@ namespace Game.Runtime.Menu
             txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
             AddGoldBorder(rt);
+            go.AddComponent<GlintOnHover>(); // reflejo solo con hover/selección
             return btn;
         }
 
@@ -179,6 +180,7 @@ namespace Game.Runtime.Menu
             t.raycastTarget = false;
             t.gameObject.AddComponent<MetallicGoldGradient>(); // texto: metálico centrado en BC8041
             Anchor((RectTransform)t.transform, Vector2.zero, Vector2.one, new Vector2(leftPad, 0f), new Vector2(-16f, 0f));
+            root.AddComponent<GlintOnHover>(); // reflejo solo con hover/selección
             return btn;
         }
 
