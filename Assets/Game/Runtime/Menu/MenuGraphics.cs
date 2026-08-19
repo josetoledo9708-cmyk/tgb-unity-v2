@@ -72,6 +72,21 @@ namespace Game.Runtime.Menu
             return s;
         }
 
+        /// <summary>Degradado horizontal (izq→der), N×1, para oscurecer un lado (scrim de legibilidad).</summary>
+        public static Sprite HGradient(Color left, Color right, int width = 64)
+        {
+            string key = $"hgrad_{left}_{right}_{width}";
+            if (_cache.TryGetValue(key, out var s)) return s;
+            var tex = new Texture2D(width, 1, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            for (int x = 0; x < width; x++)
+                tex.SetPixel(x, 0, Color.Lerp(left, right, x / (float)(width - 1)));
+            tex.Apply();
+            tex.wrapMode = TextureWrapMode.Clamp;
+            s = Sprite.Create(tex, new Rect(0, 0, width, 1), new Vector2(0.5f, 0.5f));
+            _cache[key] = s;
+            return s;
+        }
+
         /// <summary>Degradado vertical (arriba→abajo), 1×N, para superponer un brillo.</summary>
         public static Sprite VGradient(Color top, Color bottom, int height = 64)
         {

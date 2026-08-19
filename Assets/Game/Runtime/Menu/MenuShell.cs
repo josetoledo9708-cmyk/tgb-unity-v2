@@ -369,8 +369,7 @@ namespace Game.Runtime.Menu
         private RectTransform BuildHistorias()
         {
             var screen = NewScreen("Historias", "fondo_historias", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
-            Title(screen, "HISTORIAS");
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.18f)); // menos oscuro: resalta la imagen de fondo
             BackButton(screen);
 
             var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
@@ -394,7 +393,6 @@ namespace Game.Runtime.Menu
             var img = card.GetComponent<Image>();
             img.sprite = MenuGraphics.Rounded(64, 10);
             img.type = Image.Type.Sliced;
-            img.color = d.color;
 
             var btn = card.GetComponent<Button>();
             var cols = btn.colors;
@@ -409,7 +407,34 @@ namespace Game.Runtime.Menu
             });
             card.AddComponent<HoverScale>();
 
+            // Fondo del recuadro = imagen de la historia (recortada al aspecto), enmascarada a las
+            // esquinas redondeadas + scrim izquierdo para legibilidad. Si no hay imagen, color plano.
+            var photo = d.historiaId != null ? MenuAssets.Sprite("historias/bg_" + d.historiaId) : null;
+            if (photo != null)
+            {
+                img.color = Color.white;
+                var mask = card.AddComponent<Mask>();
+                mask.showMaskGraphic = true;
+
+                var ph = new GameObject("Photo", typeof(RectTransform), typeof(Image));
+                ph.transform.SetParent(card.transform, false);
+                var phi = ph.GetComponent<Image>();
+                phi.sprite = photo; phi.type = Image.Type.Simple; phi.preserveAspect = false; phi.raycastTarget = false;
+                MenuTheme.Stretch((RectTransform)ph.transform);
+                btn.targetGraphic = phi; // el hover ilumina la foto
+
+                var sc = new GameObject("Scrim", typeof(RectTransform), typeof(Image));
+                sc.transform.SetParent(card.transform, false);
+                var sci = sc.GetComponent<Image>();
+                sci.sprite = MenuGraphics.HGradient(new Color(0f, 0f, 0f, 0.72f), new Color(0f, 0f, 0f, 0.05f));
+                sci.raycastTarget = false;
+                MenuTheme.Stretch((RectTransform)sc.transform);
+            }
+            else img.color = d.color;
+
             var title = MenuTheme.Label(card.transform, d.label, 20, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.GoldMetalText(title); // oro metálico (identidad del menú)
+            CardShadow(title);
             MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -36f), new Vector2(-16f, -8f));
 
             var starsGo = new GameObject("Stars", typeof(RectTransform), typeof(Text));
@@ -420,14 +445,25 @@ namespace Game.Runtime.Menu
             starsTxt.alignment = TextAnchor.MiddleLeft;
             starsTxt.supportRichText = true;
             starsTxt.text = StarsRichText(d.stars);
+            CardShadow(starsTxt);
             MenuTheme.Anchor((RectTransform)starsGo.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(16f, 10f), new Vector2(80f, -38f));
 
-            var desc = MenuTheme.Label(card.transform, d.desc, 15, new Color(0.9f, 0.88f, 0.8f), TextAnchor.MiddleLeft);
+            var desc = MenuTheme.Label(card.transform, d.desc, 15, new Color(0.95f, 0.93f, 0.85f), TextAnchor.MiddleLeft);
+            CardShadow(desc);
             MenuTheme.Anchor((RectTransform)desc.transform, new Vector2(0f, 0f), new Vector2(0.72f, 1f), new Vector2(84f, 10f), new Vector2(0f, -38f));
 
             var status = MenuTheme.Label(card.transform, d.completed ? "COMPLETADA ✓" : "DISPONIBLE", 16,
-                d.completed ? new Color(0.55f, 0.85f, 0.55f) : new Color(0.85f, 0.85f, 0.8f), TextAnchor.MiddleRight, FontStyle.Bold);
+                d.completed ? new Color(0.6f, 0.95f, 0.6f) : new Color(0.95f, 0.9f, 0.7f), TextAnchor.MiddleRight, FontStyle.Bold);
+            CardShadow(status);
             MenuTheme.Anchor((RectTransform)status.transform, new Vector2(0.68f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-16f, 0f));
+        }
+
+        /// <summary>Sombra negra bajo un texto para que resalte sobre la imagen del recuadro.</summary>
+        private static void CardShadow(Graphic g)
+        {
+            var s = g.gameObject.AddComponent<Shadow>();
+            s.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            s.effectDistance = new Vector2(1.5f, -1.5f);
         }
 
         private static string StarsRichText(int filled)
