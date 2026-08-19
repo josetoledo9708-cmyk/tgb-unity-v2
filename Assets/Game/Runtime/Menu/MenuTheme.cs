@@ -70,7 +70,7 @@ namespace Game.Runtime.Menu
 
         /// <summary>Botón de texto con StyleBox dorado/oscuro (como el MainMenu de Godot).</summary>
         public static Button TextButton(Transform parent, string label, int size, Action onClick,
-                                        float width = 320f, float height = 54f)
+                                        float width = 320f, float height = 54f, bool thicken = true)
         {
             var go = new GameObject("Btn_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
@@ -99,7 +99,7 @@ namespace Game.Runtime.Menu
             if (onClick != null) btn.onClick.AddListener(() => onClick());
 
             var txt = Label(rt, label, Mathf.RoundToInt(size * 1.21f), Color.white, TextAnchor.MiddleCenter, FontStyle.Bold); // +~21%
-            ThickenText(txt);                                    // más espesor (faux-bold)
+            if (thicken) ThickenText(txt);                       // más espesor (faux-bold)
             txt.gameObject.AddComponent<MetallicGoldGradient>(); // mismo metálico que los botones principales
             Stretch((RectTransform)txt.transform);
             if (frameSprite == null) AddGoldBorder(rt);          // borde procedural solo sin recuadro

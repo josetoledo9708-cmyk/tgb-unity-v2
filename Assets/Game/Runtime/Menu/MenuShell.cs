@@ -191,10 +191,26 @@ namespace Game.Runtime.Menu
             var coinLbl = MenuTheme.Label(screen, PlayerData.Monedas.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
             MenuTheme.GoldMetalText(coinLbl); // mismo oro metálico que los botones
             MenuTheme.Anchor((RectTransform)coinLbl.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-256f, -56f), new Vector2(-150f, -18f));
-            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, LaunchGame, 110f, 38f);
+            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, LaunchGame, 110f, 38f, thicken: false);
             MenuTheme.Anchor((RectTransform)tut.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-146f, -56f), new Vector2(-52f, -18f));
-            var gear = MenuTheme.TextButton(screen, "⚙", 22, () => Push(Screen.Opciones), 40f, 40f);
-            MenuTheme.Anchor((RectTransform)gear.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-46f, -56f), new Vector2(-8f, -16f));
+
+            // Engranaje = icono cog dorado procedural, SIN caja detrás.
+            var gearGo = new GameObject("Btn_Gear", typeof(RectTransform), typeof(Image), typeof(Button));
+            gearGo.transform.SetParent(screen, false);
+            var gearImg = gearGo.GetComponent<Image>();
+            gearImg.sprite = MenuGraphics.Gear(72, 8);
+            gearImg.color = MenuTheme.Gold;
+            gearImg.preserveAspect = true;
+            var gearBtn = gearGo.GetComponent<Button>();
+            gearBtn.targetGraphic = gearImg;
+            var gcol = gearBtn.colors;
+            gcol.normalColor = Color.white;
+            gcol.highlightedColor = new Color(1.25f, 1.2f, 1.05f, 1f);
+            gcol.pressedColor = new Color(0.8f, 0.75f, 0.55f, 1f);
+            gearBtn.colors = gcol;
+            gearBtn.onClick.AddListener(() => Push(Screen.Opciones));
+            gearGo.AddComponent<HoverScale>();
+            MenuTheme.Anchor((RectTransform)gearGo.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-44f, -54f), new Vector2(-10f, -20f));
 
             // --- Logo centrado (+30%, crece simétrico desde su propio centro) ---
             var logo = MenuTheme.Picture(screen, "Logo", MenuAssets.Sprite("logo_tgb"));
