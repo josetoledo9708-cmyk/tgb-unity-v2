@@ -201,10 +201,10 @@ namespace Game.Runtime.Menu
             // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
             var list = MenuTheme.VBox(screen, 6f, 0, TextAnchor.MiddleCenter); // mas juntos
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -280f), new Vector2(240f, 50f));
-            DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias), icon: MenuIcons.Book);
-            DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador), icon: MenuIcons.People);
-            DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos), icon: MenuIcons.Cards);
-            DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones), icon: MenuIcons.Medal);
+            DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
+            DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
+            DesignedMenuButton(list.transform, "CONSTRUCTOR DE MAZOS", () => Push(Screen.MisMazos));
+            DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
 
             // --- Tienda = estandarte a la izquierda-centro ---
             var tienda = FloatingIcon(screen, "buttons/btn_tienda", "TIENDA", () => Push(Screen.Tienda));
@@ -217,7 +217,7 @@ namespace Game.Runtime.Menu
         }
 
         private void DesignedMenuButton(Transform parent, string label, System.Action onClick,
-                                        float width = 469f, float height = 70f, // +15% y luego +20% mas
+                                        float width = 410f, float height = 70f, // largo reducido, sin icono
                                         System.Func<Transform, RectTransform> icon = null)
         {
             var b = MenuTheme.DesignedButton(parent, label, onClick, width, height, icon);
