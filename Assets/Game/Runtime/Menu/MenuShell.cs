@@ -374,7 +374,7 @@ namespace Game.Runtime.Menu
 
             var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
             grid.transform.SetParent(screen, false);
-            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-460f, 40f), new Vector2(460f, -140f));
+            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-460f, 40f), new Vector2(460f, -160f));
             grid.cellSize = new Vector2(440f, 106f);
             grid.spacing = new Vector2(20f, 14f);
             grid.startAxis = GridLayoutGroup.Axis.Horizontal;
