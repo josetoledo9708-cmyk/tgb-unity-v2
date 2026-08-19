@@ -150,7 +150,7 @@ namespace Game.Runtime.Menu
         {
             // Mismo diseño que TUTORIAL del menú principal: recuadro Botones.png + texto oro sin espesor.
             var tb = MenuTheme.TextButton(screen, "VOLVER", 14, Pop, 120f, 40f, thicken: false);
-            MenuTheme.Anchor((RectTransform)tb.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -60f), new Vector2(136f, -20f));
+            MenuTheme.Anchor((RectTransform)tb.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -70f), new Vector2(156f, -30f));
         }
 
         private void Title(RectTransform screen, string text)
