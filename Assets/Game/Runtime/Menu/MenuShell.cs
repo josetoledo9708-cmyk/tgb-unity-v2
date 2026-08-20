@@ -1335,7 +1335,7 @@ namespace Game.Runtime.Menu
             var pc = tile.AddComponent<PointerClicks>();
             pc.onLeft = () => add(c.Id);
             pc.onRight = () => ShowCardFloat(c, add, remove);
-            tile.AddComponent<HoverScale>();
+            // sin HoverScale: al agrandarse cerca de una orilla la máscara del scroll la recortaba.
         }
 
         /// <summary>Vista flotante de la carta (centro) con botones +/- para añadir/quitar del mazo.</summary>
@@ -1459,16 +1459,16 @@ namespace Game.Runtime.Menu
             var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
             content.SetParent(go.transform, false);
             content.anchorMin = new Vector2(0f, 1f); content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-6f, 0f);
+            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-4f, 0f);
             sr.content = content;
 
-            // barra deslizable (muy fina)
+            // barra deslizable (muy fina, casi invisible salvo el asa)
             var barGo = new GameObject("VBar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
             barGo.transform.SetParent(go.transform, false);
-            barGo.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.16f, 0.4f);
+            barGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f); // fondo transparente
             var brt = (RectTransform)barGo.transform;
             brt.anchorMin = new Vector2(1f, 0f); brt.anchorMax = new Vector2(1f, 1f); brt.pivot = new Vector2(1f, 0.5f);
-            brt.offsetMin = new Vector2(-4f, 0f); brt.offsetMax = new Vector2(0f, 0f);
+            brt.offsetMin = new Vector2(-3f, 0f); brt.offsetMax = new Vector2(0f, 0f);
             var slide = new GameObject("Sliding", typeof(RectTransform)).GetComponent<RectTransform>();
             slide.SetParent(barGo.transform, false); MenuTheme.Stretch(slide);
             var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
@@ -1489,28 +1489,23 @@ namespace Game.Runtime.Menu
             rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f); rt.pivot = new Vector2(0f, 0.5f);
             rt.anchoredPosition = new Vector2(x, 0f); rt.sizeDelta = new Vector2(w, 36f);
             var img = go.GetComponent<Image>();
-            // mismo recuadro que los botones del menú principal
-            var rec = MenuAssets.Sprite("Botones");
-            if (rec != null) { img.sprite = rec; } else { img.sprite = MenuGraphics.Rounded(32, 10); }
-            img.type = Image.Type.Sliced;
+            img.sprite = MenuGraphics.Rounded(32, 10); img.type = Image.Type.Sliced;
             var btn = go.GetComponent<Button>(); btn.targetGraphic = img;
-            var cols = btn.colors; cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f); cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f); btn.colors = cols;
+            var cols = btn.colors; cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f); btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
-            var lbl = MenuTheme.Label(go.transform, text, 12, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var lbl = MenuTheme.Label(go.transform, text, 13, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
-            lbl.gameObject.AddComponent<MetallicGoldGradient>(); // texto oro como el menú
             SetChipOn(img, on);
             return img;
         }
 
         private static void SetChipOn(Image chip, bool on)
         {
-            // recuadro Botones.png: brillante al estar activo, atenuado si no.
-            chip.color = on ? Color.white : new Color(0.5f, 0.5f, 0.55f, 0.92f);
+            chip.color = on ? new Color(0.30f, 0.24f, 0.08f, 0.95f) : new Color(0.06f, 0.07f, 0.12f, 0.9f);
             var ol = chip.GetComponent<Outline>();
             if (ol == null) ol = chip.gameObject.AddComponent<Outline>();
-            ol.effectColor = on ? MenuTheme.Gold : new Color(0f, 0f, 0f, 0f);
-            ol.effectDistance = new Vector2(2f, -2f);
+            ol.effectColor = on ? MenuTheme.Gold : new Color(0.5f, 0.42f, 0.2f, 0.5f);
+            ol.effectDistance = new Vector2(on ? 2f : 1f, on ? -2f : -1f);
         }
 
         private void MakeTag(Transform parent, string text, ref float x)
