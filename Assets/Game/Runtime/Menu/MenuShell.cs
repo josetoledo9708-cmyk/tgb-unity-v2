@@ -608,12 +608,25 @@ namespace Game.Runtime.Menu
             var stories = new List<HistoriaCard>();
             foreach (var d in Historias) if (d.historiaId != null) stories.Add(d);
 
-            var vbox = MenuTheme.VBox(screen, 20f, 0, TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)vbox.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-580f, 90f), new Vector2(580f, -110f));
-            var row1 = MenuTheme.HBox(vbox.transform, 20f, 0, TextAnchor.MiddleCenter);
-            var row2 = MenuTheme.HBox(vbox.transform, 20f, 0, TextAnchor.MiddleCenter);
-
             const float cellW = 264f, cellH = 189f;
+
+            HorizontalLayoutGroup MakeRow(string nm, float topY)
+            {
+                var go = new GameObject(nm, typeof(RectTransform), typeof(HorizontalLayoutGroup));
+                go.transform.SetParent(screen, false);
+                var hl = go.GetComponent<HorizontalLayoutGroup>();
+                hl.spacing = 20f;
+                hl.childAlignment = TextAnchor.MiddleCenter; // centra las cartas en la fila
+                hl.childControlWidth = false; hl.childControlHeight = false;
+                hl.childForceExpandWidth = false; hl.childForceExpandHeight = false;
+                // fila de ancho fijo centrada horizontalmente (top-anchored).
+                MenuTheme.Anchor((RectTransform)go.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                    new Vector2(-600f, topY - cellH), new Vector2(600f, topY));
+                return hl;
+            }
+            var row1 = MakeRow("Row1", -170f);
+            var row2 = MakeRow("Row2", -170f - cellH - 22f);
+
             var outlines = new List<Outline>();
             Button siguiente = null;
 
