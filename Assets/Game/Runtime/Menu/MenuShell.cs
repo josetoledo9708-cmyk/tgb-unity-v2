@@ -2090,6 +2090,7 @@ namespace Game.Runtime.Menu
         {
             if (_board != null) _board.enabled = false;   // pausa el campo (deja de dibujar/actualizar)
             _canvas.gameObject.SetActive(true);
+            if (_current != null) _current.SetActive(false); // oculta la pantalla de menú vieja del fondo
             ShowOpcionesModal(inGame: true);
         }
 
