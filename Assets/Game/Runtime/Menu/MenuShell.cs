@@ -699,7 +699,7 @@ namespace Game.Runtime.Menu
             var img = MenuTheme.Picture(screen, "DecorBook", sp);
             img.raycastTarget = false;
             // más grande y más al rincón inferior-derecho (como el Godot).
-            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-402f, -60f), new Vector2(30f, 324f));
+            MenuTheme.Anchor((RectTransform)img.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-488f, -80f), new Vector2(30f, 381f));
         }
 
         // --- opciones de un mazo guardado (modal: Editar/Portada/Renombrar/Borrar/Cerrar) ---
@@ -733,9 +733,28 @@ namespace Game.Runtime.Menu
             prevBox.SetParent(panel.transform, false);
             prevBox.anchorMin = prevBox.anchorMax = new Vector2(0f, 0.5f); prevBox.pivot = new Vector2(0f, 0.5f);
             prevBox.sizeDelta = new Vector2(224f, 330f); prevBox.anchoredPosition = new Vector2(30f, 0f);
-            int diaNum = 1 + System.Math.Abs((m.nombre + "|" + m.historiaId).GetHashCode()) % 7;
-            if (_catalog != null && _catalog.TryGet("dia" + diaNum, out var diaDef))
-                BuildCardPreview(prevBox, diaDef);
+            // Muestra la PORTADA elegida (compartida con el modal de guardado): arte si es carta
+            // HISTORIA; ficha real si es una carta del catálogo; si no, un DÍA como respaldo.
+            string ins = string.IsNullOrEmpty(m.insignia) ? (m.historiaId ?? "") : m.insignia;
+            var portadaArt = MenuAssets.Sprite("cartas_historia/carta_" + ins);
+            if (portadaArt != null)
+            {
+                var box = new GameObject("Portada", typeof(RectTransform), typeof(Image));
+                box.transform.SetParent(prevBox, false);
+                var bimg = box.GetComponent<Image>();
+                bimg.sprite = MenuGraphics.Rounded(64, 10); bimg.type = Image.Type.Sliced; bimg.color = MenuTheme.MetalGold;
+                MenuTheme.Stretch((RectTransform)box.transform);
+                var pic = MenuTheme.Picture(box.transform, "Art", portadaArt, preserveAspect: true);
+                pic.raycastTarget = false;
+                MenuTheme.Anchor((RectTransform)pic.transform, Vector2.zero, Vector2.one, new Vector2(5f, 5f), new Vector2(-5f, -5f));
+            }
+            else if (_catalog != null && _catalog.Cards.TryGetValue(ins, out var insDef))
+                BuildCardPreview(prevBox, insDef);
+            else
+            {
+                int diaNum = 1 + System.Math.Abs((m.nombre + "|" + m.historiaId).GetHashCode()) % 7;
+                if (_catalog != null && _catalog.TryGet("dia" + diaNum, out var diaDef)) BuildCardPreview(prevBox, diaDef);
+            }
 
             // lado derecho: título + resumen + botones (más cortos)
             var title = MenuTheme.Label(panel.transform, m.nombre, 26, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);

@@ -9,14 +9,27 @@ namespace Game.Editor
     {
         private void OnPreprocessTexture()
         {
-            if (!assetPath.Replace('\\', '/').Contains("/Resources/Menu/")) return;
+            var p = assetPath.Replace('\\', '/');
+            if (!p.Contains("/Resources/Menu/")) return;
             var ti = (TextureImporter)assetImporter;
             ti.textureType = TextureImporterType.Sprite;
             ti.spriteImportMode = SpriteImportMode.Single;
             ti.alphaIsTransparency = true;
             ti.mipmapEnabled = false;
             ti.wrapMode = TextureWrapMode.Clamp;
-            ti.textureCompression = TextureImporterCompression.Uncompressed;
+
+            // Ilustraciones grandes (cartas Historia y fondos de recuadro): comprimidas y a menor
+            // resolución para que carguen rápido la primera vez (evita el "tirón" al abrir el menú).
+            bool bigArt = p.Contains("/cartas_historia/") || p.Contains("/historias/bg_");
+            if (bigArt)
+            {
+                ti.textureCompression = TextureImporterCompression.Compressed;
+                ti.maxTextureSize = 512;
+            }
+            else
+            {
+                ti.textureCompression = TextureImporterCompression.Uncompressed;
+            }
 
             // Botones.png: rectángulo redondeado con borde/glow baked. Border generoso para que
             // el 9-slice (Image.Type.Sliced) no deforme las esquinas ni el brillo al estirar.
