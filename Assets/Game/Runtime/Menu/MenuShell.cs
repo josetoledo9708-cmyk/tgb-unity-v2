@@ -1489,6 +1489,34 @@ namespace Game.Runtime.Menu
         }
 
         // fichas/etiquetas de filtro
+        /// <summary>Imita proceduralmente el botón del menú principal: marco dorado metálico +
+        /// interior oscuro + brillo + texto oro. Devuelve el Image del marco (para SetChipOn).</summary>
+        private Image BuildMenuChip(GameObject go, string text)
+        {
+            var frame = go.GetComponent<Image>();
+            frame.sprite = MenuGraphics.Rounded(48, 12); frame.type = Image.Type.Sliced; frame.color = Color.white;
+            frame.gameObject.AddComponent<MetallicGoldGradient>(); // marco oro metálico
+
+            var innerGo = new GameObject("Inner", typeof(RectTransform), typeof(Image));
+            innerGo.transform.SetParent(go.transform, false);
+            var inner = innerGo.GetComponent<Image>();
+            inner.sprite = MenuGraphics.Rounded(48, 10); inner.type = Image.Type.Sliced;
+            inner.color = new Color(0.03f, 0.03f, 0.05f, 1f); inner.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)innerGo.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+
+            var glossGo = new GameObject("Gloss", typeof(RectTransform), typeof(Image));
+            glossGo.transform.SetParent(go.transform, false);
+            var g = glossGo.GetComponent<Image>();
+            g.sprite = MenuGraphics.VGradient(new Color(1f, 0.92f, 0.65f, 0.22f), new Color(1f, 1f, 1f, 0f));
+            g.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)glossGo.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+
+            var lbl = MenuTheme.Label(go.transform, text, 13, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
+            lbl.gameObject.AddComponent<MetallicGoldGradient>(); // texto oro metálico
+            return frame;
+        }
+
         private Image MakeChip(Transform parent, string text, float x, float w, bool on, System.Action onClick)
         {
             var go = new GameObject("Chip_" + text, typeof(RectTransform), typeof(Image), typeof(Button));
@@ -1496,24 +1524,22 @@ namespace Game.Runtime.Menu
             var rt = (RectTransform)go.transform;
             rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f); rt.pivot = new Vector2(0f, 0.5f);
             rt.anchoredPosition = new Vector2(x, 0f); rt.sizeDelta = new Vector2(w, 36f);
-            var img = go.GetComponent<Image>();
-            img.sprite = MenuGraphics.Rounded(32, 10); img.type = Image.Type.Sliced;
-            var btn = go.GetComponent<Button>(); btn.targetGraphic = img;
-            var cols = btn.colors; cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f); btn.colors = cols;
+            var frame = BuildMenuChip(go, text);
+            var btn = go.GetComponent<Button>(); btn.targetGraphic = frame;
+            var cols = btn.colors; cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f); btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
-            var lbl = MenuTheme.Label(go.transform, text, 13, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-            lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
-            SetChipOn(img, on);
-            return img;
+            SetChipOn(frame, on);
+            return frame;
         }
 
-        private static void SetChipOn(Image chip, bool on)
+        private static void SetChipOn(Image frame, bool on)
         {
-            chip.color = on ? new Color(0.30f, 0.24f, 0.08f, 0.95f) : new Color(0.06f, 0.07f, 0.12f, 0.9f);
-            var ol = chip.GetComponent<Outline>();
-            if (ol == null) ol = chip.gameObject.AddComponent<Outline>();
-            ol.effectColor = on ? MenuTheme.Gold : new Color(0.5f, 0.42f, 0.2f, 0.5f);
-            ol.effectDistance = new Vector2(on ? 2f : 1f, on ? -2f : -1f);
+            // marco oro metálico brillante al seleccionar; atenuado si no.
+            frame.color = on ? Color.white : new Color(0.42f, 0.42f, 0.45f, 1f);
+            var ol = frame.GetComponent<Outline>();
+            if (ol == null) ol = frame.gameObject.AddComponent<Outline>();
+            ol.effectColor = on ? MenuTheme.Gold : new Color(0f, 0f, 0f, 0f);
+            ol.effectDistance = new Vector2(2f, -2f);
         }
 
         /// <summary>Botón con el mismo diseño que los chips del filtro (rounded + borde dorado).</summary>
@@ -1521,14 +1547,10 @@ namespace Game.Runtime.Menu
         {
             var go = new GameObject("CBtn_" + text, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = MenuGraphics.Rounded(32, 10); img.type = Image.Type.Sliced;
-            img.color = new Color(0.10f, 0.09f, 0.05f, 0.96f);
-            var ol = go.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f);
-            var btn = go.GetComponent<Button>(); btn.targetGraphic = img;
-            var cols = btn.colors; cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f); btn.colors = cols;
-            var lbl = MenuTheme.Label(go.transform, text, 15, new Color(0.96f, 0.9f, 0.72f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
+            var frame = BuildMenuChip(go, text);
+            var btn = go.GetComponent<Button>(); btn.targetGraphic = frame;
+            var cols = btn.colors; cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f); btn.colors = cols;
+            SetChipOn(frame, true); // botón de acción: siempre con aspecto activo
             return btn;
         }
 
