@@ -1345,19 +1345,19 @@ namespace Game.Runtime.Menu
             var overlay = MenuTheme.Panel(_root, "CardFloat");
             overlay.transform.SetAsLastSibling();
             _modal = overlay.gameObject;
-            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
             dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal()); // tocar fuera cierra
 
-            ModalPanel(overlay, 440f, 600f, out var inner);
-
-            // carta (ocupa la parte superior de inner; deja abajo para los botones)
+            // carta centrada, SIN marco ornamentado
             var card = new GameObject("BigCard", typeof(RectTransform), typeof(Image));
-            card.transform.SetParent(inner, false);
+            card.transform.SetParent(overlay, false);
             var ci = card.GetComponent<Image>();
-            ci.sprite = MenuGraphics.Rounded(48, 12); ci.type = Image.Type.Sliced;
+            ci.sprite = MenuGraphics.Rounded(48, 14); ci.type = Image.Type.Sliced;
             ci.color = TypeColorDeck(c.Type);
             card.AddComponent<Outline>().effectColor = MenuTheme.Gold;
-            MenuTheme.Anchor((RectTransform)card.transform, Vector2.zero, Vector2.one, new Vector2(0f, 70f), new Vector2(0f, 0f));
+            var crt = (RectTransform)card.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f); crt.pivot = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(380f, 460f); crt.anchoredPosition = new Vector2(0f, 45f);
 
             var head = MenuTheme.Label(card.transform, c.Nombre, 22, Color.white, TextAnchor.UpperCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)head.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(12f, -58f), new Vector2(-12f, -12f));
@@ -1373,11 +1373,17 @@ namespace Game.Runtime.Menu
             var txt = MenuTheme.Label(card.transform, body.TrimEnd(), 14, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
             MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 14f), new Vector2(-16f, -92f));
 
-            // botones +/- debajo de la carta (dentro de inner)
-            var less = MenuTheme.TextButton(inner, "−  Quitar", 16, () => remove(c.Id), 170f, 50f, thicken: false);
-            MenuTheme.Anchor((RectTransform)less.transform, new Vector2(0f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-6f, 58f));
-            var more = MenuTheme.TextButton(inner, "+  Añadir", 16, () => add(c.Id), 170f, 50f, thicken: false);
-            MenuTheme.Anchor((RectTransform)more.transform, new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(6f, 8f), new Vector2(0f, 58f));
+            // botones +/- (diseño de chip) debajo de la carta
+            var less = ChipButton(overlay, "−  Quitar");
+            less.onClick.AddListener(() => remove(c.Id));
+            var lrt = (RectTransform)less.transform;
+            lrt.anchorMin = lrt.anchorMax = new Vector2(0.5f, 0.5f); lrt.pivot = new Vector2(0.5f, 0.5f);
+            lrt.sizeDelta = new Vector2(170f, 48f); lrt.anchoredPosition = new Vector2(-95f, -215f);
+            var more = ChipButton(overlay, "+  Añadir");
+            more.onClick.AddListener(() => add(c.Id));
+            var mrt = (RectTransform)more.transform;
+            mrt.anchorMin = mrt.anchorMax = new Vector2(0.5f, 0.5f); mrt.pivot = new Vector2(0.5f, 0.5f);
+            mrt.sizeDelta = new Vector2(170f, 48f); mrt.anchoredPosition = new Vector2(95f, -215f);
         }
 
         // ---- helpers del constructor ----
@@ -1474,8 +1480,10 @@ namespace Game.Runtime.Menu
             var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
             handle.transform.SetParent(slide, false);
             handle.GetComponent<Image>().color = new Color(0.55f, 0.46f, 0.22f, 0.7f);
+            var hrt = (RectTransform)handle.transform; // estira el asa al ancho (fino) de la barra
+            hrt.anchorMin = Vector2.zero; hrt.anchorMax = Vector2.one; hrt.offsetMin = Vector2.zero; hrt.offsetMax = Vector2.zero; hrt.sizeDelta = Vector2.zero;
             var sb = barGo.GetComponent<Scrollbar>();
-            sb.handleRect = (RectTransform)handle.transform; sb.direction = Scrollbar.Direction.BottomToTop;
+            sb.handleRect = hrt; sb.direction = Scrollbar.Direction.BottomToTop;
             sr.verticalScrollbar = sb; sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
             return content;
         }
@@ -1506,6 +1514,22 @@ namespace Game.Runtime.Menu
             if (ol == null) ol = chip.gameObject.AddComponent<Outline>();
             ol.effectColor = on ? MenuTheme.Gold : new Color(0.5f, 0.42f, 0.2f, 0.5f);
             ol.effectDistance = new Vector2(on ? 2f : 1f, on ? -2f : -1f);
+        }
+
+        /// <summary>Botón con el mismo diseño que los chips del filtro (rounded + borde dorado).</summary>
+        private Button ChipButton(Transform parent, string text)
+        {
+            var go = new GameObject("CBtn_" + text, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = MenuGraphics.Rounded(32, 10); img.type = Image.Type.Sliced;
+            img.color = new Color(0.10f, 0.09f, 0.05f, 0.96f);
+            var ol = go.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f);
+            var btn = go.GetComponent<Button>(); btn.targetGraphic = img;
+            var cols = btn.colors; cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f); btn.colors = cols;
+            var lbl = MenuTheme.Label(go.transform, text, 15, new Color(0.96f, 0.9f, 0.72f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
+            return btn;
         }
 
         private void MakeTag(Transform parent, string text, ref float x)

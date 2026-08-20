@@ -142,7 +142,9 @@ namespace Game.Runtime.Menu
             rrt.sizeDelta = new Vector2(width, height);
 
             var frame = root.GetComponent<Image>();
-            var botonesSprite = MenuAssets.Sprite("Botones");
+            // Estilo limpio "parecido" a los chips del filtro (marco dorado + interior oscuro),
+            // no el recuadro ornamentado Botones.png.
+            Sprite botonesSprite = null;
             if (botonesSprite != null)
             {
                 frame.sprite = botonesSprite;
