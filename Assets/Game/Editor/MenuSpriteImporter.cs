@@ -4,7 +4,9 @@ using UnityEngine;
 
 namespace Game.Editor
 {
-    /// <summary>Importa los PNG bajo Resources/Menu/ como Sprites (para uGUI Image/Button).</summary>
+    /// <summary>Importa los PNG bajo Resources/Menu/ como Sprites (uGUI). Comprime las ilustraciones
+    /// grandes y añade overrides ASTC para móvil (Android/iOS) para reducir memoria; deja los marcos
+    /// pequeños sin comprimir para conservar la nitidez del oro.</summary>
     public sealed class MenuSpriteImporter : AssetPostprocessor
     {
         private void OnPreprocessTexture()
@@ -18,31 +20,46 @@ namespace Game.Editor
             ti.mipmapEnabled = false;
             ti.wrapMode = TextureWrapMode.Clamp;
 
-            // Ilustraciones grandes (cartas Historia y fondos de recuadro): comprimidas y a menor
-            // resolución para que carguen rápido la primera vez (evita el "tirón" al abrir el menú).
-            bool bigArt = p.Contains("/cartas_historia/") || p.Contains("/historias/bg_");
+            var name = Path.GetFileNameWithoutExtension(assetPath);
+
+            // Ilustraciones grandes (fotos/cartas/fondos): comprimidas y a menor resolución.
+            bool bigArt = p.Contains("/cartas_historia/") || p.Contains("/historias/bg_")
+                       || p.Contains("/tienda/") || p.Contains("/tomos/") || p.Contains("/creador/")
+                       || p.Contains("/mazos/") || name == "main_menu_bg"
+                       || name.StartsWith("fondo") || name.StartsWith("Fondo");
             if (bigArt)
             {
                 ti.textureCompression = TextureImporterCompression.Compressed;
-                ti.maxTextureSize = 512;
+                ti.maxTextureSize = (p.Contains("/cartas_historia/") || p.Contains("/historias/bg_")) ? 512 : 1024;
+
+                // móvil: ASTC (mucho menos memoria en teléfono)
+                foreach (var plat in new[] { "Android", "iPhone" })
+                {
+                    var ps = ti.GetPlatformTextureSettings(plat);
+                    ps.overridden = true;
+                    ps.maxTextureSize = ti.maxTextureSize;
+                    ps.format = TextureImporterFormat.ASTC_6x6;
+                    ps.textureCompression = TextureImporterCompression.Compressed;
+                    ti.SetPlatformTextureSettings(ps);
+                }
             }
             else
             {
+                // UI pequeña (marcos, botones, iconos): sin comprimir (evita artefactos en el oro),
+                // pero con tope de tamaño para no cargar iconos gigantes (p.ej. Moneda).
                 ti.textureCompression = TextureImporterCompression.Uncompressed;
+                ti.maxTextureSize = name == "Moneda" ? 256 : 512;
             }
 
-            // Botones.png: rectángulo redondeado con borde/glow baked. Border generoso para que
-            // el 9-slice (Image.Type.Sliced) no deforme las esquinas ni el brillo al estirar.
-            var name = Path.GetFileNameWithoutExtension(assetPath);
+            // --- spriteBorder para 9-slice ---
             if (name == "Botones")
                 ti.spriteBorder = new Vector4(90f, 90f, 90f, 90f);
-            // Marco de libro (Constructor de mazos): borde ornamentado, 9-slice sin deformarlo.
+            else if (name is "BtnGold" or "BtnRojo" or "BtnVerde")
+                ti.spriteBorder = new Vector4(20f, 20f, 20f, 20f);
             else if (name == "Mazo")
                 ti.spriteBorder = new Vector4(30f, 30f, 30f, 30f);
             else if (name == "BotonCrearNueva")
                 ti.spriteBorder = new Vector4(24f, 24f, 24f, 24f);
-            // Modal "opciones de mazo": botones pequeños + fondos grandes, todos con esquinas
-            // redondeadas transparentes. Border generoso para 9-slice sin deformar.
             else if (name is "borrar" or "cerrar" or "renombrar" or "cancelar" or "btn_aceptar"
                           or "cambiar_portada" or "editar_cartas")
                 ti.spriteBorder = new Vector4(26f, 26f, 26f, 26f);

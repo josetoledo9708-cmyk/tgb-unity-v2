@@ -276,6 +276,7 @@ namespace Game.Runtime.Menu
         /// <summary>Fondo de video en bucle (si el VideoClip existe en Resources); si no, no hace nada.</summary>
         private void TryVideoBackground(RectTransform screen, string clipPath)
         {
+            if (Application.isMobilePlatform) return; // en móvil: solo imagen estática (batería/rendimiento)
             var clip = Resources.Load<UnityEngine.Video.VideoClip>(clipPath);
             if (clip == null) return;
 
