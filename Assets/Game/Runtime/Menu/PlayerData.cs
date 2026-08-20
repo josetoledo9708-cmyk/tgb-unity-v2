@@ -10,6 +10,7 @@ namespace Game.Runtime.Menu
         public string nombre = "Mazo";
         public string historiaId = "h1";
         public List<string> cartas = new();
+        public string insignia = ""; // id de la carta insignia que representa el mazo
     }
 
     [Serializable]

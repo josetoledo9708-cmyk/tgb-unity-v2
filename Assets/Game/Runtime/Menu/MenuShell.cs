@@ -1291,18 +1291,8 @@ namespace Game.Runtime.Menu
             sfield.textComponent = stext; sfield.placeholder = sph; sfield.targetGraphic = simg;
             sfield.onValueChanged.AddListener(v => { search = v ?? ""; RefreshGrid(); });
 
-            // ===== SIGUIENTE (guardar) =====
-            var sig = MenuTheme.TextButton(screen, "SIGUIENTE", 16, () =>
-            {
-                var cartas = new List<string>();
-                foreach (var kv in counts) for (int k = 0; k < kv.Value; k++) cartas.Add(kv.Key);
-                var mazos = PlayerData.Mazos();
-                mazos.Add(new DeckEntry { nombre = "Historia " + (mazos.Count + 1), historiaId = historiaId, cartas = cartas });
-                PlayerData.SaveMazos(mazos);
-                if (_stack.Count > 0) _stack.RemoveAt(_stack.Count - 1);                         // quita DeckBuilder
-                if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.ChooseHistoria) _stack.RemoveAt(_stack.Count - 1);
-                Show(_stack.Count > 0 ? _stack[_stack.Count - 1] : Screen.MisMazos);
-            }, 200f, 50f, thicken: false);
+            // ===== SIGUIENTE: abre el modal para nombrar, elegir carta insignia y guardar =====
+            var sig = MenuTheme.TextButton(screen, "SIGUIENTE", 16, () => ShowSaveDeckDialog(historiaId, counts), 200f, 50f, thicken: false);
             MenuTheme.Anchor((RectTransform)sig.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-224f, 18f), new Vector2(-24f, 68f));
 
             // VOLVER también abajo (izquierda).
@@ -1390,6 +1380,111 @@ namespace Game.Runtime.Menu
             var mrt = (RectTransform)more.transform;
             mrt.anchorMin = mrt.anchorMax = new Vector2(0.5f, 0.5f); mrt.pivot = new Vector2(0.5f, 0.5f);
             mrt.sizeDelta = new Vector2(170f, 48f); mrt.anchoredPosition = new Vector2(95f, -215f);
+        }
+
+        /// <summary>Modal "GUARDAR MAZO": nombre + resumen + selección de carta insignia + guardar.
+        /// Aparece sobre el armador.</summary>
+        private void ShowSaveDeckDialog(string historiaId, Dictionary<string, int> counts)
+        {
+            if (counts.Count == 0) return; // no guardar mazo vacío
+
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "SaveDeck");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal());
+
+            var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            panel.transform.SetParent(overlay, false);
+            panel.sprite = MenuGraphics.Rounded(64, 16); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.06f, 0.06f, 0.14f, 0.98f);
+            panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var prt = (RectTransform)panel.transform;
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0.5f); prt.pivot = new Vector2(0.5f, 0.5f);
+            prt.sizeDelta = new Vector2(660f, 540f);
+
+            var title = MenuTheme.Label(panel.transform, "GUARDAR MAZO", 24, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -52f), new Vector2(0f, -12f));
+
+            var nameLbl = MenuTheme.Label(panel.transform, "Nombre del mazo:", 15, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)nameLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -92f), new Vector2(-24f, -66f));
+
+            // input de nombre
+            var inputGo = new GameObject("Input", typeof(RectTransform), typeof(Image), typeof(InputField));
+            inputGo.transform.SetParent(panel.transform, false);
+            var iimg = inputGo.GetComponent<Image>(); iimg.color = new Color(0.02f, 0.03f, 0.08f, 1f);
+            MenuTheme.Anchor((RectTransform)inputGo.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -134f), new Vector2(-24f, -98f));
+            var field = inputGo.GetComponent<InputField>();
+            var itext = MenuTheme.Label(inputGo.transform, "", 16, new Color(0.95f, 0.92f, 0.8f), TextAnchor.MiddleLeft);
+            MenuTheme.Anchor((RectTransform)itext.transform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-12f, 0f));
+            field.textComponent = itext; field.targetGraphic = iimg; field.text = "Mi Mazo";
+
+            // divisor
+            var div = MenuTheme.Rect(panel.transform, "Div", new Color(0.5f, 0.42f, 0.2f, 0.5f));
+            MenuTheme.Anchor((RectTransform)div.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -152f), new Vector2(-24f, -150f));
+
+            // historia + resumen por tipo
+            var histLbl = MenuTheme.Label(panel.transform, "Historia: " + HistoriaName(historiaId), 16, MenuTheme.Gold, TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)histLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -182f), new Vector2(-24f, -158f));
+
+            var byType = new Dictionary<CardType, int>();
+            foreach (var kv in counts)
+                if (_catalog != null && _catalog.Cards.TryGetValue(kv.Key, out var d))
+                    { byType.TryGetValue(d.Type, out var q); byType[d.Type] = q + kv.Value; }
+            var parts = new List<string>();
+            foreach (CardType t in new[] { CardType.Tierra, CardType.SerHumano, CardType.SerDivino, CardType.SerAnimal, CardType.Concepto })
+                if (byType.TryGetValue(t, out var n) && n > 0) parts.Add(TypeLabel(t) + " x" + n);
+            var resumen = MenuTheme.Label(panel.transform, string.Join("   ·   ", parts), 14, new Color(0.85f, 0.82f, 0.72f), TextAnchor.UpperLeft);
+            MenuTheme.Anchor((RectTransform)resumen.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -206f), new Vector2(-24f, -184f));
+
+            // selección de carta insignia
+            var insLbl = MenuTheme.Label(panel.transform, "Carta insignia:", 15, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)insLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -236f), new Vector2(-24f, -212f));
+
+            var insContent = MakeScroll(panel.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 84f), new Vector2(-24f, -242f), true);
+            var ig = insContent.gameObject.AddComponent<GridLayoutGroup>();
+            ig.cellSize = new Vector2(84f, 104f); ig.spacing = new Vector2(8f, 8f);
+            ig.constraint = GridLayoutGroup.Constraint.FixedColumnCount; ig.constraintCount = 6;
+            ig.childAlignment = TextAnchor.UpperLeft;
+            insContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            string insignia = null;
+            var insOutlines = new List<Outline>();
+            foreach (var kv in counts)
+            {
+                if (!(_catalog != null && _catalog.Cards.TryGetValue(kv.Key, out var def))) continue;
+                string cid = kv.Key;
+                var t = new GameObject("Ins_" + cid, typeof(RectTransform), typeof(Image), typeof(Button));
+                t.transform.SetParent(insContent, false);
+                var bg = t.GetComponent<Image>();
+                bg.sprite = MenuGraphics.Rounded(48, 8); bg.type = Image.Type.Sliced; bg.color = TypeColorDeck(def.Type);
+                var ol = t.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f); ol.enabled = false;
+                insOutlines.Add(ol);
+                var nm = MenuTheme.Label(t.transform, def.Nombre, 10, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+                var b = t.GetComponent<Button>(); b.targetGraphic = bg;
+                b.onClick.AddListener(() => { insignia = cid; foreach (var o in insOutlines) o.enabled = false; ol.enabled = true; });
+            }
+
+            // GUARDAR
+            var guardar = ChipButton(panel.transform, "GUARDAR MAZO");
+            var grt = (RectTransform)guardar.transform;
+            grt.anchorMin = new Vector2(0.5f, 0f); grt.anchorMax = new Vector2(0.5f, 0f); grt.pivot = new Vector2(0.5f, 0f);
+            grt.sizeDelta = new Vector2(300f, 52f); grt.anchoredPosition = new Vector2(0f, 20f);
+            guardar.onClick.AddListener(() =>
+            {
+                var cartas = new List<string>();
+                foreach (var kv in counts) for (int k = 0; k < kv.Value; k++) cartas.Add(kv.Key);
+                string nombre = string.IsNullOrWhiteSpace(field.text) ? "Mi Mazo" : field.text.Trim();
+                var mazos = PlayerData.Mazos();
+                mazos.Add(new DeckEntry { nombre = nombre, historiaId = historiaId, cartas = cartas, insignia = insignia ?? "" });
+                PlayerData.SaveMazos(mazos);
+                CloseModal();
+                if (_stack.Count > 0) _stack.RemoveAt(_stack.Count - 1);                         // quita DeckBuilder
+                if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.ChooseHistoria) _stack.RemoveAt(_stack.Count - 1);
+                Show(_stack.Count > 0 ? _stack[_stack.Count - 1] : Screen.MisMazos);
+            });
         }
 
         // ---- helpers del constructor ----
