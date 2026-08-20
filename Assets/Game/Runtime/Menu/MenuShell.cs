@@ -1910,13 +1910,16 @@ namespace Game.Runtime.Menu
 
             // --- GRÁFICOS ---
             OptHeader(content, "GRÁFICOS");
-            var resOpts = new string[ResList.Length];
-            for (int i = 0; i < ResList.Length; i++) resOpts[i] = ResList[i].w + " × " + ResList[i].h;
-            int curRes = 0; for (int i = 0; i < ResList.Length; i++) if (ResList[i].w == UnityEngine.Screen.width) curRes = i;
-            OptSelector(content, "Resolución", resOpts, curRes, i => UnityEngine.Screen.SetResolution(ResList[i].w, ResList[i].h, UnityEngine.Screen.fullScreenMode));
+            if (!Application.isMobilePlatform) // resolución/ventana son de PC; en móvil no aplican
+            {
+                var resOpts = new string[ResList.Length];
+                for (int i = 0; i < ResList.Length; i++) resOpts[i] = ResList[i].w + " × " + ResList[i].h;
+                int curRes = 0; for (int i = 0; i < ResList.Length; i++) if (ResList[i].w == UnityEngine.Screen.width) curRes = i;
+                OptSelector(content, "Resolución", resOpts, curRes, i => UnityEngine.Screen.SetResolution(ResList[i].w, ResList[i].h, UnityEngine.Screen.fullScreenMode));
 
-            int curMode = 0; for (int i = 0; i < ModeList.Length; i++) if (ModeList[i] == UnityEngine.Screen.fullScreenMode) curMode = i;
-            OptSelector(content, "Pantalla", new[] { "Modo ventana", "Pantalla completa", "Sin bordes" }, curMode, i => UnityEngine.Screen.fullScreenMode = ModeList[i]);
+                int curMode = 0; for (int i = 0; i < ModeList.Length; i++) if (ModeList[i] == UnityEngine.Screen.fullScreenMode) curMode = i;
+                OptSelector(content, "Pantalla", new[] { "Modo ventana", "Pantalla completa", "Sin bordes" }, curMode, i => UnityEngine.Screen.fullScreenMode = ModeList[i]);
+            }
 
             OptSelector(content, "Calidad gráfica", QualitySettings.names, QualitySettings.GetQualityLevel(), i => QualitySettings.SetQualityLevel(i, true));
 
