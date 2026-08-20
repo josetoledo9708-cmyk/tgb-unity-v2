@@ -604,27 +604,31 @@ namespace Game.Runtime.Menu
 
             _chosenHistoriaId = null;
 
-            var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
-            grid.transform.SetParent(screen, false);
-            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-490f, 70f), new Vector2(490f, -120f));
-            grid.cellSize = new Vector2(300f, 214f);
-            grid.spacing = new Vector2(24f, 20f);
-            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 3;
-            grid.childAlignment = TextAnchor.UpperCenter;
+            // 7 historias en 2 filas centradas (4 arriba, 3 abajo) para que quede simétrico.
+            var stories = new List<HistoriaCard>();
+            foreach (var d in Historias) if (d.historiaId != null) stories.Add(d);
 
+            var vbox = MenuTheme.VBox(screen, 20f, 0, TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)vbox.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-580f, 90f), new Vector2(580f, -110f));
+            var row1 = MenuTheme.HBox(vbox.transform, 20f, 0, TextAnchor.MiddleCenter);
+            var row2 = MenuTheme.HBox(vbox.transform, 20f, 0, TextAnchor.MiddleCenter);
+
+            const float cellW = 264f, cellH = 189f;
             var outlines = new List<Outline>();
             Button siguiente = null;
 
-            foreach (var d in Historias)
+            for (int i = 0; i < stories.Count; i++)
             {
-                if (d.historiaId == null) continue; // el Tutorial no tiene carta Historia
+                var d = stories[i];
                 string id = d.historiaId;
                 var carta = MenuAssets.Sprite("cartas_historia/carta_" + id);
+                var rowParent = i < 4 ? row1.transform : row2.transform;
 
                 var cardGo = new GameObject("HistCard_" + id, typeof(RectTransform), typeof(Image), typeof(Button));
-                cardGo.transform.SetParent(grid.transform, false);
+                cardGo.transform.SetParent(rowParent, false);
+                ((RectTransform)cardGo.transform).sizeDelta = new Vector2(cellW, cellH);
+                var le = cardGo.AddComponent<LayoutElement>();
+                le.preferredWidth = cellW; le.preferredHeight = cellH;
                 var bg = cardGo.GetComponent<Image>();
                 bg.sprite = MenuGraphics.Rounded(64, 12);
                 bg.type = Image.Type.Sliced;
