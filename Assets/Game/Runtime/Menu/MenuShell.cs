@@ -1834,29 +1834,51 @@ namespace Game.Runtime.Menu
 
         private RectTransform BuildTomos()
         {
-            var screen = NewScreen("Tomos", "Tomes", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.4f));
+            var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
             Title(screen, "TOMOS");
             BackButton(screen);
             TopBar(screen, withCoins: true);
 
-            // libro central (imagen del tomo) con animación suave de flotación
-            var bookSprite = MenuAssets.Sprite("tomos/frame_000") ?? MenuAssets.Sprite("Tomes");
-            var book = MenuTheme.Picture(screen, "Book", bookSprite, preserveAspect: true);
-            book.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-270f, -300f), new Vector2(270f, 340f));
-            book.gameObject.AddComponent<BookIdle>();
+            // libro estático (idle) con flotación suave
+            var staticBook = MenuTheme.Picture(screen, "BookIdle", MenuAssets.Sprite("tomos/frame_000"), preserveAspect: true);
+            staticBook.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)staticBook.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-300f, -320f), new Vector2(300f, 360f));
+            staticBook.gameObject.AddComponent<BookIdle>();
+
+            // libro en VIDEO (animación real; chroma-key quita el verde), oculto hasta ABRIR
+            var rt = new RenderTexture(1280, 720, 0);
+            var vgo = new GameObject("BookVideo", typeof(RectTransform), typeof(RawImage), typeof(UnityEngine.Video.VideoPlayer));
+            vgo.transform.SetParent(screen, false);
+            MenuTheme.Anchor((RectTransform)vgo.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-360f, -360f), new Vector2(360f, 400f));
+            var raw = vgo.GetComponent<RawImage>();
+            raw.texture = rt; raw.raycastTarget = false;
+            var chroma = Shader.Find("Unlit/ChromaKey");
+            if (chroma != null)
+            {
+                var mat = new Material(chroma);
+                mat.SetColor("_KeyColor", Color.green);
+                mat.SetFloat("_Threshold", 0.45f);
+                mat.SetFloat("_Smooth", 0.1f);
+                raw.material = mat;
+            }
+            var vp = vgo.GetComponent<UnityEngine.Video.VideoPlayer>();
+            vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
+            vp.targetTexture = rt;
+            vp.clip = Resources.Load<UnityEngine.Video.VideoClip>("Menu/tomos/book_anim");
+            vp.isLooping = false; vp.playOnAwake = false; vp.waitForFirstFrame = true;
+            vgo.SetActive(false);
 
             var sub = MenuTheme.Label(screen, "Abre sobres de cartas con tus monedas.", 18, new Color(0.9f, 0.86f, 0.72f), TextAnchor.MiddleCenter);
             MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-320f, -108f), new Vector2(320f, -76f));
 
-            var abrir = MenuTheme.TextButton(screen, $"ABRIR·LIBRO ({TomoPrecio} ◈)", 20, () => OpenTomo(), 320f, 56f);
+            var abrir = MenuTheme.TextButton(screen, $"ABRIR·LIBRO ({TomoPrecio} ◈)", 20, () => OpenTomo(staticBook.gameObject, vgo, vp), 320f, 56f);
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-160f, 40f), new Vector2(160f, 96f));
             return screen;
         }
 
-        /// <summary>Abre un tomo: cobra 250 monedas y revela 5 cartas al azar una por una.</summary>
-        private void OpenTomo()
+        /// <summary>Abre un tomo: cobra 250, reproduce la animación del libro y al terminar revela
+        /// 5 cartas al azar una por una.</summary>
+        private void OpenTomo(GameObject staticBook, GameObject videoGo, UnityEngine.Video.VideoPlayer vp)
         {
             if (PlayerData.Monedas < TomoPrecio) return;
             EnsureCatalog();
@@ -1869,7 +1891,24 @@ namespace Game.Runtime.Menu
             PlayerData.Monedas -= TomoPrecio;
             var picks = new List<CardDefinition>();
             for (int i = 0; i < 5; i++) picks.Add(pool[Random.Range(0, pool.Count)]);
-            ShowTomoReveal(picks, 0);
+
+            if (videoGo != null && vp != null && vp.clip != null)
+            {
+                if (staticBook != null) staticBook.SetActive(false);
+                videoGo.SetActive(true);
+                UnityEngine.Video.VideoPlayer.EventHandler onEnd = null;
+                onEnd = (v) =>
+                {
+                    v.loopPointReached -= onEnd;
+                    videoGo.SetActive(false);
+                    if (staticBook != null) staticBook.SetActive(true);
+                    ShowTomoReveal(picks, 0);
+                };
+                vp.loopPointReached += onEnd;
+                vp.frame = 0;
+                vp.Play();
+            }
+            else ShowTomoReveal(picks, 0);
         }
 
         /// <summary>Revela la carta índice <paramref name="idx"/> de 5; al tocar pasa a la siguiente

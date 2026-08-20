@@ -11,7 +11,7 @@ namespace Game.Editor
             if (assetImporter is not VideoClipImporter vci) return;
             if (!assetPath.Replace('\\', '/').Contains("/Resources/Menu/")) return;
 
-            var s = vci.GetTargetSettings("Default");
+            var s = vci.defaultTargetSettings;
             s.enableTranscoding = true;
             s.codec = VideoCodec.Auto;
             s.bitrateMode = VideoBitrateMode.Low;
@@ -19,7 +19,7 @@ namespace Game.Editor
             s.resizeMode = VideoResizeMode.CustomSize;
             s.customWidth = 1280;
             s.customHeight = 720;
-            vci.SetTargetSettings("Default", s);
+            vci.defaultTargetSettings = s;
         }
     }
 }
