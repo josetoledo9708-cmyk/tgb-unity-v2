@@ -1830,18 +1830,94 @@ namespace Game.Runtime.Menu
 
         // --- TOMOS ---
 
+        private const int TomoPrecio = 250;
+
         private RectTransform BuildTomos()
         {
             var screen = NewScreen("Tomos", "Tomes", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.5f));
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.4f));
             Title(screen, "TOMOS");
             BackButton(screen);
             TopBar(screen, withCoins: true);
-            var t = MenuTheme.Label(screen, "Abre sobres de cartas con tus monedas.", 20, new Color(0.9f, 0.86f, 0.72f));
-            MenuTheme.Anchor((RectTransform)t.transform, new Vector2(0.2f, 0.55f), new Vector2(0.8f, 0.7f), Vector2.zero, Vector2.zero);
-            var abrir = MenuTheme.TextButton(screen, "ABRIR TOMO (250 ◈)", 20, () => TryBuy(250), 300f, 56f);
-            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0.35f), new Vector2(0.5f, 0.35f), new Vector2(-150f, -28f), new Vector2(150f, 28f));
+
+            // libro central (imagen del tomo) con animación suave de flotación
+            var bookSprite = MenuAssets.Sprite("tomos/frame_000") ?? MenuAssets.Sprite("Tomes");
+            var book = MenuTheme.Picture(screen, "Book", bookSprite, preserveAspect: true);
+            book.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-270f, -300f), new Vector2(270f, 340f));
+            book.gameObject.AddComponent<BookIdle>();
+
+            var sub = MenuTheme.Label(screen, "Abre sobres de cartas con tus monedas.", 18, new Color(0.9f, 0.86f, 0.72f), TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-320f, -108f), new Vector2(320f, -76f));
+
+            var abrir = MenuTheme.TextButton(screen, $"ABRIR·LIBRO ({TomoPrecio} ◈)", 20, () => OpenTomo(), 320f, 56f);
+            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-160f, 40f), new Vector2(160f, 96f));
             return screen;
+        }
+
+        /// <summary>Abre un tomo: cobra 250 monedas y revela 5 cartas al azar una por una.</summary>
+        private void OpenTomo()
+        {
+            if (PlayerData.Monedas < TomoPrecio) return;
+            EnsureCatalog();
+            var pool = new List<CardDefinition>();
+            if (_catalog != null)
+                foreach (var c in _catalog.Cards.Values)
+                    if (c.Type != CardType.Historia) pool.Add(c);
+            if (pool.Count == 0) return;
+
+            PlayerData.Monedas -= TomoPrecio;
+            var picks = new List<CardDefinition>();
+            for (int i = 0; i < 5; i++) picks.Add(pool[Random.Range(0, pool.Count)]);
+            ShowTomoReveal(picks, 0);
+        }
+
+        /// <summary>Revela la carta índice <paramref name="idx"/> de 5; al tocar pasa a la siguiente
+        /// y al terminar cierra y refresca la pantalla de Tomos.</summary>
+        private void ShowTomoReveal(List<CardDefinition> picks, int idx)
+        {
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "TomoReveal");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.8f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() =>
+            {
+                if (idx + 1 < picks.Count) ShowTomoReveal(picks, idx + 1);
+                else { CloseModal(); if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.Tomos) Show(Screen.Tomos); }
+            });
+
+            var c = picks[idx];
+            var card = new GameObject("Card", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(overlay, false);
+            var ci = card.GetComponent<Image>();
+            ci.sprite = MenuGraphics.Rounded(48, 12); ci.type = Image.Type.Sliced; ci.color = TypeColorDeck(c.Type);
+            ci.raycastTarget = false;
+            card.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            var crt = (RectTransform)card.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f); crt.pivot = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(340f, 440f); crt.anchoredPosition = new Vector2(0f, 10f);
+
+            var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 12, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
+            tl.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)tl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(14f, -30f), new Vector2(-14f, -8f));
+            var nm = MenuTheme.Label(card.transform, c.Nombre, 22, Color.white, TextAnchor.UpperCenter, FontStyle.Bold);
+            nm.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(12f, -84f), new Vector2(-12f, -34f));
+            var cost = MenuTheme.Label(card.transform, CostText(c), 16, new Color(0.95f, 0.9f, 0.7f), TextAnchor.LowerCenter, FontStyle.Bold);
+            cost.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)cost.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(12f, 14f), new Vector2(-12f, 44f));
+            var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "";
+            var eff = MenuTheme.Label(card.transform, body, 13, new Color(0.95f, 0.93f, 0.85f), TextAnchor.MiddleCenter);
+            eff.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)eff.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 48f), new Vector2(-16f, -92f));
+
+            var counter = MenuTheme.Label(overlay, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            counter.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)counter.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-60f, 244f), new Vector2(60f, 274f));
+            var hint = MenuTheme.Label(overlay, idx + 1 < picks.Count ? "Toca para continuar" : "Toca para cerrar", 14, new Color(0.8f, 0.78f, 0.7f), TextAnchor.MiddleCenter);
+            hint.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)hint.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-160f, -250f), new Vector2(160f, -222f));
         }
 
         // --- OPCIONES ---
