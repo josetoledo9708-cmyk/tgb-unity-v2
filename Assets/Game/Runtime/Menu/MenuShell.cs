@@ -1036,8 +1036,8 @@ namespace Game.Runtime.Menu
                 cover.color = TypeColorDeck(insDef.Type);
                 var tl = MenuTheme.Label(cover.transform, TypeLabel(insDef.Type), 9, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
                 MenuTheme.Anchor((RectTransform)tl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(6f, -16f), new Vector2(-6f, -3f));
-                var nm = MenuTheme.Label(cover.transform, insDef.Nombre, 12, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-                MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(6f, 6f), new Vector2(-6f, -6f));
+                var nm = MenuTheme.Label(cover.transform, insDef.Nombre, 13, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(6f, 100f), new Vector2(-6f, -22f));
             }
             else
             {
@@ -1048,7 +1048,13 @@ namespace Game.Runtime.Menu
                 cover.color = coverColor;
             }
             cover.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)cover.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(2f, -110f), new Vector2(-2f, -2f));
+            MenuTheme.Anchor((RectTransform)cover.transform, Vector2.zero, Vector2.one, new Vector2(2f, 2f), new Vector2(-2f, -2f)); // la carta llena todo el interior
+
+            // scrim inferior para legibilidad del texto del mazo
+            var scrim = MenuTheme.Rect(cover.transform, "Scrim", Color.white);
+            scrim.sprite = MenuGraphics.VGradient(new Color(0f, 0f, 0f, 0f), new Color(0f, 0f, 0f, 0.9f));
+            scrim.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)scrim.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 96f));
 
             var badge = MenuTheme.Rect(inner, "Badge", MenuTheme.MetalGold);
             badge.sprite = MenuGraphics.Rounded(32, 16);
@@ -1059,17 +1065,12 @@ namespace Game.Runtime.Menu
             var idxLabel = MenuTheme.Label(badge.transform, string.IsNullOrEmpty(hid) ? "?" : hid.Replace("h", ""), 14, Color.black, TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Stretch((RectTransform)idxLabel.transform);
 
-            var histName = MenuTheme.Label(inner, HistoriaName(m.historiaId), 12, new Color(0.85f, 0.82f, 0.7f), TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)histName.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 80f), new Vector2(-6f, 112f));
+            // nombre del mazo + nº de cartas, centrados sobre el scrim inferior
+            var nameLbl = MenuTheme.Label(inner, m.nombre.ToUpperInvariant(), 16, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)nameLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 44f), new Vector2(-6f, 84f));
 
-            var countLbl = MenuTheme.Label(inner, $"{m.cartas.Count} cartas", 11, new Color(0.7f, 0.66f, 0.55f), TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)countLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 62f), new Vector2(-6f, 80f));
-
-            var mazoLbl = MenuTheme.Label(inner, "MAZO", 13, new Color(0.8f, 0.76f, 0.6f), TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)mazoLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 34f), new Vector2(-6f, 58f));
-
-            var nameLbl = MenuTheme.Label(inner, m.nombre.ToUpperInvariant(), 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)nameLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 4f), new Vector2(-6f, 34f));
+            var countLbl = MenuTheme.Label(inner, $"{m.cartas.Count} CARTAS · MAZO", 11, new Color(0.82f, 0.78f, 0.66f), TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)countLbl.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 22f), new Vector2(-6f, 44f));
 
             var btn = card.gameObject.AddComponent<Button>();
             btn.targetGraphic = card.GetComponent<Image>();
