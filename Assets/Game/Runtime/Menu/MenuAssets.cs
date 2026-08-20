@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -15,6 +16,15 @@ namespace Game.Runtime.Menu
             s = Resources.Load<Sprite>("Menu/" + path);
             _sprites[path] = s;
             return s;
+        }
+
+        /// <summary>Precarga un sprite en segundo plano (sin congelar) y lo deja cacheado.</summary>
+        public static IEnumerator PreloadAsync(string path)
+        {
+            if (_sprites.ContainsKey(path)) yield break;
+            var req = Resources.LoadAsync<Sprite>("Menu/" + path);
+            yield return req;
+            if (!_sprites.ContainsKey(path)) _sprites[path] = req.asset as Sprite;
         }
 
         public static Font Font()

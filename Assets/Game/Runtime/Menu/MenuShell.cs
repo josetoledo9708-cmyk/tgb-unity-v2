@@ -50,6 +50,16 @@ namespace Game.Runtime.Menu
             EnsureEventSystem();
             BuildCanvas();
             Push(Screen.MainMenu);
+            StartCoroutine(PreloadArt()); // precarga en 2º plano el arte pesado (cartas Historia + fondos)
+        }
+
+        private System.Collections.IEnumerator PreloadArt()
+        {
+            for (int i = 1; i <= 7; i++)
+            {
+                yield return MenuAssets.PreloadAsync("cartas_historia/carta_h" + i);
+                yield return MenuAssets.PreloadAsync("historias/bg_h" + i);
+            }
         }
 
         private void EnsureEventSystem()
