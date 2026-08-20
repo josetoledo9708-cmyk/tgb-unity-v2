@@ -15,6 +15,7 @@ namespace Game.Runtime.Menu
     /// Cada apartado es una pantalla apilable; el botón Volver hace pop. "Jugar" carga la escena
     /// del campo (Main). Un solo MonoBehaviour construye todo.
     /// </summary>
+    [DefaultExecutionOrder(1000)] // su OnGUI se dibuja después (encima) del campo IMGUI
     public sealed class MenuShell : MonoBehaviour
     {
         public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, SelectDeck, ChooseHistoria, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
@@ -29,6 +30,7 @@ namespace Game.Runtime.Menu
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
         private string _chosenHistoriaId;  // carta Historia elegida al crear una nueva historia/mazo
         private bool _inMatch;             // hay una partida en curso (campo encendido, menú oculto)
+        private Texture2D _gearTex;        // icono de engranaje para el overlay IMGUI de la partida
 
         /// <summary>El campo a activar cuando el jugador entra a una partida (se deja desactivado).</summary>
         public void SetBoard(Game.Runtime.View.HotseatView board) => _board = board;
@@ -2069,6 +2071,19 @@ namespace Game.Runtime.Menu
                 if (_modal == null) OpenInGameOptions();
                 else CloseInGameOptions();
             }
+        }
+
+        /// <summary>Engranaje en la esquina superior-derecha durante la partida (overlay IMGUI, por
+        /// encima del campo). Abre el menú de Opciones.</summary>
+        private void OnGUI()
+        {
+            if (!_inMatch || _modal != null) return;
+            if (_gearTex == null) { var g = MenuGraphics.Gear(80, 8); if (g != null) _gearTex = g.texture; }
+            var rect = new Rect(UnityEngine.Screen.width - 58f, 14f, 44f, 44f);
+            var prev = GUI.color; GUI.color = MenuTheme.Gold;
+            bool clicked = _gearTex != null ? GUI.Button(rect, _gearTex, GUIStyle.none) : GUI.Button(rect, "⚙");
+            GUI.color = prev;
+            if (clicked) OpenInGameOptions();
         }
 
         private void OpenInGameOptions()
