@@ -1132,7 +1132,7 @@ namespace Game.Runtime.Menu
             deckPanel.sprite = MenuGraphics.Rounded(64, 14); deckPanel.type = Image.Type.Sliced;
             deckPanel.color = new Color(0.05f, 0.05f, 0.10f, 0.85f);
             deckPanel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            MenuTheme.Anchor((RectTransform)deckPanel.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-290f, 78f), new Vector2(-16f, -12f));
+            MenuTheme.Anchor((RectTransform)deckPanel.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-290f, 78f), new Vector2(-16f, -128f));
 
             var counterLbl = MenuTheme.Label(deckPanel.transform, "0 / 40", 22, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)counterLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, -42f), new Vector2(-10f, -8f));
@@ -1211,7 +1211,7 @@ namespace Game.Runtime.Menu
             // ===== barra de filtros (arriba) =====
             var typeRow = new GameObject("TypeRow", typeof(RectTransform)).GetComponent<RectTransform>();
             typeRow.SetParent(screen, false);
-            MenuTheme.Anchor(typeRow, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -44f), new Vector2(-376f, -12f));
+            MenuTheme.Anchor(typeRow, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -56f), new Vector2(-16f, -14f));
             string[] tNames = { "TODOS", "TIERRA", "SER-HUMANO", "SER-DIVINO", "SER-ANIMAL", "CONCEPTO" };
             CardType?[] tVals = { null, CardType.Tierra, CardType.SerHumano, CardType.SerDivino, CardType.SerAnimal, CardType.Concepto };
             var typeChips = new List<Image>();
@@ -1219,20 +1219,20 @@ namespace Game.Runtime.Menu
             for (int i = 0; i < tNames.Length; i++)
             {
                 int gi = i; var val = tVals[i];
-                float w = 20f + tNames[i].Length * 8.2f;
+                float w = 34f + tNames[i].Length * 9.6f;
                 var chip = MakeChip(typeRow, tNames[i], tx, w, i == 0, () =>
                 {
                     typeFilter = val;
                     for (int k = 0; k < typeChips.Count; k++) SetChipOn(typeChips[k], k == gi);
                     RefreshGrid();
                 });
-                typeChips.Add(chip); tx += w + 8f;
+                typeChips.Add(chip); tx += w + 10f;
             }
 
             // fila 2: FD / T / HISTORIA / buscador
             var row2 = new GameObject("FilterRow2", typeof(RectTransform)).GetComponent<RectTransform>();
             row2.SetParent(screen, false);
-            MenuTheme.Anchor(row2, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -78f), new Vector2(-376f, -48f));
+            MenuTheme.Anchor(row2, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -104f), new Vector2(-16f, -62f));
 
             float rx = 0f;
             MakeTag(row2, "FD:", ref rx);
@@ -1241,45 +1241,45 @@ namespace Game.Runtime.Menu
             for (int i = 0; i < fdN.Length; i++)
             {
                 int gi = i; int val = fdV[i];
-                var chip = MakeChip(row2, fdN[i], rx, 34f, i == 0, () =>
+                var chip = MakeChip(row2, fdN[i], rx, 44f, i == 0, () =>
                 {
                     fdFilter = val;
                     for (int k = 0; k < fdChips.Count; k++) SetChipOn(fdChips[k], k == gi);
                     RefreshGrid();
                 });
-                fdChips.Add(chip); rx += 38f;
+                fdChips.Add(chip); rx += 48f;
             }
-            rx += 12f;
+            rx += 16f;
             MakeTag(row2, "T:", ref rx);
             string[] tN = { "+", "2", "3", "4", "5+" }; int[] tV = { -1, 2, 3, 4, 5 };
             var tChips = new List<Image>();
             for (int i = 0; i < tN.Length; i++)
             {
                 int gi = i; int val = tV[i];
-                var chip = MakeChip(row2, tN[i], rx, 34f, i == 0, () =>
+                var chip = MakeChip(row2, tN[i], rx, 44f, i == 0, () =>
                 {
                     tFilter = val;
                     for (int k = 0; k < tChips.Count; k++) SetChipOn(tChips[k], k == gi);
                     RefreshGrid();
                 });
-                tChips.Add(chip); rx += 38f;
+                tChips.Add(chip); rx += 48f;
             }
-            rx += 16f;
+            rx += 18f;
             Image histChip = null;
-            histChip = MakeChip(row2, "HISTORIA", rx, 96f, false, () =>
+            histChip = MakeChip(row2, "HISTORIA", rx, 118f, false, () =>
             {
                 historiaOnly = !historiaOnly;
                 SetChipOn(histChip, historiaOnly);
                 RefreshGrid();
             });
-            rx += 108f;
+            rx += 132f;
 
             // buscador por nombre
             var searchGo = new GameObject("Search", typeof(RectTransform), typeof(Image), typeof(InputField));
             searchGo.transform.SetParent(row2, false);
             var srt = (RectTransform)searchGo.transform;
             srt.anchorMin = new Vector2(0f, 0.5f); srt.anchorMax = new Vector2(0f, 0.5f);
-            srt.pivot = new Vector2(0f, 0.5f); srt.anchoredPosition = new Vector2(rx, 0f); srt.sizeDelta = new Vector2(200f, 30f);
+            srt.pivot = new Vector2(0f, 0.5f); srt.anchoredPosition = new Vector2(rx, 0f); srt.sizeDelta = new Vector2(280f, 36f);
             var simg = searchGo.GetComponent<Image>(); simg.color = new Color(0.02f, 0.03f, 0.08f, 0.9f);
             var sfield = searchGo.GetComponent<InputField>();
             var sph = MenuTheme.Label(searchGo.transform, "Buscar carta…", 13, new Color(0.6f, 0.58f, 0.5f), TextAnchor.MiddleLeft);
@@ -1459,21 +1459,21 @@ namespace Game.Runtime.Menu
             var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
             content.SetParent(go.transform, false);
             content.anchorMin = new Vector2(0f, 1f); content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-9f, 0f);
+            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-6f, 0f);
             sr.content = content;
 
-            // barra deslizable (fina)
+            // barra deslizable (muy fina)
             var barGo = new GameObject("VBar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
             barGo.transform.SetParent(go.transform, false);
-            barGo.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.16f, 0.55f);
+            barGo.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.16f, 0.4f);
             var brt = (RectTransform)barGo.transform;
             brt.anchorMin = new Vector2(1f, 0f); brt.anchorMax = new Vector2(1f, 1f); brt.pivot = new Vector2(1f, 0.5f);
-            brt.offsetMin = new Vector2(-6f, 0f); brt.offsetMax = new Vector2(0f, 0f);
+            brt.offsetMin = new Vector2(-4f, 0f); brt.offsetMax = new Vector2(0f, 0f);
             var slide = new GameObject("Sliding", typeof(RectTransform)).GetComponent<RectTransform>();
             slide.SetParent(barGo.transform, false); MenuTheme.Stretch(slide);
             var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
             handle.transform.SetParent(slide, false);
-            handle.GetComponent<Image>().color = MenuTheme.GoldDim;
+            handle.GetComponent<Image>().color = new Color(0.55f, 0.46f, 0.22f, 0.7f);
             var sb = barGo.GetComponent<Scrollbar>();
             sb.handleRect = (RectTransform)handle.transform; sb.direction = Scrollbar.Direction.BottomToTop;
             sr.verticalScrollbar = sb; sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
@@ -1487,24 +1487,30 @@ namespace Game.Runtime.Menu
             go.transform.SetParent(parent, false);
             var rt = (RectTransform)go.transform;
             rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f); rt.pivot = new Vector2(0f, 0.5f);
-            rt.anchoredPosition = new Vector2(x, 0f); rt.sizeDelta = new Vector2(w, 30f);
+            rt.anchoredPosition = new Vector2(x, 0f); rt.sizeDelta = new Vector2(w, 36f);
             var img = go.GetComponent<Image>();
-            img.sprite = MenuGraphics.Rounded(32, 10); img.type = Image.Type.Sliced;
+            // mismo recuadro que los botones del menú principal
+            var rec = MenuAssets.Sprite("Botones");
+            if (rec != null) { img.sprite = rec; } else { img.sprite = MenuGraphics.Rounded(32, 10); }
+            img.type = Image.Type.Sliced;
             var btn = go.GetComponent<Button>(); btn.targetGraphic = img;
+            var cols = btn.colors; cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f); cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f); btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             var lbl = MenuTheme.Label(go.transform, text, 12, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
+            lbl.gameObject.AddComponent<MetallicGoldGradient>(); // texto oro como el menú
             SetChipOn(img, on);
             return img;
         }
 
         private static void SetChipOn(Image chip, bool on)
         {
-            chip.color = on ? new Color(0.30f, 0.24f, 0.08f, 0.95f) : new Color(0.06f, 0.07f, 0.12f, 0.9f);
+            // recuadro Botones.png: brillante al estar activo, atenuado si no.
+            chip.color = on ? Color.white : new Color(0.5f, 0.5f, 0.55f, 0.92f);
             var ol = chip.GetComponent<Outline>();
             if (ol == null) ol = chip.gameObject.AddComponent<Outline>();
-            ol.effectColor = on ? MenuTheme.Gold : new Color(0.5f, 0.42f, 0.2f, 0.5f);
-            ol.effectDistance = new Vector2(on ? 2f : 1f, on ? -2f : -1f);
+            ol.effectColor = on ? MenuTheme.Gold : new Color(0f, 0f, 0f, 0f);
+            ol.effectDistance = new Vector2(2f, -2f);
         }
 
         private void MakeTag(Transform parent, string text, ref float x)
