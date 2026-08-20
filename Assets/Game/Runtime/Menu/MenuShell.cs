@@ -1830,8 +1830,6 @@ namespace Game.Runtime.Menu
 
         // --- TOMOS ---
 
-        private const int TomoPrecio = 250;
-
         private RectTransform BuildTomos()
         {
             var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
@@ -1868,11 +1866,12 @@ namespace Game.Runtime.Menu
             vp.isLooping = false; vp.playOnAwake = false; vp.waitForFirstFrame = true;
             vgo.SetActive(false);
 
-            var sub = MenuTheme.Label(screen, "Abre sobres de cartas con tus monedas.", 18, new Color(0.9f, 0.86f, 0.72f), TextAnchor.MiddleCenter);
+            var sub = MenuTheme.Label(screen, $"Tomos disponibles: {PlayerData.Tomos}", 18, new Color(0.95f, 0.9f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-320f, -108f), new Vector2(320f, -76f));
 
-            var abrir = MenuTheme.TextButton(screen, $"ABRIR·LIBRO ({TomoPrecio} ◈)", 20, () => OpenTomo(staticBook.gameObject, vgo, vp), 320f, 56f);
-            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-160f, 40f), new Vector2(160f, 96f));
+            var abrir = MenuTheme.TextButton(screen, "ABRIR·LIBRO", 20, () => OpenTomo(staticBook.gameObject, vgo, vp), 300f, 56f);
+            abrir.interactable = PlayerData.Tomos > 0;
+            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-150f, 40f), new Vector2(150f, 96f));
             return screen;
         }
 
@@ -1880,7 +1879,7 @@ namespace Game.Runtime.Menu
         /// 5 cartas al azar una por una.</summary>
         private void OpenTomo(GameObject staticBook, GameObject videoGo, UnityEngine.Video.VideoPlayer vp)
         {
-            if (PlayerData.Monedas < TomoPrecio) return;
+            if (PlayerData.Tomos <= 0) return; // esta pantalla solo ABRE tomos (se compran en la Tienda)
             EnsureCatalog();
             var pool = new List<CardDefinition>();
             if (_catalog != null)
@@ -1888,7 +1887,7 @@ namespace Game.Runtime.Menu
                     if (c.Type != CardType.Historia) pool.Add(c);
             if (pool.Count == 0) return;
 
-            PlayerData.Monedas -= TomoPrecio;
+            PlayerData.Tomos -= 1;
             var picks = new List<CardDefinition>();
             for (int i = 0; i < 5; i++) picks.Add(pool[Random.Range(0, pool.Count)]);
 

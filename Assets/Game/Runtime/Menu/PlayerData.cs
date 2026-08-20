@@ -21,11 +21,19 @@ namespace Game.Runtime.Menu
     {
         private const string CoinsKey = "tgb_monedas";
         private const string DecksKey = "tgb_mazos";
+        private const string TomosKey = "tgb_tomos";
 
         public static int Monedas
         {
             get => PlayerPrefs.GetInt(CoinsKey, 500);
             set { PlayerPrefs.SetInt(CoinsKey, Mathf.Max(0, value)); PlayerPrefs.Save(); }
+        }
+
+        /// <summary>Tomos (sobres) por abrir. Arranca con 10 disponibles.</summary>
+        public static int Tomos
+        {
+            get => PlayerPrefs.GetInt(TomosKey, 10);
+            set { PlayerPrefs.SetInt(TomosKey, Mathf.Max(0, value)); PlayerPrefs.Save(); }
         }
 
         public static List<DeckEntry> Mazos()
