@@ -679,15 +679,11 @@ namespace Game.Runtime.Menu
                 });
             }
 
-            // SIGUIENTE (abajo-derecha): crea la historia con la carta elegida y vuelve a Mis Historias.
+            // SIGUIENTE (abajo-derecha): con la carta elegida, pasa al armador de mazos.
             siguiente = MenuTheme.TextButton(screen, "SIGUIENTE", 16, () =>
             {
                 if (_chosenHistoriaId == null) return;
-                var mazos = PlayerData.Mazos();
-                mazos.Add(new DeckEntry { nombre = "Historia " + (mazos.Count + 1), historiaId = _chosenHistoriaId });
-                PlayerData.SaveMazos(mazos);
-                Show(Screen.MisMazos);
-                _stack[_stack.Count - 1] = Screen.MisMazos;
+                Push(Screen.DeckBuilder);
             }, 200f, 50f, thicken: false);
             siguiente.interactable = false;
             MenuTheme.Anchor((RectTransform)siguiente.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-224f, 22f), new Vector2(-24f, 72f));
@@ -1106,18 +1102,415 @@ namespace Game.Runtime.Menu
 
         private RectTransform BuildDeckBuilder()
         {
+            EnsureCatalog();
             var screen = NewScreen("DeckBuilder", "fondo_constructor", MenuTheme.DarkBg);
-            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.55f));
-            Title(screen, "CONSTRUCTOR DE MAZOS");
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.4f));
             BackButton(screen);
-            var steps = MenuTheme.VBox(screen, 14f, 0, TextAnchor.UpperCenter);
-            MenuTheme.Anchor((RectTransform)steps.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-260f, 60f), new Vector2(260f, -100f));
-            AddStepLabel(steps.transform, "Paso 1", "Elige la HISTORIA (define las 5 piezas y la condición de victoria).");
-            AddStepLabel(steps.transform, "Paso 2", "Arma 40 cartas desde la colección (máx 3 copias). Barra de progreso.");
-            AddStepLabel(steps.transform, "Paso 3", "Nombra y guarda el mazo. Validación de reglas.");
-            var guardar = MenuTheme.TextButton(steps.transform, "GUARDAR MAZO DE PRUEBA", 18, SaveSampleDeck, 460f, 52f);
-            guardar.gameObject.AddComponent<LayoutElement>().preferredHeight = 52f;
+
+            string historiaId = _chosenHistoriaId;
+            var piezas = HistoriaPiezas(historiaId);
+
+            // --- estado del mazo ---
+            var counts = new Dictionary<string, int>();
+            const int MAXTOTAL = 40, MAXCOPIES = 3;
+
+            // --- filtros ---
+            CardType? typeFilter = null;
+            int fdFilter = -1, tFilter = -1;
+            bool historiaOnly = false;
+            string search = "";
+
+            // --- colección (sin cartas HISTORIA) ordenada por tipo y nombre ---
+            var all = new List<CardDefinition>();
+            if (_catalog != null)
+                foreach (var c in _catalog.Cards.Values)
+                    if (c.Type != CardType.Historia) all.Add(c);
+            all.Sort((a, b) => { int t = TypeOrder(a.Type).CompareTo(TypeOrder(b.Type)); return t != 0 ? t : string.Compare(a.Nombre, b.Nombre, System.StringComparison.OrdinalIgnoreCase); });
+
+            // ===== panel derecho: MAZO =====
+            var deckPanel = new GameObject("DeckPanel", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            deckPanel.transform.SetParent(screen, false);
+            deckPanel.sprite = MenuGraphics.Rounded(64, 14); deckPanel.type = Image.Type.Sliced;
+            deckPanel.color = new Color(0.05f, 0.05f, 0.10f, 0.85f);
+            deckPanel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            MenuTheme.Anchor((RectTransform)deckPanel.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-360f, 76f), new Vector2(-16f, -16f));
+
+            var counterLbl = MenuTheme.Label(deckPanel.transform, "0 / 40", 22, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)counterLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, -42f), new Vector2(-10f, -8f));
+
+            var deckContent = MakeScroll(deckPanel.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(10f, 10f), new Vector2(-10f, -50f), true);
+            var deckVL = deckContent.gameObject.AddComponent<VerticalLayoutGroup>();
+            deckVL.spacing = 2f; deckVL.childForceExpandWidth = true; deckVL.childForceExpandHeight = false;
+            deckVL.childControlWidth = true; deckVL.childControlHeight = true;
+            deckContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // ===== grid de la colección (izquierda) =====
+            var gridContent = MakeScroll(screen, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 76f), new Vector2(-376f, -132f), true);
+            var gl = gridContent.gameObject.AddComponent<GridLayoutGroup>();
+            gl.cellSize = new Vector2(94f, 122f); gl.spacing = new Vector2(6f, 6f);
+            gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 9;
+            gl.childAlignment = TextAnchor.UpperLeft;
+            gridContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            int Total() { int n = 0; foreach (var kv in counts) n += kv.Value; return n; }
+
+            void RefreshDeck()
+            {
+                for (int i = deckContent.childCount - 1; i >= 0; i--) Destroy(deckContent.GetChild(i).gameObject);
+                foreach (var kv in counts)
+                {
+                    if (kv.Value <= 0) continue;
+                    string cid = kv.Key; int qty = kv.Value;
+                    string nm = (_catalog != null && _catalog.Cards.TryGetValue(cid, out var dd)) ? dd.Nombre : cid;
+                    var row = new GameObject("D_" + cid, typeof(RectTransform), typeof(Image));
+                    row.transform.SetParent(deckContent, false);
+                    var ri = row.GetComponent<Image>();
+                    ri.color = new Color(0.12f, 0.12f, 0.20f, 0.7f);
+                    row.AddComponent<LayoutElement>().preferredHeight = 26f;
+                    var lab = MenuTheme.Label(row.transform, $"{nm}   x{qty}", 13, new Color(0.92f, 0.88f, 0.72f), TextAnchor.MiddleLeft);
+                    MenuTheme.Anchor((RectTransform)lab.transform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
+                    var pc = row.AddComponent<PointerClicks>();
+                    pc.onLeft = () => { RemoveCard(cid); };
+                }
+                counterLbl.text = Total() + " / 40";
+            }
+
+            void AddCard(string id)
+            {
+                if (Total() >= MAXTOTAL) return;
+                counts.TryGetValue(id, out var q);
+                if (q >= MAXCOPIES) return;
+                counts[id] = q + 1; RefreshDeck();
+            }
+            void RemoveCard(string id)
+            {
+                if (counts.TryGetValue(id, out var q) && q > 0)
+                {
+                    if (q - 1 <= 0) counts.Remove(id); else counts[id] = q - 1;
+                    RefreshDeck();
+                }
+            }
+
+            bool Match(CardDefinition c)
+            {
+                if (typeFilter.HasValue && c.Type != typeFilter.Value) return false;
+                int fd = c.Type == CardType.Tierra ? (c.Fd ?? 0) : (c.Coste ?? 0);
+                if (fdFilter >= 0) { if (fdFilter == 5) { if (fd < 5) return false; } else if (fd != fdFilter) return false; }
+                int tt = c.Dur ?? 0;
+                if (tFilter >= 0) { if (tFilter == 5) { if (tt < 5) return false; } else if (tt != tFilter) return false; }
+                if (historiaOnly && (piezas == null || !piezas.Contains(NormName(c.Nombre)))) return false;
+                if (search.Length > 0 && NormName(c.Nombre).IndexOf(NormName(search), System.StringComparison.Ordinal) < 0) return false;
+                return true;
+            }
+
+            void RefreshGrid()
+            {
+                for (int i = gridContent.childCount - 1; i >= 0; i--) Destroy(gridContent.GetChild(i).gameObject);
+                foreach (var c in all) if (Match(c)) BuildDeckTile(gridContent, c, AddCard, RemoveCard);
+            }
+
+            // ===== barra de filtros (arriba) =====
+            var typeRow = new GameObject("TypeRow", typeof(RectTransform)).GetComponent<RectTransform>();
+            typeRow.SetParent(screen, false);
+            MenuTheme.Anchor(typeRow, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -44f), new Vector2(-376f, -12f));
+            string[] tNames = { "TODOS", "TIERRA", "SER-HUMANO", "SER-DIVINO", "SER-ANIMAL", "CONCEPTO" };
+            CardType?[] tVals = { null, CardType.Tierra, CardType.SerHumano, CardType.SerDivino, CardType.SerAnimal, CardType.Concepto };
+            var typeChips = new List<Image>();
+            float tx = 0f;
+            for (int i = 0; i < tNames.Length; i++)
+            {
+                int gi = i; var val = tVals[i];
+                float w = 20f + tNames[i].Length * 8.2f;
+                var chip = MakeChip(typeRow, tNames[i], tx, w, i == 0, () =>
+                {
+                    typeFilter = val;
+                    for (int k = 0; k < typeChips.Count; k++) SetChipOn(typeChips[k], k == gi);
+                    RefreshGrid();
+                });
+                typeChips.Add(chip); tx += w + 8f;
+            }
+
+            // fila 2: FD / T / HISTORIA / buscador
+            var row2 = new GameObject("FilterRow2", typeof(RectTransform)).GetComponent<RectTransform>();
+            row2.SetParent(screen, false);
+            MenuTheme.Anchor(row2, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -78f), new Vector2(-376f, -48f));
+
+            float rx = 0f;
+            MakeTag(row2, "FD:", ref rx);
+            string[] fdN = { "+", "1", "2", "3", "4", "5+" }; int[] fdV = { -1, 1, 2, 3, 4, 5 };
+            var fdChips = new List<Image>();
+            for (int i = 0; i < fdN.Length; i++)
+            {
+                int gi = i; int val = fdV[i];
+                var chip = MakeChip(row2, fdN[i], rx, 34f, i == 0, () =>
+                {
+                    fdFilter = val;
+                    for (int k = 0; k < fdChips.Count; k++) SetChipOn(fdChips[k], k == gi);
+                    RefreshGrid();
+                });
+                fdChips.Add(chip); rx += 38f;
+            }
+            rx += 12f;
+            MakeTag(row2, "T:", ref rx);
+            string[] tN = { "+", "2", "3", "4", "5+" }; int[] tV = { -1, 2, 3, 4, 5 };
+            var tChips = new List<Image>();
+            for (int i = 0; i < tN.Length; i++)
+            {
+                int gi = i; int val = tV[i];
+                var chip = MakeChip(row2, tN[i], rx, 34f, i == 0, () =>
+                {
+                    tFilter = val;
+                    for (int k = 0; k < tChips.Count; k++) SetChipOn(tChips[k], k == gi);
+                    RefreshGrid();
+                });
+                tChips.Add(chip); rx += 38f;
+            }
+            rx += 16f;
+            Image histChip = null;
+            histChip = MakeChip(row2, "HISTORIA", rx, 96f, false, () =>
+            {
+                historiaOnly = !historiaOnly;
+                SetChipOn(histChip, historiaOnly);
+                RefreshGrid();
+            });
+            rx += 108f;
+
+            // buscador por nombre
+            var searchGo = new GameObject("Search", typeof(RectTransform), typeof(Image), typeof(InputField));
+            searchGo.transform.SetParent(row2, false);
+            var srt = (RectTransform)searchGo.transform;
+            srt.anchorMin = new Vector2(0f, 0.5f); srt.anchorMax = new Vector2(0f, 0.5f);
+            srt.pivot = new Vector2(0f, 0.5f); srt.anchoredPosition = new Vector2(rx, 0f); srt.sizeDelta = new Vector2(200f, 30f);
+            var simg = searchGo.GetComponent<Image>(); simg.color = new Color(0.02f, 0.03f, 0.08f, 0.9f);
+            var sfield = searchGo.GetComponent<InputField>();
+            var sph = MenuTheme.Label(searchGo.transform, "Buscar carta…", 13, new Color(0.6f, 0.58f, 0.5f), TextAnchor.MiddleLeft);
+            MenuTheme.Anchor((RectTransform)sph.transform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
+            var stext = MenuTheme.Label(searchGo.transform, "", 13, new Color(0.95f, 0.92f, 0.8f), TextAnchor.MiddleLeft);
+            MenuTheme.Anchor((RectTransform)stext.transform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
+            sfield.textComponent = stext; sfield.placeholder = sph; sfield.targetGraphic = simg;
+            sfield.onValueChanged.AddListener(v => { search = v ?? ""; RefreshGrid(); });
+
+            // ===== SIGUIENTE (guardar) =====
+            var sig = MenuTheme.TextButton(screen, "SIGUIENTE", 16, () =>
+            {
+                var cartas = new List<string>();
+                foreach (var kv in counts) for (int k = 0; k < kv.Value; k++) cartas.Add(kv.Key);
+                var mazos = PlayerData.Mazos();
+                mazos.Add(new DeckEntry { nombre = "Historia " + (mazos.Count + 1), historiaId = historiaId, cartas = cartas });
+                PlayerData.SaveMazos(mazos);
+                if (_stack.Count > 0) _stack.RemoveAt(_stack.Count - 1);                         // quita DeckBuilder
+                if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.ChooseHistoria) _stack.RemoveAt(_stack.Count - 1);
+                Show(_stack.Count > 0 ? _stack[_stack.Count - 1] : Screen.MisMazos);
+            }, 200f, 50f, thicken: false);
+            MenuTheme.Anchor((RectTransform)sig.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-224f, 18f), new Vector2(-24f, 68f));
+
+            RefreshDeck();
+            RefreshGrid();
             return screen;
+        }
+
+        /// <summary>Ficha de carta en el grid del constructor: color por tipo, nombre, coste; click
+        /// izq = añade, click der / mantener = vista flotante con +/-.</summary>
+        private void BuildDeckTile(Transform parent, CardDefinition c, System.Action<string> add, System.Action<string> remove)
+        {
+            var tile = new GameObject("T_" + c.Id, typeof(RectTransform), typeof(Image));
+            tile.transform.SetParent(parent, false);
+            var bg = tile.GetComponent<Image>();
+            bg.sprite = MenuGraphics.Rounded(48, 8); bg.type = Image.Type.Sliced;
+            bg.color = TypeColorDeck(c.Type);
+            tile.AddComponent<Outline>().effectColor = new Color(0.7f, 0.6f, 0.3f, 0.5f);
+
+            var tl = MenuTheme.Label(tile.transform, TypeLabel(c.Type), 8, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)tl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(6f, -16f), new Vector2(-6f, -3f));
+
+            var nm = MenuTheme.Label(tile.transform, c.Nombre, 11, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(5f, 16f), new Vector2(-5f, -16f));
+
+            var cost = MenuTheme.Label(tile.transform, CostText(c), 9, new Color(0.95f, 0.9f, 0.7f), TextAnchor.LowerRight, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)cost.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 3f), new Vector2(-6f, 16f));
+
+            var pc = tile.AddComponent<PointerClicks>();
+            pc.onLeft = () => add(c.Id);
+            pc.onRight = () => ShowCardFloat(c, add, remove);
+            tile.AddComponent<HoverScale>();
+        }
+
+        /// <summary>Vista flotante de la carta (centro) con botones +/- para añadir/quitar del mazo.</summary>
+        private void ShowCardFloat(CardDefinition c, System.Action<string> add, System.Action<string> remove)
+        {
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "CardFloat");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal()); // tocar fuera cierra
+
+            ModalPanel(overlay, 440f, 600f, out var inner);
+
+            // carta (ocupa la parte superior de inner; deja abajo para los botones)
+            var card = new GameObject("BigCard", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(inner, false);
+            var ci = card.GetComponent<Image>();
+            ci.sprite = MenuGraphics.Rounded(48, 12); ci.type = Image.Type.Sliced;
+            ci.color = TypeColorDeck(c.Type);
+            card.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            MenuTheme.Anchor((RectTransform)card.transform, Vector2.zero, Vector2.one, new Vector2(0f, 70f), new Vector2(0f, 0f));
+
+            var head = MenuTheme.Label(card.transform, c.Nombre, 22, Color.white, TextAnchor.UpperCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)head.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(12f, -58f), new Vector2(-12f, -12f));
+            var sub = MenuTheme.Label(card.transform, TypeLabel(c.Type) + "   ·   " + CostText(c), 14, new Color(0.9f, 0.86f, 0.7f), TextAnchor.UpperCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(12f, -82f), new Vector2(-12f, -58f));
+
+            string body = "";
+            if (!string.IsNullOrEmpty(c.Efecto)) body += c.Efecto + "\n";
+            if (!string.IsNullOrEmpty(c.AlEntrar)) body += "Al entrar: " + c.AlEntrar + "\n";
+            if (!string.IsNullOrEmpty(c.Activado)) body += "Activado: " + c.Activado + "\n";
+            if (!string.IsNullOrEmpty(c.AlSalir)) body += "Al salir: " + c.AlSalir + "\n";
+            if (!string.IsNullOrEmpty(c.Condicion)) body += "Condición: " + c.Condicion + "\n";
+            var txt = MenuTheme.Label(card.transform, body.TrimEnd(), 14, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
+            MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 14f), new Vector2(-16f, -92f));
+
+            // botones +/- debajo de la carta (dentro de inner)
+            var less = MenuTheme.TextButton(inner, "−  Quitar", 16, () => remove(c.Id), 170f, 50f, thicken: false);
+            MenuTheme.Anchor((RectTransform)less.transform, new Vector2(0f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-6f, 58f));
+            var more = MenuTheme.TextButton(inner, "+  Añadir", 16, () => add(c.Id), 170f, 50f, thicken: false);
+            MenuTheme.Anchor((RectTransform)more.transform, new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(6f, 8f), new Vector2(0f, 58f));
+        }
+
+        // ---- helpers del constructor ----
+
+        private static int TypeOrder(CardType t) => t switch
+        {
+            CardType.Tierra => 0, CardType.SerHumano => 1, CardType.SerDivino => 2,
+            CardType.SerAnimal => 3, CardType.Concepto => 4, CardType.Dia => 5, _ => 6
+        };
+
+        private static string TypeLabel(CardType t) => t switch
+        {
+            CardType.Tierra => "TIERRA", CardType.SerHumano => "SER-HUMANO", CardType.SerDivino => "SER-DIVINO",
+            CardType.SerAnimal => "SER-ANIMAL", CardType.Concepto => "CONCEPTO", CardType.Dia => "DÍA", _ => ""
+        };
+
+        private static Color TypeColorDeck(CardType t) => t switch
+        {
+            CardType.Tierra => new Color(0.13f, 0.22f, 0.10f, 0.95f),
+            CardType.SerHumano => new Color(0.10f, 0.14f, 0.32f, 0.95f),
+            CardType.SerDivino => new Color(0.17f, 0.13f, 0.34f, 0.95f),
+            CardType.SerAnimal => new Color(0.10f, 0.24f, 0.24f, 0.95f),
+            CardType.Concepto => new Color(0.24f, 0.12f, 0.28f, 0.95f),
+            CardType.Dia => new Color(0.28f, 0.22f, 0.10f, 0.95f),
+            _ => new Color(0.15f, 0.15f, 0.18f, 0.95f)
+        };
+
+        private static string CostText(CardDefinition c) => c.Type switch
+        {
+            CardType.Tierra => (c.Fd ?? 0) + " FD",
+            CardType.SerHumano or CardType.SerDivino or CardType.SerAnimal => (c.Coste ?? 0) + "FD·" + (c.Dur ?? 0) + "T",
+            _ => (c.Coste ?? 0) + " FD"
+        };
+
+        /// <summary>Nombres de las 5 piezas de cada historia (para el filtro HISTORIA), normalizados.</summary>
+        private static readonly Dictionary<string, string[]> HistoriaPiezasRaw = new()
+        {
+            { "h1", new[] { "El Jardín del Edén", "El Árbol del Fruto Prohibido", "Adán", "Eva", "La Serpiente" } },
+            { "h2", new[] { "El Monte Ararat", "Egipto", "Noé", "Sem", "Jafet" } },
+            { "h3", new[] { "Hebrón/Mambré", "Canaán", "Abraham", "Sara", "Melquisedec" } },
+            { "h4", new[] { "Sodoma", "Gomorra", "Abraham", "Lot", "Los Ángeles de Sodoma" } },
+            { "h5", new[] { "El Jardín del Edén", "La Tierra de Nod", "Caín", "Abel", "La Maldición de la Tierra" } },
+            { "h6", new[] { "Betel", "Canaán", "Jacob/Israel", "Esaú", "Los Ángeles de la Escalera" } },
+            { "h7", new[] { "Egipto", "La Tierra de Gosén", "José", "El Faraón", "Benjamín" } },
+        };
+
+        private static HashSet<string> HistoriaPiezas(string historiaId)
+        {
+            if (historiaId == null || !HistoriaPiezasRaw.TryGetValue(historiaId, out var arr)) return null;
+            var set = new HashSet<string>();
+            foreach (var n in arr) set.Add(NormName(n));
+            return set;
+        }
+
+        private static string NormName(string s)
+        {
+            var d = s.Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder(d.Length);
+            foreach (var ch in d)
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+                if (char.IsLetterOrDigit(ch)) sb.Append(char.ToLowerInvariant(ch));
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>ScrollRect vertical con viewport enmascarado; devuelve el RectTransform de contenido
+        /// (anclado arriba, ancho estirado). Añade una barra deslizable a la derecha.</summary>
+        private RectTransform MakeScroll(Transform parent, Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax, bool vertical)
+        {
+            var go = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(RectMask2D));
+            go.transform.SetParent(parent, false);
+            go.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f); // viewport transparente
+            MenuTheme.Anchor((RectTransform)go.transform, aMin, aMax, oMin, oMax);
+            var sr = go.GetComponent<ScrollRect>();
+            sr.horizontal = false; sr.vertical = vertical; sr.movementType = ScrollRect.MovementType.Clamped;
+            sr.scrollSensitivity = 28f; sr.viewport = (RectTransform)go.transform;
+
+            var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
+            content.SetParent(go.transform, false);
+            content.anchorMin = new Vector2(0f, 1f); content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-12f, 0f);
+            sr.content = content;
+
+            // barra deslizable
+            var barGo = new GameObject("VBar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            barGo.transform.SetParent(go.transform, false);
+            barGo.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.16f, 0.6f);
+            var brt = (RectTransform)barGo.transform;
+            brt.anchorMin = new Vector2(1f, 0f); brt.anchorMax = new Vector2(1f, 1f); brt.pivot = new Vector2(1f, 0.5f);
+            brt.offsetMin = new Vector2(-10f, 0f); brt.offsetMax = new Vector2(0f, 0f);
+            var slide = new GameObject("Sliding", typeof(RectTransform)).GetComponent<RectTransform>();
+            slide.SetParent(barGo.transform, false); MenuTheme.Stretch(slide);
+            var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handle.transform.SetParent(slide, false);
+            handle.GetComponent<Image>().color = MenuTheme.GoldDim;
+            var sb = barGo.GetComponent<Scrollbar>();
+            sb.handleRect = (RectTransform)handle.transform; sb.direction = Scrollbar.Direction.BottomToTop;
+            sr.verticalScrollbar = sb; sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            return content;
+        }
+
+        // fichas/etiquetas de filtro
+        private Image MakeChip(Transform parent, string text, float x, float w, bool on, System.Action onClick)
+        {
+            var go = new GameObject("Chip_" + text, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f); rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(x, 0f); rt.sizeDelta = new Vector2(w, 30f);
+            var img = go.GetComponent<Image>();
+            img.sprite = MenuGraphics.Rounded(32, 10); img.type = Image.Type.Sliced;
+            var btn = go.GetComponent<Button>(); btn.targetGraphic = img;
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            var lbl = MenuTheme.Label(go.transform, text, 12, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            lbl.raycastTarget = false; MenuTheme.Stretch((RectTransform)lbl.transform);
+            SetChipOn(img, on);
+            return img;
+        }
+
+        private static void SetChipOn(Image chip, bool on)
+        {
+            chip.color = on ? new Color(0.30f, 0.24f, 0.08f, 0.95f) : new Color(0.06f, 0.07f, 0.12f, 0.9f);
+            var ol = chip.GetComponent<Outline>();
+            if (ol == null) ol = chip.gameObject.AddComponent<Outline>();
+            ol.effectColor = on ? MenuTheme.Gold : new Color(0.5f, 0.42f, 0.2f, 0.5f);
+            ol.effectDistance = new Vector2(on ? 2f : 1f, on ? -2f : -1f);
+        }
+
+        private void MakeTag(Transform parent, string text, ref float x)
+        {
+            var lbl = MenuTheme.Label(parent, text, 14, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var rt = (RectTransform)lbl.transform;
+            rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f); rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(x, 0f); rt.sizeDelta = new Vector2(30f, 28f);
+            x += 34f;
         }
 
         private void AddStepLabel(Transform parent, string head, string body)
