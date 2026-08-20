@@ -1020,13 +1020,24 @@ namespace Game.Runtime.Menu
             var hid = m.historiaId ?? ""; // saneo: datos viejos podrían no traer historiaId
 
             var coverColor = HistoriaColor.TryGetValue(hid, out var c) ? c : MenuTheme.PanelBg;
-            // Carta HISTORIA elegida como representación del mazo; si no hay, Hoja/color.
-            var cartaSprite = MenuAssets.Sprite("cartas_historia/carta_" + hid);
+            // Portada = carta INSIGNIA elegida. Si la insignia tiene arte (carta HISTORIA) se muestra
+            // la imagen; si no (DÍA/normal) se muestra su ficha (color+nombre). Fallback: carta historia.
+            string ins = string.IsNullOrEmpty(m.insignia) ? hid : m.insignia;
+            var insArt = MenuAssets.Sprite("cartas_historia/carta_" + ins);
             Image cover;
-            if (cartaSprite != null)
+            if (insArt != null)
             {
-                cover = MenuTheme.Picture(inner, "Cover", cartaSprite, preserveAspect: false);
+                cover = MenuTheme.Picture(inner, "Cover", insArt, preserveAspect: false);
                 cover.color = Color.white;
+            }
+            else if (_catalog != null && _catalog.Cards.TryGetValue(ins, out var insDef))
+            {
+                cover = MenuTheme.Rect(inner, "Cover", TypeColorDeck(insDef.Type));
+                cover.color = TypeColorDeck(insDef.Type);
+                var tl = MenuTheme.Label(cover.transform, TypeLabel(insDef.Type), 9, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)tl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(6f, -16f), new Vector2(-6f, -3f));
+                var nm = MenuTheme.Label(cover.transform, insDef.Nombre, 12, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(6f, 6f), new Vector2(-6f, -6f));
             }
             else
             {
@@ -1449,23 +1460,42 @@ namespace Game.Runtime.Menu
             ig.childAlignment = TextAnchor.UpperLeft;
             insContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            string insignia = null;
+            string insignia = historiaId; // por defecto: la carta HISTORIA
             var insOutlines = new List<Outline>();
-            foreach (var kv in counts)
+
+            void AddIns(string id, CardDefinition def)
             {
-                if (!(_catalog != null && _catalog.Cards.TryGetValue(kv.Key, out var def))) continue;
-                string cid = kv.Key;
-                var t = new GameObject("Ins_" + cid, typeof(RectTransform), typeof(Image), typeof(Button));
+                var art = MenuAssets.Sprite("cartas_historia/carta_" + id); // solo la carta HISTORIA tiene arte
+                var t = new GameObject("Ins_" + id, typeof(RectTransform), typeof(Image), typeof(Button));
                 t.transform.SetParent(insContent, false);
                 var bg = t.GetComponent<Image>();
-                bg.sprite = MenuGraphics.Rounded(48, 8); bg.type = Image.Type.Sliced; bg.color = TypeColorDeck(def.Type);
-                var ol = t.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f); ol.enabled = false;
+                bg.sprite = MenuGraphics.Rounded(48, 8); bg.type = Image.Type.Sliced;
+                if (art != null)
+                {
+                    bg.color = Color.white;
+                    var ph = new GameObject("Art", typeof(RectTransform), typeof(Image));
+                    ph.transform.SetParent(t.transform, false);
+                    var pi = ph.GetComponent<Image>(); pi.sprite = art; pi.preserveAspect = true; pi.raycastTarget = false;
+                    MenuTheme.Anchor((RectTransform)ph.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+                }
+                else
+                {
+                    bg.color = def != null ? TypeColorDeck(def.Type) : new Color(0.15f, 0.13f, 0.2f, 1f);
+                    var nm = MenuTheme.Label(t.transform, def != null ? def.Nombre : HistoriaName(id), 10, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+                }
+                var ol = t.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f);
+                ol.enabled = (id == insignia);
                 insOutlines.Add(ol);
-                var nm = MenuTheme.Label(t.transform, def.Nombre, 10, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-                MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
                 var b = t.GetComponent<Button>(); b.targetGraphic = bg;
-                b.onClick.AddListener(() => { insignia = cid; foreach (var o in insOutlines) o.enabled = false; ol.enabled = true; });
+                b.onClick.AddListener(() => { insignia = id; foreach (var o in insOutlines) o.enabled = false; ol.enabled = true; });
             }
+
+            AddIns(historiaId, null);                                                  // carta HISTORIA seleccionada
+            if (_catalog != null)
+                foreach (var c in _catalog.Cards.Values) if (c.Type == CardType.Dia) AddIns(c.Id, c); // cartas DÍA
+            foreach (var kv in counts)
+                if (_catalog != null && _catalog.Cards.TryGetValue(kv.Key, out var d)) AddIns(kv.Key, d); // cartas del mazo
 
             // GUARDAR
             var guardar = ChipButton(panel.transform, "GUARDAR MAZO");
