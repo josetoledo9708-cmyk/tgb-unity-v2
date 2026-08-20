@@ -501,7 +501,7 @@ namespace Game.Runtime.Menu
         {
             var screen = NewScreen("ContraIA", "fondo_constructor", MenuTheme.DarkBg);
             MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.5f));
-            Title(screen, "ELIGE TU MAZO");
+            Title(screen, "ELIGE TU HISTORIA");
             BackButton(screen);
 
             var list = MenuTheme.VBox(screen, 10f, 0, TextAnchor.UpperCenter);
@@ -580,7 +580,7 @@ namespace Game.Runtime.Menu
         {
             var screen = NewScreen("SelectDeck", "creador/Fondo", MenuTheme.DarkBg);
             MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.35f));
-            Title(screen, "ELIGE TU MAZO");
+            Title(screen, "ELIGE TU HISTORIA");
             BackButton(screen);
             DecorBook(screen);
 
