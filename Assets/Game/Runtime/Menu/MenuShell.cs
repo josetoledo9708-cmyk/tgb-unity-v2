@@ -28,6 +28,7 @@ namespace Game.Runtime.Menu
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
         private string _chosenHistoriaId;  // carta Historia elegida al crear una nueva historia/mazo
+        private bool _inMatch;             // hay una partida en curso (campo encendido, menú oculto)
 
         /// <summary>El campo a activar cuando el jugador entra a una partida (se deja desactivado).</summary>
         public void SetBoard(Game.Runtime.View.HotseatView board) => _board = board;
@@ -1866,14 +1867,15 @@ namespace Game.Runtime.Menu
         private static readonly (int w, int h)[] ResList = { (1280, 720), (1600, 900), (1920, 1080), (2560, 1440) };
         private static readonly FullScreenMode[] ModeList = { FullScreenMode.Windowed, FullScreenMode.ExclusiveFullScreen, FullScreenMode.FullScreenWindow };
 
-        private void ShowOpcionesModal()
+        private void ShowOpcionesModal(bool inGame = false)
         {
             CloseModal();
+            System.Action close = inGame ? (System.Action)CloseInGameOptions : CloseModal;
             var overlay = MenuTheme.Panel(_root, "OpcionesModal");
             overlay.transform.SetAsLastSibling();
             _modal = overlay.gameObject;
             var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.55f));
-            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal());
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => close());
 
             var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             panel.transform.SetParent(overlay, false);
@@ -1894,7 +1896,7 @@ namespace Game.Runtime.Menu
             var xrt = (RectTransform)xBtn.transform; xrt.anchorMin = xrt.anchorMax = new Vector2(1f, 1f); xrt.pivot = new Vector2(1f, 1f);
             xrt.sizeDelta = new Vector2(34f, 34f); xrt.anchoredPosition = new Vector2(-12f, -12f);
             var xl = MenuTheme.Label(xBtn.transform, "✕", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold); xl.raycastTarget = false; MenuTheme.Stretch((RectTransform)xl.transform);
-            xBtn.GetComponent<Button>().onClick.AddListener(() => CloseModal());
+            xBtn.GetComponent<Button>().onClick.AddListener(() => close());
 
             // contenido con scroll
             var content = MakeScroll(panel.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(20f, 20f), new Vector2(-20f, -62f), true);
@@ -1925,17 +1927,9 @@ namespace Game.Runtime.Menu
 
             // --- OTROS ---
             OptHeader(content, "OTROS");
-            OptButton(content, "Cerrar Sesión", () => { /* sin sistema de cuentas todavía */ });
-            OptButton(content, "Salir del Juego", QuitGame);
-        }
-
-        private static void QuitGame()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
+            if (inGame) OptButton(content, "Abandonar Partida", AbandonMatch);
+            else OptButton(content, "Cerrar Sesión", () => { /* sin sistema de cuentas todavía */ });
+            OptButton(content, "Salir del Juego", Quit);
         }
 
         // fila con etiqueta a la izquierda; el control se ancla a la derecha.
@@ -2050,6 +2044,7 @@ namespace Game.Runtime.Menu
             {
                 _canvas.gameObject.SetActive(false);
                 _board.enabled = true; // dispara su Start → construye la partida
+                _inMatch = true;
                 return;
             }
             if (Application.CanStreamedLevelBeLoaded("Main")) SceneManager.LoadScene("Main");
@@ -2063,6 +2058,41 @@ namespace Game.Runtime.Menu
 #else
             Application.Quit();
 #endif
+        }
+
+        // --- pausa/Opciones durante la partida (Esc) ---
+
+        private void Update()
+        {
+            if (_inMatch && Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (_modal == null) OpenInGameOptions();
+                else CloseInGameOptions();
+            }
+        }
+
+        private void OpenInGameOptions()
+        {
+            if (_board != null) _board.enabled = false;   // pausa el campo (deja de dibujar/actualizar)
+            _canvas.gameObject.SetActive(true);
+            ShowOpcionesModal(inGame: true);
+        }
+
+        private void CloseInGameOptions()
+        {
+            CloseModal();
+            _canvas.gameObject.SetActive(false);
+            if (_board != null) _board.enabled = true;    // reanuda la partida
+        }
+
+        private void AbandonMatch()
+        {
+            CloseModal();
+            _inMatch = false;
+            if (_board != null) _board.enabled = false;
+            _canvas.gameObject.SetActive(true);
+            _stack.Clear();
+            Push(Screen.MainMenu);
         }
     }
 }
