@@ -747,10 +747,68 @@ namespace Game.Runtime.Menu
             var list = MenuTheme.VBox(panel.transform, 10f, 0, TextAnchor.UpperCenter);
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(272f, 24f), new Vector2(-24f, -116f));
             AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); }, width: 320f);
-            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sistema de portada */ CloseModal(); }, width: 320f);
+            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => ShowChangePortadaDialog(index), width: 320f);
             AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index), width: 320f);
             AddModalOption(list.transform, "BORRAR", new Color(0.9f, 0.32f, 0.32f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); }, width: 320f);
             AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 320f);
+        }
+
+        /// <summary>Panel propio (navy + borde dorado) centrado, con título. Devuelve el panel.</summary>
+        private RectTransform CustomPanel(RectTransform overlay, string titleText, float w, float h)
+        {
+            var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            panel.transform.SetParent(overlay, false);
+            panel.sprite = MenuGraphics.Rounded(64, 16); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.06f, 0.06f, 0.14f, 0.98f);
+            panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var prt = (RectTransform)panel.transform;
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0.5f); prt.pivot = new Vector2(0.5f, 0.5f);
+            prt.sizeDelta = new Vector2(w, h);
+            var title = MenuTheme.Label(panel.transform, titleText, 24, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -54f), new Vector2(0f, -14f));
+            return prt;
+        }
+
+        private void ShowChangePortadaDialog(int index)
+        {
+            var mazos = PlayerData.Mazos();
+            if (index < 0 || index >= mazos.Count) return;
+            var m = mazos[index];
+            EnsureCatalog();
+
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "PortadaModal");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal());
+
+            var panel = CustomPanel(overlay, "CAMBIAR PORTADA", 660f, 520f);
+
+            var uniq = new List<string>(); var seen = new HashSet<string>();
+            foreach (var cid in m.cartas) if (seen.Add(cid)) uniq.Add(cid);
+            string hid = m.historiaId ?? "";
+            string sel = string.IsNullOrEmpty(m.insignia) ? hid : m.insignia;
+
+            var content = MakeScroll(panel, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 84f), new Vector2(-24f, -70f), true);
+            var ig = content.gameObject.AddComponent<GridLayoutGroup>();
+            ig.cellSize = new Vector2(84f, 104f); ig.spacing = new Vector2(8f, 8f);
+            ig.constraint = GridLayoutGroup.Constraint.FixedColumnCount; ig.constraintCount = 6;
+            ig.childAlignment = TextAnchor.UpperLeft;
+            content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            BuildPortadaTiles(content, hid, uniq, sel, id => sel = id);
+
+            var guardar = ChipButton(panel, "GUARDAR PORTADA");
+            var grt = (RectTransform)guardar.transform;
+            grt.anchorMin = new Vector2(0.5f, 0f); grt.anchorMax = new Vector2(0.5f, 0f); grt.pivot = new Vector2(0.5f, 0f);
+            grt.sizeDelta = new Vector2(300f, 52f); grt.anchoredPosition = new Vector2(0f, 20f);
+            guardar.onClick.AddListener(() =>
+            {
+                var latest = PlayerData.Mazos();
+                if (index >= 0 && index < latest.Count) { latest[index].insignia = sel; PlayerData.SaveMazos(latest); }
+                CloseModal();
+                RefreshMisMazos();
+            });
         }
 
         private void ShowRenameDialog(int index)
@@ -763,60 +821,23 @@ namespace Game.Runtime.Menu
             var overlay = MenuTheme.Panel(_root, "RenameModal");
             overlay.transform.SetAsLastSibling();
             _modal = overlay.gameObject;
-            MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal());
 
-            var marcoSprite = MenuAssets.Sprite("minimenu/renombrar_marco");
-            RectTransform inner;
-            RectTransform inputArea;
-            RectTransform btnArea;
-
-            if (marcoSprite != null)
-            {
-                // El marco ya trae el título "RENOMBRAR HISTORIA" y el recuadro del campo baked.
-                var go = new GameObject("Marco", typeof(RectTransform), typeof(Image));
-                go.transform.SetParent(overlay, false);
-                var img = go.GetComponent<Image>();
-                img.sprite = marcoSprite;
-                img.type = Image.Type.Sliced;
-                img.color = Color.white;
-                const float w = 560f;
-                float h = w * marcoSprite.rect.height / marcoSprite.rect.width;
-                MenuTheme.Anchor((RectTransform)go.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    new Vector2(-w / 2f, -h / 2f + 40f), new Vector2(w / 2f, h / 2f + 40f));
-                inner = (RectTransform)go.transform;
-                inputArea = inner; // el campo se ancla dentro del recuadro baked (posición aproximada)
-                btnArea = inner;
-            }
-            else
-            {
-                ModalPanel(overlay, 440f, 210f, out inner);
-                var title = MenuTheme.Label(inner, "RENOMBRAR MAZO", 20, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
-                MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, -8f));
-                inputArea = inner;
-                btnArea = inner;
-            }
+            var panel = CustomPanel(overlay, "RENOMBRAR MAZO", 520f, 240f);
 
             var inputGo = new GameObject("Input", typeof(RectTransform), typeof(Image), typeof(InputField));
-            inputGo.transform.SetParent(inputArea, false);
+            inputGo.transform.SetParent(panel, false);
             var inputImg = inputGo.GetComponent<Image>();
-            inputImg.color = marcoSprite != null ? new Color(0f, 0f, 0f, 0.001f) : new Color(0.12f, 0.11f, 0.08f, 1f); // sobre el recuadro baked, casi invisible
-            MenuTheme.Anchor((RectTransform)inputGo.transform,
-                marcoSprite != null ? new Vector2(0.12f, 0.30f) : new Vector2(0.08f, 0.42f),
-                marcoSprite != null ? new Vector2(0.88f, 0.46f) : new Vector2(0.92f, 0.68f),
-                Vector2.zero, Vector2.zero);
+            inputImg.color = new Color(0.02f, 0.03f, 0.08f, 1f);
+            MenuTheme.Anchor((RectTransform)inputGo.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, -118f), new Vector2(-30f, -74f));
             var field = inputGo.GetComponent<InputField>();
             var textGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
             textGo.transform.SetParent(inputGo.transform, false);
             var txt = textGo.GetComponent<Text>();
-            txt.font = MenuAssets.Font();
-            txt.color = MenuTheme.Gold;
-            txt.fontSize = 18;
-            txt.alignment = TextAnchor.MiddleLeft;
-            txt.supportRichText = false;
-            MenuTheme.Anchor((RectTransform)textGo.transform, Vector2.zero, Vector2.one, new Vector2(10f, 4f), new Vector2(-10f, -4f));
-            field.textComponent = txt;
-            field.text = m.nombre;
-            field.characterLimit = 24;
+            txt.font = MenuAssets.Font(); txt.color = MenuTheme.Gold; txt.fontSize = 18; txt.alignment = TextAnchor.MiddleLeft; txt.supportRichText = false;
+            MenuTheme.Anchor((RectTransform)textGo.transform, Vector2.zero, Vector2.one, new Vector2(12f, 4f), new Vector2(-12f, -4f));
+            field.textComponent = txt; field.text = m.nombre; field.characterLimit = 24;
 
             void DoSave()
             {
@@ -830,11 +851,10 @@ namespace Game.Runtime.Menu
                 RefreshMisMazos();
             }
 
-            var save = AddModalOption(btnArea, "GUARDAR", MenuTheme.Gold, DoSave, width: 180f, spriteKey: "minimenu/btn_aceptar");
-            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(-190f, 0f), new Vector2(-10f, 44f));
-
-            var cancel = AddModalOption(btnArea, "CANCELAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 180f, spriteKey: "minimenu/cancelar");
-            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), new Vector2(10f, 0f), new Vector2(190f, 44f));
+            var save = AddModalOption(panel, "GUARDAR", MenuTheme.Gold, DoSave, width: 200f);
+            MenuTheme.Anchor((RectTransform)save.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-210f, 24f), new Vector2(-10f, 72f));
+            var cancel = AddModalOption(panel, "CANCELAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 200f);
+            MenuTheme.Anchor((RectTransform)cancel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(10f, 24f), new Vector2(210f, 72f));
         }
 
         private static void DeleteMazo(int index)
@@ -1402,7 +1422,47 @@ namespace Game.Runtime.Menu
             mrt.sizeDelta = new Vector2(170f, 48f); mrt.anchoredPosition = new Vector2(95f, -215f);
         }
 
-        /// <summary>Modal "GUARDAR MAZO": nombre + resumen + selección de carta insignia + guardar.
+        /// <summary>Rellena una rejilla con las opciones de PORTADA (carta HISTORIA con arte + cartas
+        /// DÍA + cartas del mazo). Marca la actual y notifica la selección.</summary>
+        private void BuildPortadaTiles(Transform content, string historiaId, IEnumerable<string> deckUniqueIds, string current, System.Action<string> onSelect)
+        {
+            var outlines = new List<Outline>();
+            void Add(string id, CardDefinition def)
+            {
+                var art = MenuAssets.Sprite("cartas_historia/carta_" + id); // solo la carta HISTORIA tiene arte
+                var t = new GameObject("Ins_" + id, typeof(RectTransform), typeof(Image), typeof(Button));
+                t.transform.SetParent(content, false);
+                var bg = t.GetComponent<Image>();
+                bg.sprite = MenuGraphics.Rounded(48, 8); bg.type = Image.Type.Sliced;
+                if (art != null)
+                {
+                    bg.color = Color.white;
+                    var ph = new GameObject("Art", typeof(RectTransform), typeof(Image));
+                    ph.transform.SetParent(t.transform, false);
+                    var pi = ph.GetComponent<Image>(); pi.sprite = art; pi.preserveAspect = true; pi.raycastTarget = false;
+                    MenuTheme.Anchor((RectTransform)ph.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+                }
+                else
+                {
+                    bg.color = def != null ? TypeColorDeck(def.Type) : new Color(0.15f, 0.13f, 0.2f, 1f);
+                    var nm = MenuTheme.Label(t.transform, def != null ? def.Nombre : HistoriaName(id), 10, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+                }
+                var ol = t.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f);
+                ol.enabled = (id == current);
+                outlines.Add(ol);
+                var b = t.GetComponent<Button>(); b.targetGraphic = bg;
+                b.onClick.AddListener(() => { foreach (var o in outlines) o.enabled = false; ol.enabled = true; onSelect(id); });
+            }
+
+            Add(historiaId, null);                                                     // carta HISTORIA
+            if (_catalog != null)
+                foreach (var c in _catalog.Cards.Values) if (c.Type == CardType.Dia) Add(c.Id, c); // cartas DÍA
+            foreach (var id in deckUniqueIds)
+                if (_catalog != null && _catalog.Cards.TryGetValue(id, out var d)) Add(id, d); // cartas del mazo
+        }
+
+        /// <summary>Modal "GUARDAR MAZO": nombre + resumen + selección de portada + guardar.
         /// Aparece sobre el armador.</summary>
         private void ShowSaveDeckDialog(string historiaId, Dictionary<string, int> counts)
         {
@@ -1459,7 +1519,7 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)resumen.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -206f), new Vector2(-24f, -184f));
 
             // selección de carta insignia
-            var insLbl = MenuTheme.Label(panel.transform, "Carta insignia:", 15, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
+            var insLbl = MenuTheme.Label(panel.transform, "Portada:", 15, new Color(0.85f, 0.82f, 0.7f), TextAnchor.UpperLeft, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)insLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -236f), new Vector2(-24f, -212f));
 
             var insContent = MakeScroll(panel.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 84f), new Vector2(-24f, -242f), true);
@@ -1469,42 +1529,8 @@ namespace Game.Runtime.Menu
             ig.childAlignment = TextAnchor.UpperLeft;
             insContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            string insignia = historiaId; // por defecto: la carta HISTORIA
-            var insOutlines = new List<Outline>();
-
-            void AddIns(string id, CardDefinition def)
-            {
-                var art = MenuAssets.Sprite("cartas_historia/carta_" + id); // solo la carta HISTORIA tiene arte
-                var t = new GameObject("Ins_" + id, typeof(RectTransform), typeof(Image), typeof(Button));
-                t.transform.SetParent(insContent, false);
-                var bg = t.GetComponent<Image>();
-                bg.sprite = MenuGraphics.Rounded(48, 8); bg.type = Image.Type.Sliced;
-                if (art != null)
-                {
-                    bg.color = Color.white;
-                    var ph = new GameObject("Art", typeof(RectTransform), typeof(Image));
-                    ph.transform.SetParent(t.transform, false);
-                    var pi = ph.GetComponent<Image>(); pi.sprite = art; pi.preserveAspect = true; pi.raycastTarget = false;
-                    MenuTheme.Anchor((RectTransform)ph.transform, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
-                }
-                else
-                {
-                    bg.color = def != null ? TypeColorDeck(def.Type) : new Color(0.15f, 0.13f, 0.2f, 1f);
-                    var nm = MenuTheme.Label(t.transform, def != null ? def.Nombre : HistoriaName(id), 10, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-                    MenuTheme.Anchor((RectTransform)nm.transform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
-                }
-                var ol = t.AddComponent<Outline>(); ol.effectColor = MenuTheme.Gold; ol.effectDistance = new Vector2(2f, -2f);
-                ol.enabled = (id == insignia);
-                insOutlines.Add(ol);
-                var b = t.GetComponent<Button>(); b.targetGraphic = bg;
-                b.onClick.AddListener(() => { insignia = id; foreach (var o in insOutlines) o.enabled = false; ol.enabled = true; });
-            }
-
-            AddIns(historiaId, null);                                                  // carta HISTORIA seleccionada
-            if (_catalog != null)
-                foreach (var c in _catalog.Cards.Values) if (c.Type == CardType.Dia) AddIns(c.Id, c); // cartas DÍA
-            foreach (var kv in counts)
-                if (_catalog != null && _catalog.Cards.TryGetValue(kv.Key, out var d)) AddIns(kv.Key, d); // cartas del mazo
+            string insignia = historiaId; // portada por defecto: la carta HISTORIA
+            BuildPortadaTiles(insContent, historiaId, counts.Keys, insignia, id => insignia = id);
 
             // GUARDAR
             var guardar = ChipButton(panel.transform, "GUARDAR MAZO");
