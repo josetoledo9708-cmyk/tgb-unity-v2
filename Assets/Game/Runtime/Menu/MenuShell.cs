@@ -1105,7 +1105,6 @@ namespace Game.Runtime.Menu
             EnsureCatalog();
             var screen = NewScreen("DeckBuilder", "fondo_constructor", MenuTheme.DarkBg);
             MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.4f));
-            BackButton(screen);
 
             string historiaId = _chosenHistoriaId;
             var piezas = HistoriaPiezas(historiaId);
@@ -1133,7 +1132,7 @@ namespace Game.Runtime.Menu
             deckPanel.sprite = MenuGraphics.Rounded(64, 14); deckPanel.type = Image.Type.Sliced;
             deckPanel.color = new Color(0.05f, 0.05f, 0.10f, 0.85f);
             deckPanel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            MenuTheme.Anchor((RectTransform)deckPanel.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-360f, 76f), new Vector2(-16f, -16f));
+            MenuTheme.Anchor((RectTransform)deckPanel.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-290f, 78f), new Vector2(-16f, -12f));
 
             var counterLbl = MenuTheme.Label(deckPanel.transform, "0 / 40", 22, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)counterLbl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, -42f), new Vector2(-10f, -8f));
@@ -1145,10 +1144,10 @@ namespace Game.Runtime.Menu
             deckContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             // ===== grid de la colección (izquierda) =====
-            var gridContent = MakeScroll(screen, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 76f), new Vector2(-376f, -132f), true);
+            var gridContent = MakeScroll(screen, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 78f), new Vector2(-306f, -128f), true);
             var gl = gridContent.gameObject.AddComponent<GridLayoutGroup>();
-            gl.cellSize = new Vector2(94f, 122f); gl.spacing = new Vector2(6f, 6f);
-            gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 9;
+            gl.cellSize = new Vector2(120f, 156f); gl.spacing = new Vector2(9f, 9f); // 7 col × ~3 filas visibles
+            gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 7;
             gl.childAlignment = TextAnchor.UpperLeft;
             gridContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
@@ -1304,6 +1303,10 @@ namespace Game.Runtime.Menu
             }, 200f, 50f, thicken: false);
             MenuTheme.Anchor((RectTransform)sig.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-224f, 18f), new Vector2(-24f, 68f));
 
+            // VOLVER también abajo (izquierda).
+            var volver = MenuTheme.TextButton(screen, "VOLVER", 14, Pop, 130f, 48f, thicken: false);
+            MenuTheme.Anchor((RectTransform)volver.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 18f), new Vector2(154f, 66f));
+
             RefreshDeck();
             RefreshGrid();
             return screen;
@@ -1456,16 +1459,16 @@ namespace Game.Runtime.Menu
             var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
             content.SetParent(go.transform, false);
             content.anchorMin = new Vector2(0f, 1f); content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-12f, 0f);
+            content.pivot = new Vector2(0.5f, 1f); content.offsetMin = Vector2.zero; content.offsetMax = new Vector2(-9f, 0f);
             sr.content = content;
 
-            // barra deslizable
+            // barra deslizable (fina)
             var barGo = new GameObject("VBar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
             barGo.transform.SetParent(go.transform, false);
-            barGo.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.16f, 0.6f);
+            barGo.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.16f, 0.55f);
             var brt = (RectTransform)barGo.transform;
             brt.anchorMin = new Vector2(1f, 0f); brt.anchorMax = new Vector2(1f, 1f); brt.pivot = new Vector2(1f, 0.5f);
-            brt.offsetMin = new Vector2(-10f, 0f); brt.offsetMax = new Vector2(0f, 0f);
+            brt.offsetMin = new Vector2(-6f, 0f); brt.offsetMax = new Vector2(0f, 0f);
             var slide = new GameObject("Sliding", typeof(RectTransform)).GetComponent<RectTransform>();
             slide.SetParent(barGo.transform, false); MenuTheme.Stretch(slide);
             var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
