@@ -715,30 +715,42 @@ namespace Game.Runtime.Menu
             var overlay = MenuTheme.Panel(_root, "MazoModal");
             overlay.transform.SetAsLastSibling();
             _modal = overlay.gameObject;
-            MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.6f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal());
 
-            const float panelW = 760f, panelH = 520f;
-            ModalPanel(overlay, panelW, panelH, out var inner);
+            // panel propio, acorde al resto del menú: navy redondeado + borde dorado.
+            var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            panel.transform.SetParent(overlay, false);
+            panel.sprite = MenuGraphics.Rounded(64, 16); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.06f, 0.06f, 0.14f, 0.98f);
+            panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var prt = (RectTransform)panel.transform;
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0.5f); prt.pivot = new Vector2(0.5f, 0.5f);
+            prt.sizeDelta = new Vector2(720f, 470f);
 
-            // Carta representativa (real, con arte): el DÍA de esa historia, elegido de forma
-            // determinística por mazo (mismo mazo siempre muestra la misma carta).
+            // carta representativa DENTRO del panel (izquierda)
+            var prevBox = new GameObject("Prev", typeof(RectTransform)).GetComponent<RectTransform>();
+            prevBox.SetParent(panel.transform, false);
+            prevBox.anchorMin = prevBox.anchorMax = new Vector2(0f, 0.5f); prevBox.pivot = new Vector2(0f, 0.5f);
+            prevBox.sizeDelta = new Vector2(224f, 330f); prevBox.anchoredPosition = new Vector2(30f, 0f);
             int diaNum = 1 + System.Math.Abs((m.nombre + "|" + m.historiaId).GetHashCode()) % 7;
             if (_catalog != null && _catalog.TryGet("dia" + diaNum, out var diaDef))
-                BuildCardPreview(overlay, diaDef, panelW, panelH);
+                BuildCardPreview(prevBox, diaDef);
 
-            var title = MenuTheme.Label(inner, m.nombre, 30, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -66f), new Vector2(0f, -12f));
+            // lado derecho: título + resumen + botones (más cortos)
+            var title = MenuTheme.Label(panel.transform, m.nombre, 26, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(272f, -58f), new Vector2(-24f, -14f));
 
-            var sub = MenuTheme.Label(inner, $"Historia: {HistoriaName(m.historiaId)}\n{m.cartas.Count} cartas", 17, new Color(0.85f, 0.82f, 0.72f));
-            MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0f, 0.62f), new Vector2(1f, 0.85f), Vector2.zero, Vector2.zero);
+            var sub = MenuTheme.Label(panel.transform, $"Historia: {HistoriaName(m.historiaId)}\n{m.cartas.Count} cartas", 15, new Color(0.85f, 0.82f, 0.72f), TextAnchor.UpperCenter);
+            MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(272f, -108f), new Vector2(-24f, -60f));
 
-            var list = MenuTheme.VBox(inner, 12f, 0, TextAnchor.UpperCenter);
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.6f), new Vector2(-220f, 24f), new Vector2(220f, -8f));
-            AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); }, spriteKey: "minimenu/editar_cartas");
-            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sin sistema de portada personalizada aún */ CloseModal(); }, spriteKey: "minimenu/cambiar_portada");
-            AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index), spriteKey: "minimenu/renombrar");
-            AddModalOption(list.transform, "BORRAR", new Color(0.85f, 0.28f, 0.28f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); }, spriteKey: "minimenu/borrar");
-            AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, spriteKey: "minimenu/cerrar");
+            var list = MenuTheme.VBox(panel.transform, 10f, 0, TextAnchor.UpperCenter);
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(272f, 24f), new Vector2(-24f, -116f));
+            AddModalOption(list.transform, "EDITAR CARTAS", MenuTheme.Gold, () => { CloseModal(); Push(Screen.DeckBuilder); }, width: 320f);
+            AddModalOption(list.transform, "CAMBIAR PORTADA", MenuTheme.Gold, () => { /* pendiente: sistema de portada */ CloseModal(); }, width: 320f);
+            AddModalOption(list.transform, "RENOMBRAR", MenuTheme.Gold, () => ShowRenameDialog(index), width: 320f);
+            AddModalOption(list.transform, "BORRAR", new Color(0.9f, 0.32f, 0.32f), () => { DeleteMazo(index); CloseModal(); RefreshMisMazos(); }, width: 320f);
+            AddModalOption(list.transform, "CERRAR", new Color(0.8f, 0.78f, 0.7f), CloseModal, width: 320f);
         }
 
         private void ShowRenameDialog(int index)
@@ -843,20 +855,16 @@ namespace Game.Runtime.Menu
         /// Miniatura de carta REAL (arte + nombre + condición/efecto) flotando junto al panel del
         /// modal, superpuesta al borde izquierdo. Usa CardArtLibrary (misma carpeta que el campo).
         /// </summary>
-        private void BuildCardPreview(RectTransform overlay, CardDefinition def, float panelWidth, float panelHeight)
+        private void BuildCardPreview(RectTransform parent, CardDefinition def)
         {
-            const float w = 230f, h = 340f;
-            float cx = -(panelWidth / 2f) + 40f; // se superpone al borde izquierdo del panel
-
             var box = new GameObject("CardPreview", typeof(RectTransform), typeof(Image));
-            box.transform.SetParent(overlay, false);
+            box.transform.SetParent(parent, false);
             var bimg = box.GetComponent<Image>();
             bimg.sprite = MenuGraphics.Rounded(64, 10);
             bimg.type = Image.Type.Sliced;
             bimg.color = MenuTheme.MetalGold;
             var brt = (RectTransform)box.transform;
-            MenuTheme.Anchor(brt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(cx - w / 2f, -h / 2f), new Vector2(cx + w / 2f, h / 2f));
-            // Sibling por defecto (último = encima): visible sobre Dim y superpuesto al panel.
+            MenuTheme.Stretch(brt); // llena el contenedor
 
             var innGo = new GameObject("Inner", typeof(RectTransform), typeof(Image));
             innGo.transform.SetParent(brt, false);
