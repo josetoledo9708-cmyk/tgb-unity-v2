@@ -216,7 +216,7 @@ namespace Game.Runtime.Menu
             gcol.highlightedColor = new Color(1.25f, 1.2f, 1.05f, 1f);
             gcol.pressedColor = new Color(0.8f, 0.75f, 0.55f, 1f);
             gearBtn.colors = gcol;
-            gearBtn.onClick.AddListener(() => Push(Screen.Opciones));
+            gearBtn.onClick.AddListener(() => ShowOpcionesModal());
             gearGo.AddComponent<HoverScale>();
             MenuTheme.Anchor((RectTransform)gearGo.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-44f, -54f), new Vector2(-10f, -20f));
 
@@ -1860,6 +1860,186 @@ namespace Game.Runtime.Menu
         }
 
         private static void Screen_ToggleFullscreen() => UnityEngine.Screen.fullScreen = !UnityEngine.Screen.fullScreen;
+
+        // --- MENÚ OPCIONES (modal sobre el menú principal) ---
+
+        private static readonly (int w, int h)[] ResList = { (1280, 720), (1600, 900), (1920, 1080), (2560, 1440) };
+        private static readonly FullScreenMode[] ModeList = { FullScreenMode.Windowed, FullScreenMode.ExclusiveFullScreen, FullScreenMode.FullScreenWindow };
+
+        private void ShowOpcionesModal()
+        {
+            CloseModal();
+            var overlay = MenuTheme.Panel(_root, "OpcionesModal");
+            overlay.transform.SetAsLastSibling();
+            _modal = overlay.gameObject;
+            var dim = MenuTheme.Rect(overlay, "Dim", new Color(0f, 0f, 0f, 0.55f));
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => CloseModal());
+
+            var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            panel.transform.SetParent(overlay, false);
+            panel.sprite = MenuGraphics.Rounded(64, 16); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.06f, 0.06f, 0.14f, 0.98f);
+            panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var prt = (RectTransform)panel.transform;
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0.5f); prt.pivot = new Vector2(0.5f, 0.5f);
+            prt.sizeDelta = new Vector2(600f, 600f);
+
+            var title = MenuTheme.Label(panel.transform, "OPCIONES", 24, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)title.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -52f), new Vector2(0f, -12f));
+
+            // cerrar (X) arriba-derecha
+            var xBtn = new GameObject("Close", typeof(RectTransform), typeof(Image), typeof(Button));
+            xBtn.transform.SetParent(panel.transform, false);
+            var ximg = xBtn.GetComponent<Image>(); ximg.sprite = MenuGraphics.Rounded(32, 8); ximg.type = Image.Type.Sliced; ximg.color = new Color(0.12f, 0.12f, 0.2f, 0.9f);
+            var xrt = (RectTransform)xBtn.transform; xrt.anchorMin = xrt.anchorMax = new Vector2(1f, 1f); xrt.pivot = new Vector2(1f, 1f);
+            xrt.sizeDelta = new Vector2(34f, 34f); xrt.anchoredPosition = new Vector2(-12f, -12f);
+            var xl = MenuTheme.Label(xBtn.transform, "✕", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold); xl.raycastTarget = false; MenuTheme.Stretch((RectTransform)xl.transform);
+            xBtn.GetComponent<Button>().onClick.AddListener(() => CloseModal());
+
+            // contenido con scroll
+            var content = MakeScroll(panel.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(20f, 20f), new Vector2(-20f, -62f), true);
+            var vl = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.spacing = 6f; vl.childForceExpandWidth = true; vl.childForceExpandHeight = false; vl.childControlWidth = true; vl.childControlHeight = true;
+            vl.padding = new RectOffset(4, 14, 4, 4);
+            content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // --- GRÁFICOS ---
+            OptHeader(content, "GRÁFICOS");
+            var resOpts = new string[ResList.Length];
+            for (int i = 0; i < ResList.Length; i++) resOpts[i] = ResList[i].w + " × " + ResList[i].h;
+            int curRes = 0; for (int i = 0; i < ResList.Length; i++) if (ResList[i].w == UnityEngine.Screen.width) curRes = i;
+            OptSelector(content, "Resolución", resOpts, curRes, i => UnityEngine.Screen.SetResolution(ResList[i].w, ResList[i].h, UnityEngine.Screen.fullScreenMode));
+
+            int curMode = 0; for (int i = 0; i < ModeList.Length; i++) if (ModeList[i] == UnityEngine.Screen.fullScreenMode) curMode = i;
+            OptSelector(content, "Pantalla", new[] { "Modo ventana", "Pantalla completa", "Sin bordes" }, curMode, i => UnityEngine.Screen.fullScreenMode = ModeList[i]);
+
+            OptSelector(content, "Calidad gráfica", QualitySettings.names, QualitySettings.GetQualityLevel(), i => QualitySettings.SetQualityLevel(i, true));
+
+            OptToggle(content, "Vsync", QualitySettings.vSyncCount > 0, on => QualitySettings.vSyncCount = on ? 1 : 0);
+
+            // --- SONIDO ---
+            OptHeader(content, "SONIDO");
+            OptSlider(content, "Volumen Master", AudioListener.volume, v => AudioListener.volume = v);
+            OptToggle(content, "Música", PlayerPrefs.GetInt("opt_mus", 1) == 1, on => { PlayerPrefs.SetInt("opt_mus", on ? 1 : 0); PlayerPrefs.Save(); });
+            OptToggle(content, "Efectos (SFX)", PlayerPrefs.GetInt("opt_sfx", 1) == 1, on => { PlayerPrefs.SetInt("opt_sfx", on ? 1 : 0); PlayerPrefs.Save(); });
+
+            // --- OTROS ---
+            OptHeader(content, "OTROS");
+            OptButton(content, "Cerrar Sesión", () => { /* sin sistema de cuentas todavía */ });
+            OptButton(content, "Salir del Juego", QuitGame);
+        }
+
+        private static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        // fila con etiqueta a la izquierda; el control se ancla a la derecha.
+        private RectTransform OptRow(Transform parent, string label, float height = 44f)
+        {
+            var row = new GameObject("Row_" + label, typeof(RectTransform)).GetComponent<RectTransform>();
+            row.SetParent(parent, false);
+            row.gameObject.AddComponent<LayoutElement>().preferredHeight = height;
+            var lbl = MenuTheme.Label(row, label, 16, new Color(0.9f, 0.86f, 0.72f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)lbl.transform, new Vector2(0f, 0f), new Vector2(0.55f, 1f), new Vector2(4f, 0f), new Vector2(0f, 0f));
+            return row;
+        }
+
+        private void OptHeader(Transform parent, string text)
+        {
+            var row = new GameObject("H_" + text, typeof(RectTransform)).GetComponent<RectTransform>();
+            row.SetParent(parent, false);
+            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
+            var lbl = MenuTheme.Label(row, text, 15, MenuTheme.Gold, TextAnchor.LowerLeft, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)lbl.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(4f, 0f), new Vector2(-4f, -2f));
+            var div = MenuTheme.Rect(row, "Div", new Color(0.5f, 0.42f, 0.2f, 0.4f));
+            MenuTheme.Anchor((RectTransform)div.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(4f, 0f), new Vector2(-4f, 1f));
+        }
+
+        private void OptSelector(Transform parent, string label, string[] options, int current, System.Action<int> onChange)
+        {
+            var row = OptRow(parent, label);
+            var go = new GameObject("Sel", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(row, false);
+            var img = go.GetComponent<Image>(); img.sprite = MenuGraphics.Rounded(32, 8); img.type = Image.Type.Sliced; img.color = new Color(0.02f, 0.03f, 0.08f, 1f);
+            go.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var rt = (RectTransform)go.transform; rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.5f); rt.pivot = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(190f, 32f); rt.anchoredPosition = new Vector2(-2f, 0f);
+            int idx = Mathf.Clamp(current, 0, Mathf.Max(0, options.Length - 1));
+            var val = MenuTheme.Label(go.transform, options.Length > 0 ? options[idx] : "", 14, new Color(0.95f, 0.92f, 0.8f), TextAnchor.MiddleLeft);
+            val.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)val.transform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-22f, 0f));
+            var caret = MenuTheme.Label(go.transform, "▾", 14, MenuTheme.Gold, TextAnchor.MiddleRight, FontStyle.Bold);
+            caret.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)caret.transform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-8f, 0f));
+            go.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                if (options.Length == 0) return;
+                idx = (idx + 1) % options.Length;
+                val.text = options[idx];
+                onChange?.Invoke(idx);
+            });
+        }
+
+        private void OptToggle(Transform parent, string label, bool on, System.Action<bool> onChange)
+        {
+            var row = OptRow(parent, label);
+            var go = new GameObject("Chk", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(row, false);
+            var img = go.GetComponent<Image>(); img.sprite = MenuGraphics.Rounded(24, 6); img.type = Image.Type.Sliced;
+            go.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
+            var rt = (RectTransform)go.transform; rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.5f); rt.pivot = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(26f, 26f); rt.anchoredPosition = new Vector2(-6f, 0f);
+            var check = MenuTheme.Label(go.transform, "✓", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            check.raycastTarget = false; MenuTheme.Stretch((RectTransform)check.transform);
+            bool state = on;
+            void Paint() { img.color = state ? new Color(0.22f, 0.18f, 0.06f, 1f) : new Color(0.02f, 0.03f, 0.08f, 1f); check.enabled = state; }
+            Paint();
+            go.GetComponent<Button>().onClick.AddListener(() => { state = !state; Paint(); onChange?.Invoke(state); });
+        }
+
+        private void OptSlider(Transform parent, string label, float value, System.Action<float> onChange)
+        {
+            var row = OptRow(parent, label);
+            var sgo = new GameObject("Slider", typeof(RectTransform), typeof(Slider));
+            sgo.transform.SetParent(row, false);
+            var srt = (RectTransform)sgo.transform; srt.anchorMin = srt.anchorMax = new Vector2(1f, 0.5f); srt.pivot = new Vector2(1f, 0.5f);
+            srt.sizeDelta = new Vector2(190f, 20f); srt.anchoredPosition = new Vector2(-52f, 0f);
+            var track = new GameObject("Track", typeof(RectTransform), typeof(Image));
+            track.transform.SetParent(sgo.transform, false);
+            var timg = track.GetComponent<Image>(); timg.sprite = MenuGraphics.Rounded(16, 6); timg.type = Image.Type.Sliced; timg.color = new Color(0.15f, 0.15f, 0.22f, 1f);
+            MenuTheme.Anchor((RectTransform)track.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, -4f), new Vector2(0f, 4f));
+            var fillArea = new GameObject("FillArea", typeof(RectTransform)).GetComponent<RectTransform>();
+            fillArea.SetParent(sgo.transform, false); MenuTheme.Anchor(fillArea, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, -4f), new Vector2(0f, 4f));
+            var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            fill.transform.SetParent(fillArea, false);
+            var fimg = fill.GetComponent<Image>(); fimg.sprite = MenuGraphics.Rounded(16, 6); fimg.type = Image.Type.Sliced; fimg.color = MenuTheme.MetalGold;
+            var frt = (RectTransform)fill.transform; frt.anchorMin = new Vector2(0f, 0f); frt.anchorMax = new Vector2(0f, 1f); frt.sizeDelta = new Vector2(10f, 0f);
+            var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handle.transform.SetParent(sgo.transform, false);
+            var himg = handle.GetComponent<Image>(); himg.sprite = MenuGraphics.Rounded(20, 10); himg.color = MenuTheme.Gold;
+            ((RectTransform)handle.transform).sizeDelta = new Vector2(14f, 14f);
+            var sl = sgo.GetComponent<Slider>();
+            sl.fillRect = frt; sl.handleRect = (RectTransform)handle.transform; sl.targetGraphic = himg;
+            sl.minValue = 0f; sl.maxValue = 1f; sl.value = value;
+            var valLbl = MenuTheme.Label(row, value.ToString("0.00"), 14, new Color(0.9f, 0.86f, 0.72f), TextAnchor.MiddleRight);
+            valLbl.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)valLbl.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-44f, 0f), new Vector2(-6f, 0f));
+            sl.onValueChanged.AddListener(v => { valLbl.text = v.ToString("0.00"); onChange?.Invoke(v); });
+        }
+
+        private void OptButton(Transform parent, string label, System.Action onClick)
+        {
+            var row = new GameObject("B_" + label, typeof(RectTransform)).GetComponent<RectTransform>();
+            row.SetParent(parent, false);
+            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 50f;
+            var btn = MenuTheme.TextButton(row, label, 16, onClick, 520f, 46f);
+            MenuTheme.Anchor((RectTransform)btn.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(4f, -23f), new Vector2(-4f, 23f));
+        }
 
         // --- lanzar campo / salir ---
 
