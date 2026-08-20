@@ -49,16 +49,18 @@ namespace Game.Runtime.Menu
         {
             EnsureEventSystem();
             BuildCanvas();
+            PreloadArt();              // precarga el arte pesado en el arranque (no al abrir cada menú)
             Push(Screen.MainMenu);
-            StartCoroutine(PreloadArt()); // precarga en 2º plano el arte pesado (cartas Historia + fondos)
         }
 
-        private System.Collections.IEnumerator PreloadArt()
+        /// <summary>Carga y cachea de una vez el arte pesado (cartas Historia + fondos) al arrancar,
+        /// para que ninguna pantalla sufra el "tirón" de cargarlo la primera vez.</summary>
+        private void PreloadArt()
         {
             for (int i = 1; i <= 7; i++)
             {
-                yield return MenuAssets.PreloadAsync("cartas_historia/carta_h" + i);
-                yield return MenuAssets.PreloadAsync("historias/bg_h" + i);
+                MenuAssets.Sprite("cartas_historia/carta_h" + i);
+                MenuAssets.Sprite("historias/bg_h" + i);
             }
         }
 
