@@ -17,7 +17,7 @@ namespace Game.Runtime.Menu
     /// </summary>
     public sealed class MenuShell : MonoBehaviour
     {
-        public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, SelectDeck, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
+        public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, SelectDeck, ChooseHistoria, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
 
         private Canvas _canvas;
         private RectTransform _root;      // contenedor de la pantalla activa
@@ -27,6 +27,7 @@ namespace Game.Runtime.Menu
         private Game.Runtime.View.HotseatView _board;
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
+        private string _chosenHistoriaId;  // carta Historia elegida al crear una nueva historia/mazo
 
         /// <summary>El campo a activar cuando el jugador entra a una partida (se deja desactivado).</summary>
         public void SetBoard(Game.Runtime.View.HotseatView board) => _board = board;
@@ -106,6 +107,7 @@ namespace Game.Runtime.Menu
             Screen.Multijugador => BuildSimple("MULTIJUGADOR", "Partida LAN 1v1 — próximamente."),
             Screen.MisMazos     => BuildMisMazos(),
             Screen.SelectDeck   => BuildSelectDeck(),
+            Screen.ChooseHistoria => BuildChooseHistoria(),
             Screen.DeckBuilder  => BuildDeckBuilder(),
             Screen.Misiones     => BuildSimple("MISIONES Y LOGROS", "Completa misiones para ganar monedas."),
             Screen.Tienda       => BuildTienda(),
@@ -547,7 +549,7 @@ namespace Game.Runtime.Menu
 
             // "Crear Nueva Historia" SIEMPRE primero: así nunca desaparece de la 1ª pantalla al
             // tener muchas historias (a diferencia del Godot, donde iba al final).
-            BuildMazoNewCard(grid.transform, () => Push(Screen.DeckBuilder));
+            BuildMazoNewCard(grid.transform, () => Push(Screen.ChooseHistoria));
 
             var mazosGuardados = PlayerData.Mazos();
             for (int i = 0; i < mazosGuardados.Count; i++)
@@ -588,6 +590,91 @@ namespace Game.Runtime.Menu
             // para esa historia (SampleDeckBuilder), no un mazo al azar.
             BuildMazoNewCard(grid.transform, () => { PlayerData.SelectedDeck = null; LaunchGame(); },
                              plusLabel: "★", bottomLabel: "MAZO\nPOR DEFECTO", useCreateAsset: false);
+            return screen;
+        }
+
+        /// <summary>"Elige tu historia": al crear una nueva historia, muestra las cartas HISTORIA
+        /// para elegir la que guiará el mazo. SIGUIENTE se habilita al seleccionar una.</summary>
+        private RectTransform BuildChooseHistoria()
+        {
+            var screen = NewScreen("ChooseHistoria", "fondo_constructor", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.25f));
+            Title(screen, "ELIGE TU HISTORIA");
+            BackButton(screen);
+
+            _chosenHistoriaId = null;
+
+            var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
+            grid.transform.SetParent(screen, false);
+            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-490f, 70f), new Vector2(490f, -120f));
+            grid.cellSize = new Vector2(300f, 214f);
+            grid.spacing = new Vector2(24f, 20f);
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+            grid.childAlignment = TextAnchor.UpperCenter;
+
+            var outlines = new List<Outline>();
+            Button siguiente = null;
+
+            foreach (var d in Historias)
+            {
+                if (d.historiaId == null) continue; // el Tutorial no tiene carta Historia
+                string id = d.historiaId;
+                var carta = MenuAssets.Sprite("cartas_historia/carta_" + id);
+
+                var cardGo = new GameObject("HistCard_" + id, typeof(RectTransform), typeof(Image), typeof(Button));
+                cardGo.transform.SetParent(grid.transform, false);
+                var bg = cardGo.GetComponent<Image>();
+                bg.sprite = MenuGraphics.Rounded(64, 12);
+                bg.type = Image.Type.Sliced;
+                bg.color = new Color(0.06f, 0.06f, 0.12f, 0.9f);
+
+                if (carta != null)
+                {
+                    var ph = new GameObject("Carta", typeof(RectTransform), typeof(Image));
+                    ph.transform.SetParent(cardGo.transform, false);
+                    var phi = ph.GetComponent<Image>();
+                    phi.sprite = carta; phi.preserveAspect = true; phi.raycastTarget = false;
+                    MenuTheme.Anchor((RectTransform)ph.transform, Vector2.zero, Vector2.one, new Vector2(8f, 8f), new Vector2(-8f, -8f));
+                }
+                else
+                {
+                    var lbl = MenuTheme.Label(cardGo.transform, d.label, 16, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    MenuTheme.Stretch((RectTransform)lbl.transform);
+                }
+
+                var outline = cardGo.AddComponent<Outline>(); // marco dorado de selección
+                outline.effectColor = MenuTheme.Gold;
+                outline.effectDistance = new Vector2(3f, -3f);
+                outline.enabled = false;
+                outlines.Add(outline);
+
+                cardGo.AddComponent<HoverScale>();
+                var cbtn = cardGo.GetComponent<Button>();
+                cbtn.targetGraphic = bg;
+                cbtn.onClick.AddListener(() =>
+                {
+                    _chosenHistoriaId = id;
+                    foreach (var o in outlines) o.enabled = false;
+                    outline.enabled = true;
+                    if (siguiente != null) siguiente.interactable = true;
+                });
+            }
+
+            // SIGUIENTE (abajo-derecha): crea la historia con la carta elegida y vuelve a Mis Historias.
+            siguiente = MenuTheme.TextButton(screen, "SIGUIENTE", 16, () =>
+            {
+                if (_chosenHistoriaId == null) return;
+                var mazos = PlayerData.Mazos();
+                mazos.Add(new DeckEntry { nombre = "Historia " + (mazos.Count + 1), historiaId = _chosenHistoriaId });
+                PlayerData.SaveMazos(mazos);
+                Show(Screen.MisMazos);
+                _stack[_stack.Count - 1] = Screen.MisMazos;
+            }, 200f, 50f, thicken: false);
+            siguiente.interactable = false;
+            MenuTheme.Anchor((RectTransform)siguiente.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-224f, 22f), new Vector2(-24f, 72f));
+
             return screen;
         }
 
@@ -920,11 +1007,22 @@ namespace Game.Runtime.Menu
             var hid = m.historiaId ?? ""; // saneo: datos viejos podrían no traer historiaId
 
             var coverColor = HistoriaColor.TryGetValue(hid, out var c) ? c : MenuTheme.PanelBg;
-            var hojaSprite = MenuAssets.Sprite("creador/Hoja");
-            var cover = hojaSprite != null
-                ? MenuTheme.Picture(inner, "Cover", hojaSprite, preserveAspect: false)
-                : MenuTheme.Rect(inner, "Cover", coverColor);
-            cover.color = coverColor;
+            // Carta HISTORIA elegida como representación del mazo; si no hay, Hoja/color.
+            var cartaSprite = MenuAssets.Sprite("cartas_historia/carta_" + hid);
+            Image cover;
+            if (cartaSprite != null)
+            {
+                cover = MenuTheme.Picture(inner, "Cover", cartaSprite, preserveAspect: false);
+                cover.color = Color.white;
+            }
+            else
+            {
+                var hojaSprite = MenuAssets.Sprite("creador/Hoja");
+                cover = hojaSprite != null
+                    ? MenuTheme.Picture(inner, "Cover", hojaSprite, preserveAspect: false)
+                    : MenuTheme.Rect(inner, "Cover", coverColor);
+                cover.color = coverColor;
+            }
             cover.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)cover.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(2f, -110f), new Vector2(-2f, -2f));
 
