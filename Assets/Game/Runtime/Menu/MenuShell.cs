@@ -996,7 +996,11 @@ namespace Game.Runtime.Menu
             var txt = MenuTheme.Label(rt, label, 18, danger ? color : Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             txt.raycastTarget = false;
             MenuTheme.Stretch((RectTransform)txt.transform);
-            if (!danger) txt.gameObject.AddComponent<MetallicGoldGradient>(); // oro metálico como VOLVER
+            if (!danger)
+            {
+                txt.gameObject.AddComponent<MetallicGoldGradient>(); // oro metálico como VOLVER
+                go.AddComponent<GlintOnHover>();                     // reflejo al pasar el cursor (como el menú principal)
+            }
             return btn;
         }
 
