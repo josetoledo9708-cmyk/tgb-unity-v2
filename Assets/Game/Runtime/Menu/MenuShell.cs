@@ -943,32 +943,32 @@ namespace Game.Runtime.Menu
         private Button AddModalOption(Transform parent, string label, Color color, System.Action onClick,
                                       float width = 440f, string spriteKey = null)
         {
-            var sprite = spriteKey != null ? MenuAssets.Sprite(spriteKey) : null;
+            // Mismo diseño que el botón VOLVER: recuadro Botones.png + texto oro metálico
+            // (rojo plano para acciones de peligro como BORRAR).
             var go = new GameObject("Opt_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             var rt = (RectTransform)go.transform;
             rt.sizeDelta = new Vector2(width, 48f);
             var img = go.GetComponent<Image>();
+            var rec = MenuAssets.Sprite("Botones");
+            if (rec != null) { img.sprite = rec; img.type = Image.Type.Sliced; img.color = Color.white; }
+            else img.color = new Color(0.06f, 0.05f, 0.02f, 0.92f);
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             var cols = btn.colors;
-            cols.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
+            cols.normalColor = Color.white;
+            cols.highlightedColor = new Color(1.15f, 1.1f, 0.95f, 1f);
+            cols.pressedColor = new Color(0.85f, 0.8f, 0.6f, 1f);
             btn.colors = cols;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             go.AddComponent<HoverScale>();
             go.AddComponent<LayoutElement>().preferredHeight = 48f;
 
-            if (sprite != null)
-            {
-                img.sprite = sprite;
-                img.type = Image.Type.Sliced;
-                img.color = Color.white;
-                return btn;
-            }
-
-            img.color = new Color(0.04f, 0.03f, 0.02f, 0.92f);
-            var txt = MenuTheme.Label(rt, label, 18, color, TextAnchor.MiddleCenter, FontStyle.Bold);
+            bool danger = color.r > color.g + 0.15f; // rojo (BORRAR)
+            var txt = MenuTheme.Label(rt, label, 18, danger ? color : Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            txt.raycastTarget = false;
             MenuTheme.Stretch((RectTransform)txt.transform);
+            if (!danger) txt.gameObject.AddComponent<MetallicGoldGradient>(); // oro metálico como VOLVER
             return btn;
         }
 
