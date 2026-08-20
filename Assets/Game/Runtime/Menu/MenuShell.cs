@@ -1111,7 +1111,7 @@ namespace Game.Runtime.Menu
 
             // --- estado del mazo ---
             var counts = new Dictionary<string, int>();
-            const int MAXTOTAL = 40, MAXCOPIES = 3;
+            const int MAXTOTAL = 40;
 
             // --- filtros ---
             CardType? typeFilter = null;
@@ -1120,10 +1120,12 @@ namespace Game.Runtime.Menu
             string search = "";
 
             // --- colección (sin cartas HISTORIA) ordenada por tipo y nombre ---
+            // Las cartas DÍA y HISTORIA no van al mazo (las DÍA son externas y siempre se llevan;
+            // no ocupan ninguno de los 40 espacios).
             var all = new List<CardDefinition>();
             if (_catalog != null)
                 foreach (var c in _catalog.Cards.Values)
-                    if (c.Type != CardType.Historia) all.Add(c);
+                    if (c.Type != CardType.Historia && c.Type != CardType.Dia) all.Add(c);
             all.Sort((a, b) => { int t = TypeOrder(a.Type).CompareTo(TypeOrder(b.Type)); return t != 0 ? t : string.Compare(a.Nombre, b.Nombre, System.StringComparison.OrdinalIgnoreCase); });
 
             // ===== panel derecho: MAZO =====
@@ -1178,7 +1180,7 @@ namespace Game.Runtime.Menu
             {
                 if (Total() >= MAXTOTAL) return;
                 counts.TryGetValue(id, out var q);
-                if (q >= MAXCOPIES) return;
+                if (q >= CopiasPropias(id)) return; // no más copias de las que se poseen
                 counts[id] = q + 1; RefreshDeck();
             }
             void RemoveCard(string id)
@@ -1332,6 +1334,10 @@ namespace Game.Runtime.Menu
             var cost = MenuTheme.Label(tile.transform, CostText(c), 9, new Color(0.95f, 0.9f, 0.7f), TextAnchor.LowerRight, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)cost.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(6f, 3f), new Vector2(-6f, 16f));
 
+            // copias poseídas (arriba-derecha)
+            var own = MenuTheme.Label(tile.transform, "x" + CopiasPropias(c.Id), 10, new Color(0.85f, 0.92f, 0.7f), TextAnchor.UpperRight, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)own.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(6f, -16f), new Vector2(-6f, -3f));
+
             var pc = tile.AddComponent<PointerClicks>();
             pc.onLeft = () => add(c.Id);
             pc.onRight = () => ShowCardFloat(c, add, remove);
@@ -1410,6 +1416,9 @@ namespace Game.Runtime.Menu
             CardType.Dia => new Color(0.28f, 0.22f, 0.10f, 0.95f),
             _ => new Color(0.15f, 0.15f, 0.18f, 0.95f)
         };
+
+        /// <summary>Copias poseídas de una carta (adquiridas por sobres, sin tope). En esta versión: 3 de cada una.</summary>
+        private static int CopiasPropias(string cardId) => 3;
 
         private static string CostText(CardDefinition c) => c.Type switch
         {
