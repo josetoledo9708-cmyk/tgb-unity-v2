@@ -1874,42 +1874,52 @@ namespace Game.Runtime.Menu
             fb.ShowFrame(0); // idle: portada cerrada (mismo encuadre que la animación)
 
             // --- ABRIR TOMO (botón ancho, centrado, encima del selector) ---
-            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => OpenTomo(fb), 380f, 56f);
+            TomoCarousel tc = null; // referencia para el botón (se asigna abajo)
+            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; OpenTomo(fb); }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 142f), new Vector2(190f, 198f));
 
-            // --- SELECTOR de tomos (fila inferior de 3 ranuras; el centro muestra el tomo y su cantidad) ---
-            var selector = new GameObject("Selector", typeof(RectTransform)).GetComponent<RectTransform>();
-            selector.SetParent(screen, false);
-            MenuTheme.Anchor(selector, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-300f, 8f), new Vector2(300f, 128f));
-            const float slotW = 185f, gap = 14f;
-            for (int i = 0; i < 3; i++)
+            // --- SELECTOR: carrusel infinito deslizable (el del centro es el seleccionado) ---
+            var viewport = new GameObject("Selector", typeof(RectTransform), typeof(RectMask2D), typeof(Image)).GetComponent<RectTransform>();
+            viewport.SetParent(screen, false);
+            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-360f, 6f), new Vector2(360f, 140f));
+            var vpImg = viewport.GetComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true; // capta el arrastre
+
+            var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
+            content.SetParent(viewport, false); MenuTheme.Stretch(content);
+
+            tc = viewport.gameObject.AddComponent<TomoCarousel>();
+
+            // marco fijo del seleccionado (al frente, sobre las celdas)
+            var frame = new GameObject("SelFrame", typeof(RectTransform), typeof(Image));
+            frame.transform.SetParent(viewport, false);
+            var fi = frame.GetComponent<Image>(); fi.sprite = MenuGraphics.Rounded(28, 10); fi.type = Image.Type.Sliced;
+            fi.color = new Color(0f, 0f, 0f, 0f); fi.raycastTarget = false;
+            var fo = frame.AddComponent<Outline>(); fo.effectColor = MenuTheme.Gold; fo.effectDistance = new Vector2(2.5f, 2.5f);
+            var frt = (RectTransform)frame.transform;
+            frt.anchorMin = frt.anchorMax = new Vector2(0.5f, 0.5f); frt.pivot = new Vector2(0.5f, 0.5f);
+            frt.sizeDelta = new Vector2(200f, 132f);
+
+            // cantidad de tomos en la esquina del marco
+            var badge = MenuTheme.Label(frame.transform, PlayerData.Tomos.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            badge.raycastTarget = false; badge.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.85f);
+            var brt = (RectTransform)badge.transform;
+            brt.anchorMin = brt.anchorMax = new Vector2(1f, 0f); brt.pivot = new Vector2(1f, 0f);
+            brt.sizeDelta = new Vector2(48f, 32f); brt.anchoredPosition = new Vector2(-4f, 4f);
+
+            var items = new List<TomoCarousel.Item>
             {
-                var slot = new GameObject("Slot" + i, typeof(RectTransform), typeof(Image));
-                slot.transform.SetParent(selector, false);
-                var si = slot.GetComponent<Image>();
-                si.sprite = MenuGraphics.Rounded(24, 8); si.type = Image.Type.Sliced;
-                si.color = new Color(0.06f, 0.08f, 0.18f, 0.82f); si.raycastTarget = false;
-                slot.AddComponent<Outline>().effectColor = i == 1 ? MenuTheme.Gold : MenuTheme.GoldDim;
-                var srt = (RectTransform)slot.transform;
-                srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f); srt.pivot = new Vector2(0.5f, 0.5f);
-                srt.sizeDelta = new Vector2(slotW, 112f);
-                srt.anchoredPosition = new Vector2((i - 1) * (slotW + gap), 0f);
-                if (i == 1)
-                {
-                    // tomo seleccionado: icono grande centrado que abarca casi toda la ranura
-                    var thumb = MenuTheme.Picture(slot.transform, "Thumb", MenuAssets.Sprite("tomos/frame_000"), preserveAspect: true);
-                    thumb.raycastTarget = false;
-                    var trt = (RectTransform)thumb.transform;
-                    trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f); trt.pivot = new Vector2(0.5f, 0.5f);
-                    trt.sizeDelta = new Vector2(108f, 104f); trt.anchoredPosition = Vector2.zero;
-                    // cantidad disponible, sobre el icono en la parte inferior
-                    var cnt = MenuTheme.Label(slot.transform, PlayerData.Tomos.ToString(), 26, MenuTheme.Gold, TextAnchor.LowerCenter, FontStyle.Bold);
-                    cnt.raycastTarget = false;
-                    cnt.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.85f);
-                    MenuTheme.Anchor((RectTransform)cnt.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-48f, 6f), new Vector2(48f, 40f));
-                }
-            }
+                new TomoCarousel.Item { sprite = MenuAssets.Sprite("tomos/frame_000"), unlocked = true },
+                new TomoCarousel.Item { sprite = null, unlocked = false, lockedText = "Próximamente" },
+                new TomoCarousel.Item { sprite = null, unlocked = false, lockedText = "Próximamente" },
+            };
+            tc.onSelect = (idx) =>
+            {
+                bool unlocked = items[idx].unlocked;
+                badge.text = unlocked ? PlayerData.Tomos.ToString() : "";
+                abrir.interactable = unlocked && PlayerData.Tomos > 0;
+            };
+            tc.Build(content, 210f, items);
             return screen;
         }
 
