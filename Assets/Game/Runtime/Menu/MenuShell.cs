@@ -1874,9 +1874,10 @@ namespace Game.Runtime.Menu
             fb.ShowFrame(0); // idle: portada cerrada (mismo encuadre que la animación)
 
             // --- ABRIR TOMO (botón ancho, centrado, encima del selector) ---
-            TomoCarousel tc = null;           // referencia para el botón (se asigna abajo)
-            System.Action hideBottom = null;  // oculta botón+selector al abrir (se asigna abajo)
-            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; hideBottom?.Invoke(); OpenTomo(fb); }, 380f, 56f);
+            TomoCarousel tc = null;              // referencia para el botón (se asigna abajo)
+            System.Action hideBottom = null;     // oculta botón+selector al abrir (se asigna abajo)
+            System.Action restoreBottom = null;  // los vuelve a mostrar al cerrar (sin reconstruir la pantalla → el fondo en video no se reinicia)
+            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; hideBottom?.Invoke(); OpenTomo(fb, restoreBottom); }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
 
@@ -1913,13 +1914,24 @@ namespace Game.Runtime.Menu
             brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f); brt.pivot = new Vector2(0.5f, 0.5f);
             brt.sizeDelta = new Vector2(54f, 32f); brt.anchoredPosition = new Vector2(93f, -50f);
 
-            // ocultar botón + selector completo mientras se abre el tomo (Show reconstruye al cerrar)
+            // ocultar/mostrar botón + selector al abrir/cerrar el tomo (SIN reconstruir la pantalla,
+            // para que el fondo en video siga su ciclo sin reiniciarse)
             hideBottom = () =>
             {
                 abrir.gameObject.SetActive(false);
                 selFondo.gameObject.SetActive(false);
                 marco.gameObject.SetActive(false);
                 viewport.gameObject.SetActive(false);
+            };
+            restoreBottom = () =>
+            {
+                fb.ShowFrame(0); // libro cerrado (idle)
+                badge.text = PlayerData.Tomos.ToString();
+                abrir.interactable = (tc == null || tc.SelectedUnlocked) && PlayerData.Tomos > 0;
+                abrir.gameObject.SetActive(true);
+                selFondo.gameObject.SetActive(true);
+                marco.gameObject.SetActive(true);
+                viewport.gameObject.SetActive(true);
             };
 
             var items = new List<TomoCarousel.Item>
@@ -1960,7 +1972,7 @@ namespace Game.Runtime.Menu
         /// <summary>Abre un tomo: reproduce la apertura del libro por frames y luego muestra 5 cartas
         /// como páginas (carta a la izquierda, texto a la derecha), pasando de página al tocar; al
         /// terminar cierra el libro y refresca la pantalla.</summary>
-        private void OpenTomo(Flipbook fb)
+        private void OpenTomo(Flipbook fb, System.Action onClose)
         {
             if (PlayerData.Tomos <= 0) return; // esta pantalla solo ABRE tomos (se compran en la Tienda)
             EnsureCatalog();
@@ -1992,14 +2004,14 @@ namespace Game.Runtime.Menu
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
-                fb.Play(0, TomoOpenEnd, false, () => ShowTomoSpread(fb, overlay.gameObject, pages, pc, picks, 0));
+                fb.Play(0, TomoOpenEnd, false, () => ShowTomoSpread(fb, overlay.gameObject, pages, pc, picks, 0, onClose));
             else
-                ShowTomoSpread(fb, overlay.gameObject, pages, pc, picks, 0);
+                ShowTomoSpread(fb, overlay.gameObject, pages, pc, picks, 0, onClose);
         }
 
         /// <summary>Dibuja la carta índice <paramref name="idx"/> como una página abierta del tomo y
         /// arma el toque para pasar a la siguiente (o cerrar tras la última).</summary>
-        private void ShowTomoSpread(Flipbook fb, GameObject overlay, RectTransform pages, PointerClicks pc, List<CardDefinition> picks, int idx)
+        private void ShowTomoSpread(Flipbook fb, GameObject overlay, RectTransform pages, PointerClicks pc, List<CardDefinition> picks, int idx, System.Action onClose)
         {
             fb.ShowFrame(TomoOpenEnd); // reposo: libro abierto
             for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
@@ -2055,15 +2067,15 @@ namespace Game.Runtime.Menu
                 for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
                 if (idx + 1 < picks.Count)
                 {
-                    if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx + 1));
-                    else ShowTomoSpread(fb, overlay, pages, pc, picks, idx + 1);
+                    if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx + 1, onClose));
+                    else ShowTomoSpread(fb, overlay, pages, pc, picks, idx + 1, onClose);
                 }
                 else
                 {
                     System.Action done = () =>
                     {
                         Destroy(overlay);
-                        if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.Tomos) Show(Screen.Tomos);
+                        onClose?.Invoke(); // restaura botón+selector sin reconstruir (el video no se reinicia)
                     };
                     if (canAnim) fb.Play(TomoCloseStart, TomoCloseEnd, false, done);
                     else done();
@@ -2074,8 +2086,8 @@ namespace Game.Runtime.Menu
             {
                 if (fb.IsPlaying || idx <= 0) return;
                 for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
-                if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1));
-                else ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1);
+                if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1, onClose));
+                else ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1, onClose);
             };
             System.Action zoom = () => ShowCardZoom(overlay.transform, c);
 
