@@ -32,6 +32,7 @@ namespace Game.Runtime.Menu
         private static readonly HashSet<Screen> _cacheable = new() { Screen.MainMenu, Screen.Tomos };
         private readonly Dictionary<Screen, GameObject> _cache = new();
         private readonly Dictionary<Screen, System.Action> _onShow = new();
+        private ScreenFader _fader; // cortina de transición entre menús
         private Game.Runtime.View.HotseatView _board;
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
@@ -132,6 +133,22 @@ namespace Game.Runtime.Menu
                 _current = built;
             }
             _currentScreen = s;
+
+            // cortina de transición (cubre el instante del cambio y da tiempo a cargar el fondo)
+            EnsureFade();
+            _fader.transform.SetAsLastSibling();
+            _fader.Play(0.45f);
+        }
+
+        private void EnsureFade()
+        {
+            if (_fader != null) return;
+            var go = new GameObject("Fade", typeof(RectTransform), typeof(Image), typeof(ScreenFader));
+            go.transform.SetParent(_root, false);
+            MenuTheme.Stretch((RectTransform)go.transform);
+            var img = go.GetComponent<Image>();
+            img.color = new Color(0f, 0f, 0f, 0f); img.raycastTarget = false;
+            _fader = go.GetComponent<ScreenFader>();
         }
 
         private void CloseModal()
@@ -1888,6 +1905,9 @@ namespace Game.Runtime.Menu
             AddVideoBackground(screen, "Menu/tomos/fondo_tomos"); // fondo animado en bucle (sobre el estático de respaldo)
             PlayerData.Tomos = 10; // TESTING: siempre 10 tomos al entrar (quitar cuando se pruebe con Tienda)
             BackButton(screen); // sin TopBar/monedas ni título: el fondo del podio ya es el marco
+            // atajo a la Tienda (arriba-derecha, espejo de VOLVER): comprar más tomos
+            var tiendaBtn = MenuTheme.TextButton(screen, "TIENDA", 14, () => Push(Screen.Tienda), 120f, 40f, thicken: false);
+            MenuTheme.Anchor((RectTransform)tiendaBtn.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-156f, -70f), new Vector2(-36f, -30f));
 
             // libro animado por FRAMES (el verde ya viene recortado/transparente en los PNG)
             var book = new GameObject("Book", typeof(RectTransform), typeof(Image));
