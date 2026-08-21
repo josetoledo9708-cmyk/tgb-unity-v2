@@ -40,6 +40,8 @@ namespace Game.Runtime.Menu
 
         public void Stop() => _playing = false;
 
+        public bool IsPlaying => _playing;
+
         private void Update()
         {
             if (!_playing || _img == null || frames == null || frames.Length == 0) return;

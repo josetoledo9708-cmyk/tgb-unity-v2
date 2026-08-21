@@ -1867,7 +1867,7 @@ namespace Game.Runtime.Menu
             book.transform.SetParent(screen, false);
             var bimg = book.GetComponent<Image>();
             bimg.raycastTarget = false; bimg.preserveAspect = true;
-            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-319f, -196f), new Vector2(319f, 232f)); // aspecto ~1.49, 20% mas pequeno
+            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-319f, -204f), new Vector2(319f, 241f)); // aspecto ~1.43 (con margen para apertura/vuelta)
             var fb = book.AddComponent<Flipbook>();
             fb.frames = LoadTomoFrames();
             fb.fps = 24f;
@@ -1988,7 +1988,7 @@ namespace Game.Runtime.Menu
             // de página caigan sobre las hojas.
             var pages = new GameObject("Pages", typeof(RectTransform)).GetComponent<RectTransform>();
             pages.SetParent(overlay.transform, false);
-            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-319f, -196f), new Vector2(319f, 232f));
+            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-313f, -196f), new Vector2(306f, 222f));
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
@@ -2051,6 +2051,7 @@ namespace Game.Runtime.Menu
             // pasar de página / cerrar (click izq fuera de la carta)
             System.Action next = () =>
             {
+                if (fb.IsPlaying) return; // ignora clicks mientras la animación no termina
                 for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
                 if (idx + 1 < picks.Count)
                 {
@@ -2071,7 +2072,7 @@ namespace Game.Runtime.Menu
             // carta anterior (click izq sobre la página/carta izquierda)
             System.Action prev = () =>
             {
-                if (idx <= 0) return;
+                if (fb.IsPlaying || idx <= 0) return;
                 for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
                 if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1));
                 else ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1);
