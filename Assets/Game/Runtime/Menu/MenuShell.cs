@@ -1833,6 +1833,8 @@ namespace Game.Runtime.Menu
         private RectTransform BuildTomos()
         {
             var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
+            var bgAnim = screen.Find("BG");
+            if (bgAnim != null) bgAnim.gameObject.AddComponent<BackgroundPulse>(); // fondo con vida (respiración + brillo)
             PlayerData.Tomos = 10; // TESTING: siempre 10 tomos al entrar (quitar cuando se pruebe con Tienda)
             Title(screen, "TOMOS");
             BackButton(screen);
