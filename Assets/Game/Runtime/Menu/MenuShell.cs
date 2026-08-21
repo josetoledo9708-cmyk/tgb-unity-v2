@@ -1860,9 +1860,7 @@ namespace Game.Runtime.Menu
             var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
             AddVideoBackground(screen, "Menu/tomos/fondo_tomos"); // fondo animado en bucle (sobre el estático de respaldo)
             PlayerData.Tomos = 10; // TESTING: siempre 10 tomos al entrar (quitar cuando se pruebe con Tienda)
-            Title(screen, "TOMOS");
-            BackButton(screen);
-            TopBar(screen, withCoins: true);
+            BackButton(screen); // sin TopBar/monedas ni título: el fondo del podio ya es el marco
 
             // libro animado por FRAMES (el verde ya viene recortado/transparente en los PNG)
             var book = new GameObject("Book", typeof(RectTransform), typeof(Image));
@@ -1875,12 +1873,40 @@ namespace Game.Runtime.Menu
             fb.fps = 24f;
             fb.ShowFrame(0); // idle: portada cerrada (mismo encuadre que la animación)
 
-            var sub = MenuTheme.Label(screen, $"Tomos disponibles: {PlayerData.Tomos}", 18, new Color(0.95f, 0.9f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-320f, -108f), new Vector2(320f, -76f));
-
-            var abrir = MenuTheme.TextButton(screen, "ABRIR TOMO", 20, () => OpenTomo(fb), 300f, 56f);
+            // --- ABRIR TOMO (botón ancho, centrado, encima del selector) ---
+            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => OpenTomo(fb), 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
-            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-150f, 40f), new Vector2(150f, 96f));
+            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 116f), new Vector2(190f, 172f));
+
+            // --- SELECTOR de tomos (fila inferior de 3 ranuras; el centro muestra el tomo y su cantidad) ---
+            var selector = new GameObject("Selector", typeof(RectTransform)).GetComponent<RectTransform>();
+            selector.SetParent(screen, false);
+            MenuTheme.Anchor(selector, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-300f, 8f), new Vector2(300f, 104f));
+            const float slotW = 170f, gap = 14f;
+            for (int i = 0; i < 3; i++)
+            {
+                var slot = new GameObject("Slot" + i, typeof(RectTransform), typeof(Image));
+                slot.transform.SetParent(selector, false);
+                var si = slot.GetComponent<Image>();
+                si.sprite = MenuGraphics.Rounded(24, 8); si.type = Image.Type.Sliced;
+                si.color = new Color(0.06f, 0.08f, 0.18f, 0.82f); si.raycastTarget = false;
+                slot.AddComponent<Outline>().effectColor = i == 1 ? MenuTheme.Gold : MenuTheme.GoldDim;
+                var srt = (RectTransform)slot.transform;
+                srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f); srt.pivot = new Vector2(0.5f, 0.5f);
+                srt.sizeDelta = new Vector2(slotW, 92f);
+                srt.anchoredPosition = new Vector2((i - 1) * (slotW + gap), 0f);
+                if (i == 1)
+                {
+                    var thumb = MenuTheme.Picture(slot.transform, "Thumb", MenuAssets.Sprite("tomos/frame_000"), preserveAspect: true);
+                    thumb.raycastTarget = false;
+                    var trt = (RectTransform)thumb.transform;
+                    trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f); trt.pivot = new Vector2(0.5f, 0.5f);
+                    trt.sizeDelta = new Vector2(56f, 76f); trt.anchoredPosition = new Vector2(-26f, 0f);
+                    var cnt = MenuTheme.Label(slot.transform, PlayerData.Tomos.ToString(), 26, MenuTheme.Gold, TextAnchor.MiddleRight, FontStyle.Bold);
+                    cnt.raycastTarget = false;
+                    MenuTheme.Anchor((RectTransform)cnt.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-64f, 0f), new Vector2(-14f, 0f));
+                }
+            }
             return screen;
         }
 
