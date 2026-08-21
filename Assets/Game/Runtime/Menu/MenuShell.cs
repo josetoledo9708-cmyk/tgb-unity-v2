@@ -1843,7 +1843,7 @@ namespace Game.Runtime.Menu
             book.transform.SetParent(screen, false);
             var bimg = book.GetComponent<Image>();
             bimg.raycastTarget = false; bimg.preserveAspect = true;
-            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-470f, -250f), new Vector2(470f, 285f));
+            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-399f, -250f), new Vector2(399f, 285f)); // aspecto ~1.49 del libro
             var fb = book.AddComponent<Flipbook>();
             fb.frames = LoadTomoFrames();
             fb.fps = 24f;
@@ -1909,7 +1909,7 @@ namespace Game.Runtime.Menu
             // de página caigan sobre las hojas.
             var pages = new GameObject("Pages", typeof(RectTransform)).GetComponent<RectTransform>();
             pages.SetParent(overlay.transform, false);
-            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-381f, -248f), new Vector2(385f, 276f));
+            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-399f, -250f), new Vector2(399f, 285f));
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
@@ -1934,7 +1934,7 @@ namespace Game.Runtime.Menu
             ci.sprite = MenuGraphics.Rounded(32, 10); ci.type = Image.Type.Sliced; ci.color = TypeColorDeck(c.Type);
             ci.raycastTarget = false;
             card.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            SetFrac((RectTransform)card.transform, 0.07f, 0.09f, 0.45f, 0.88f);
+            SetFrac((RectTransform)card.transform, 0.07f, 0.08f, 0.46f, 0.90f);
 
             var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 11, new Color(0.9f, 0.87f, 0.75f), TextAnchor.UpperLeft, FontStyle.Bold);
             tl.raycastTarget = false;
@@ -1949,11 +1949,11 @@ namespace Game.Runtime.Menu
             // --- PÁGINA DERECHA: texto en tinta oscura sobre la página (placeholder de verso) ---
             var rTitle = MenuTheme.Label(pages, c.Nombre, 15, new Color(0.28f, 0.2f, 0.08f), TextAnchor.UpperCenter, FontStyle.Bold);
             rTitle.raycastTarget = false;
-            SetFrac((RectTransform)rTitle.transform, 0.55f, 0.66f, 0.93f, 0.80f);
+            SetFrac((RectTransform)rTitle.transform, 0.53f, 0.66f, 0.94f, 0.80f);
             var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "«Texto bíblico»";
             var rText = MenuTheme.Label(pages, body, 12, new Color(0.22f, 0.15f, 0.06f), TextAnchor.UpperCenter);
             rText.raycastTarget = false;
-            SetFrac((RectTransform)rText.transform, 0.55f, 0.22f, 0.93f, 0.62f);
+            SetFrac((RectTransform)rText.transform, 0.53f, 0.22f, 0.94f, 0.62f);
 
             // contador (arriba, sobre el lomo) y pista (abajo, entre páginas)
             var counter = MenuTheme.Label(pages, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
