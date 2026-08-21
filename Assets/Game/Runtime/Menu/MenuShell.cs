@@ -1990,6 +1990,7 @@ namespace Game.Runtime.Menu
             ci.raycastTarget = false;
             card.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
             SetFrac((RectTransform)card.transform, 0.11f, 0.16f, 0.41f, 0.78f); // zona plana pág. izq
+            ShiftX((RectTransform)card.transform, 20f); // 20px a la derecha
 
             var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 11, new Color(0.9f, 0.87f, 0.75f), TextAnchor.UpperLeft, FontStyle.Bold);
             tl.raycastTarget = false;
@@ -2005,10 +2006,12 @@ namespace Game.Runtime.Menu
             var rTitle = MenuTheme.Label(pages, c.Nombre, 15, new Color(0.28f, 0.2f, 0.08f), TextAnchor.UpperCenter, FontStyle.Bold);
             rTitle.raycastTarget = false;
             SetFrac((RectTransform)rTitle.transform, 0.57f, 0.60f, 0.90f, 0.73f); // zona plana pág. der
+            ShiftX((RectTransform)rTitle.transform, -20f); // 20px a la izquierda
             var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "«Texto bíblico»";
             var rText = MenuTheme.Label(pages, body, 12, new Color(0.22f, 0.15f, 0.06f), TextAnchor.UpperCenter);
             rText.raycastTarget = false;
             SetFrac((RectTransform)rText.transform, 0.57f, 0.24f, 0.90f, 0.57f);
+            ShiftX((RectTransform)rText.transform, -20f); // 20px a la izquierda
 
             // contador (arriba, sobre el lomo) y pista (abajo, entre páginas)
             var counter = MenuTheme.Label(pages, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -2043,6 +2046,12 @@ namespace Game.Runtime.Menu
         }
 
         /// <summary>Ancla un RectTransform por fracciones del padre (esquinas inferior-izq y superior-der).</summary>
+        private static void ShiftX(RectTransform t, float dx)
+        {
+            t.offsetMin += new Vector2(dx, 0f);
+            t.offsetMax += new Vector2(dx, 0f);
+        }
+
         private static void SetFrac(RectTransform t, float minX, float minY, float maxX, float maxY)
         {
             t.anchorMin = new Vector2(minX, minY); t.anchorMax = new Vector2(maxX, maxY);
