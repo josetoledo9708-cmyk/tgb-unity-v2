@@ -1877,20 +1877,17 @@ namespace Game.Runtime.Menu
             TomoCarousel tc = null; // referencia para el botón (se asigna abajo)
             var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; OpenTomo(fb); }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
-            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 168f), new Vector2(190f, 224f));
+            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
 
-            // marco exterior alrededor de todo el selector (detrás de las celdas)
-            var selBox = new GameObject("SelectorBox", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
-            selBox.transform.SetParent(screen, false);
-            selBox.sprite = MenuGraphics.Rounded(32, 12); selBox.type = Image.Type.Sliced;
-            selBox.color = new Color(0.05f, 0.06f, 0.12f, 0.55f); selBox.raycastTarget = false;
-            selBox.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
-            MenuTheme.Anchor((RectTransform)selBox.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-392f, -2f), new Vector2(392f, 160f));
+            // fondo del selector (panel oscuro original)
+            var selFondo = MenuTheme.Picture(screen, "SelFondo", MenuAssets.Sprite("tomos/sel_fondo"), preserveAspect: false);
+            selFondo.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-410f, 2f), new Vector2(410f, 198f));
 
             // --- SELECTOR: carrusel infinito deslizable (el del centro es el seleccionado) ---
             var viewport = new GameObject("Selector", typeof(RectTransform), typeof(RectMask2D), typeof(Image)).GetComponent<RectTransform>();
             viewport.SetParent(screen, false);
-            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-370f, 4f), new Vector2(370f, 152f));
+            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-392f, 16f), new Vector2(392f, 184f));
             var vpImg = viewport.GetComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true; // capta el arrastre
 
             var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
@@ -1898,22 +1895,17 @@ namespace Game.Runtime.Menu
 
             tc = viewport.gameObject.AddComponent<TomoCarousel>();
 
-            // marco fijo del seleccionado (al frente, sobre las celdas)
-            var frame = new GameObject("SelFrame", typeof(RectTransform), typeof(Image));
-            frame.transform.SetParent(viewport, false);
-            var fi = frame.GetComponent<Image>(); fi.sprite = MenuGraphics.Rounded(28, 10); fi.type = Image.Type.Sliced;
-            fi.color = new Color(0f, 0f, 0f, 0f); fi.raycastTarget = false;
-            var fo = frame.AddComponent<Outline>(); fo.effectColor = MenuTheme.Gold; fo.effectDistance = new Vector2(2.5f, 2.5f);
-            var frt = (RectTransform)frame.transform;
-            frt.anchorMin = frt.anchorMax = new Vector2(0.5f, 0.5f); frt.pivot = new Vector2(0.5f, 0.5f);
-            frt.sizeDelta = new Vector2(210f, 152f);
+            // marco filigrana original (3 ranuras, centro resaltado), al frente sobre las celdas
+            var marco = MenuTheme.Picture(screen, "SelMarco", MenuAssets.Sprite("tomos/sel_marco"), preserveAspect: false);
+            marco.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)marco.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-410f, 2f), new Vector2(410f, 198f));
 
-            // cantidad de tomos en la esquina del marco
-            var badge = MenuTheme.Label(frame.transform, PlayerData.Tomos.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // cantidad de tomos en la esquina inferior derecha de la ranura central
+            var badge = MenuTheme.Label(marco.transform, PlayerData.Tomos.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             badge.raycastTarget = false; badge.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.85f);
             var brt = (RectTransform)badge.transform;
-            brt.anchorMin = brt.anchorMax = new Vector2(1f, 0f); brt.pivot = new Vector2(1f, 0f);
-            brt.sizeDelta = new Vector2(48f, 32f); brt.anchoredPosition = new Vector2(-4f, 4f);
+            brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f); brt.pivot = new Vector2(0.5f, 0.5f);
+            brt.sizeDelta = new Vector2(54f, 32f); brt.anchoredPosition = new Vector2(98f, -54f);
 
             var items = new List<TomoCarousel.Item>
             {
@@ -1927,7 +1919,7 @@ namespace Game.Runtime.Menu
                 badge.text = unlocked ? PlayerData.Tomos.ToString() : "";
                 abrir.interactable = unlocked && PlayerData.Tomos > 0;
             };
-            tc.Build(content, 210f, items);
+            tc.Build(content, 285f, items);
             return screen;
         }
 

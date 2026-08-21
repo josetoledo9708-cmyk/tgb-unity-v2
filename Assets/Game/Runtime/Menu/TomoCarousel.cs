@@ -35,15 +35,11 @@ namespace Game.Runtime.Menu
             _items.AddRange(items);
             for (int i = 0; i < _items.Count; i++)
             {
-                var cell = new GameObject("Cell" + i, typeof(RectTransform), typeof(Image));
+                var cell = new GameObject("Cell" + i, typeof(RectTransform), typeof(CanvasGroup));
                 cell.transform.SetParent(_content, false);
-                var img = cell.GetComponent<Image>();
-                img.sprite = MenuGraphics.Rounded(24, 8); img.type = Image.Type.Sliced;
-                img.color = new Color(0.06f, 0.08f, 0.18f, 0.82f); img.raycastTarget = false;
-                cell.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
                 var crt = (RectTransform)cell.transform;
                 crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f); crt.pivot = new Vector2(0.5f, 0.5f);
-                crt.sizeDelta = new Vector2(176f, 126f);
+                crt.sizeDelta = new Vector2(210f, 150f);
 
                 var it = _items[i];
                 if (it.sprite != null)
@@ -54,7 +50,7 @@ namespace Game.Runtime.Menu
                     ti.sprite = it.sprite; ti.preserveAspect = true; ti.raycastTarget = false;
                     var thr = (RectTransform)th.transform;
                     thr.anchorMin = thr.anchorMax = new Vector2(0.5f, 0.5f); thr.pivot = new Vector2(0.5f, 0.5f);
-                    thr.sizeDelta = new Vector2(134f, 118f);
+                    thr.sizeDelta = new Vector2(150f, 146f);
                 }
                 else
                 {
@@ -80,10 +76,10 @@ namespace Game.Runtime.Menu
                 var c = _cells[i];
                 c.anchoredPosition = new Vector2(off * _step, 0f);
                 float d = Mathf.Clamp01(Mathf.Abs(off));
-                float sc = Mathf.Lerp(1.16f, 0.78f, d);         // centro grande, lados chicos
+                float sc = Mathf.Lerp(1.16f, 0.82f, d);         // centro grande, lados chicos
                 c.localScale = new Vector3(sc, sc, 1f);
-                var img = c.GetComponent<Image>();
-                if (img != null) { var col = img.color; col.a = Mathf.Lerp(0.9f, 0.4f, d); img.color = col; }
+                var cg = c.GetComponent<CanvasGroup>();
+                if (cg != null) cg.alpha = Mathf.Lerp(1f, 0.4f, d);
             }
             // el más centrado, al frente
             int center = ((Mathf.RoundToInt(_pos) % N) + N) % N;
