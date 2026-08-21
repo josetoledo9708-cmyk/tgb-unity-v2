@@ -1833,6 +1833,7 @@ namespace Game.Runtime.Menu
         private RectTransform BuildTomos()
         {
             var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
+            PlayerData.Tomos = 10; // TESTING: siempre 10 tomos al entrar (quitar cuando se pruebe con Tienda)
             Title(screen, "TOMOS");
             BackButton(screen);
             TopBar(screen, withCoins: true);
@@ -1860,20 +1861,20 @@ namespace Game.Runtime.Menu
         private Sprite[] LoadTomoFrames()
         {
             var list = new List<Sprite>();
-            for (int i = 0; ; i++)
+            for (int i = 1; ; i++) // los frames son f_001..f_120 (ffmpeg numera desde 1)
             {
                 var s = MenuAssets.Sprite("tomos/anim/f_" + i.ToString("000"));
                 if (s == null) break;
                 list.Add(s);
             }
-            return list.ToArray();
+            return list.ToArray(); // list[0] = f_001
         }
 
-        // Índices clave dentro de la secuencia de frames del libro:
-        private const int TomoOpenEnd = 26;    // libro totalmente abierto (reposo)
-        private const int TomoFlipEnd = 42;    // fin de una vuelta de página (vuelve a abierto)
-        private const int TomoCloseStart = 96; // inicio del cierre (desde abierto)
-        private const int TomoCloseEnd = 113;  // portada cerrada
+        // Índices dentro del array (list[0]=f_001, por eso = nº de archivo − 1):
+        private const int TomoOpenEnd = 25;    // f_026: libro totalmente abierto (reposo)
+        private const int TomoFlipEnd = 41;    // f_042: fin de una vuelta de página (vuelve a abierto)
+        private const int TomoCloseStart = 95; // f_096: inicio del cierre (desde abierto)
+        private const int TomoCloseEnd = 112;  // f_113: portada cerrada
 
         /// <summary>Abre un tomo: reproduce la apertura del libro por frames y luego muestra 5 cartas
         /// como páginas (carta a la izquierda, texto a la derecha), pasando de página al tocar; al
