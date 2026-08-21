@@ -1874,8 +1874,9 @@ namespace Game.Runtime.Menu
             fb.ShowFrame(0); // idle: portada cerrada (mismo encuadre que la animación)
 
             // --- ABRIR TOMO (botón ancho, centrado, encima del selector) ---
-            TomoCarousel tc = null; // referencia para el botón (se asigna abajo)
-            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; OpenTomo(fb); }, 380f, 56f);
+            TomoCarousel tc = null;           // referencia para el botón (se asigna abajo)
+            System.Action hideBottom = null;  // oculta botón+selector al abrir (se asigna abajo)
+            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; hideBottom?.Invoke(); OpenTomo(fb); }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
 
@@ -1911,6 +1912,15 @@ namespace Game.Runtime.Menu
             var brt = (RectTransform)badge.transform;
             brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f); brt.pivot = new Vector2(0.5f, 0.5f);
             brt.sizeDelta = new Vector2(54f, 32f); brt.anchoredPosition = new Vector2(93f, -50f);
+
+            // ocultar botón + selector completo mientras se abre el tomo (Show reconstruye al cerrar)
+            hideBottom = () =>
+            {
+                abrir.gameObject.SetActive(false);
+                selFondo.gameObject.SetActive(false);
+                marco.gameObject.SetActive(false);
+                viewport.gameObject.SetActive(false);
+            };
 
             var items = new List<TomoCarousel.Item>
             {
