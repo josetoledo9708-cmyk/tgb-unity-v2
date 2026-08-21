@@ -1919,6 +1919,13 @@ namespace Game.Runtime.Menu
             // atajo a la Tienda (arriba-derecha, espejo de VOLVER): comprar más tomos
             var tiendaBtn = MenuTheme.TextButton(screen, "TIENDA", 14, () => Push(Screen.Tienda), 120f, 40f, thicken: false);
             MenuTheme.Anchor((RectTransform)tiendaBtn.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-156f, -70f), new Vector2(-36f, -30f));
+            // monedas disponibles debajo del botón de Tienda (TESTING: 10000)
+            PlayerData.Monedas = 10000;
+            var coinIcon = MenuTheme.Picture(screen, "CoinIcon", MenuAssets.Sprite("Moneda"));
+            MenuTheme.Anchor((RectTransform)coinIcon.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-150f, -108f), new Vector2(-118f, -76f));
+            var coinLbl = MenuTheme.Label(screen, PlayerData.Monedas.ToString(), 18, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+            MenuTheme.GoldMetalText(coinLbl);
+            MenuTheme.Anchor((RectTransform)coinLbl.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-112f, -108f), new Vector2(-36f, -76f));
 
             // libro animado por FRAMES (el verde ya viene recortado/transparente en los PNG)
             var book = new GameObject("Book", typeof(RectTransform), typeof(Image));
@@ -2016,7 +2023,7 @@ namespace Game.Runtime.Menu
                 tc.SetThumbVisible(0, has); // oculta la imagen del tomo Genesis en el slot central
             };
             refreshAvail();
-            _onShow[Screen.Tomos] = () => { PlayerData.Tomos = 10; fb.ShowFrame(0); refreshAvail(); }; // al reusar del caché (TESTING: 10)
+            _onShow[Screen.Tomos] = () => { PlayerData.Tomos = 10; PlayerData.Monedas = 10000; coinLbl.text = PlayerData.Monedas.ToString(); fb.ShowFrame(0); refreshAvail(); }; // al reusar del caché (TESTING)
             return screen;
         }
 
