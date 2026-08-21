@@ -23,8 +23,15 @@ namespace Game.Runtime.Menu
         private Canvas _canvas;
         private RectTransform _root;      // contenedor de la pantalla activa
         private GameObject _current;
+        private Screen _currentScreen = (Screen)(-1);
         private GameObject _modal; // overlay opcional (opciones de mazo, renombrar) encima de la pantalla activa
         private readonly List<Screen> _stack = new();
+        // Pantallas con fondo en VIDEO: se cachean (desactivar en vez de destruir) para no recrear el
+        // VideoPlayer en cada navegación → sin el parpadeo del "Prepare". Al reusarlas se refrescan sus
+        // datos dinámicos vía _onShow.
+        private static readonly HashSet<Screen> _cacheable = new() { Screen.MainMenu, Screen.Tomos };
+        private readonly Dictionary<Screen, GameObject> _cache = new();
+        private readonly Dictionary<Screen, System.Action> _onShow = new();
         private Game.Runtime.View.HotseatView _board;
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
@@ -105,8 +112,26 @@ namespace Game.Runtime.Menu
         private void Show(Screen s)
         {
             CloseModal();
-            if (_current != null) Destroy(_current);
-            _current = Build(s).gameObject;
+            // ocultar la actual: si es cacheable la dejamos VIVA y activa detrás (así su VideoPlayer no
+            // se detiene ni se vuelve a "Prepare" → sin parpadeo); si no, la destruimos.
+            if (_current != null && !(_cacheable.Contains(_currentScreen) && _cache.ContainsKey(_currentScreen)))
+                Destroy(_current);
+
+            // mostrar destino: reusar del caché (traer al frente) o construir
+            if (_cacheable.Contains(s) && _cache.TryGetValue(s, out var cached) && cached != null)
+            {
+                cached.SetActive(true);
+                cached.transform.SetAsLastSibling(); // al frente (tapa a las cacheadas que quedan detrás)
+                if (_onShow.TryGetValue(s, out var refresh)) refresh?.Invoke(); // refresca datos dinámicos
+                _current = cached;
+            }
+            else
+            {
+                var built = Build(s).gameObject; // nuevo hijo = al frente
+                if (_cacheable.Contains(s)) _cache[s] = built;
+                _current = built;
+            }
+            _currentScreen = s;
         }
 
         private void CloseModal()
@@ -267,6 +292,8 @@ namespace Game.Runtime.Menu
             // --- Tomos = libro ornamentado a la derecha-centro ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
             MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-200f, -110f), new Vector2(-40f, 110f));
+
+            _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;
         }
 
@@ -1958,6 +1985,7 @@ namespace Game.Runtime.Menu
                 tc.SetThumbVisible(0, has); // oculta la imagen del tomo Genesis en el slot central
             };
             refreshAvail();
+            _onShow[Screen.Tomos] = () => { PlayerData.Tomos = 10; fb.ShowFrame(0); refreshAvail(); }; // al reusar del caché (TESTING: 10)
             return screen;
         }
 
