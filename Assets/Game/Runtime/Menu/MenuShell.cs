@@ -1846,7 +1846,7 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-470f, -250f), new Vector2(470f, 285f));
             var fb = book.AddComponent<Flipbook>();
             fb.frames = LoadTomoFrames();
-            fb.fps = 12f;
+            fb.fps = 24f;
             bimg.sprite = MenuAssets.Sprite("tomos/frame_000"); // idle: portada sólida (los frames de video son tenues)
 
             var sub = MenuTheme.Label(screen, $"Tomos disponibles: {PlayerData.Tomos}", 18, new Color(0.95f, 0.9f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -1861,21 +1861,21 @@ namespace Game.Runtime.Menu
         private Sprite[] LoadTomoFrames()
         {
             var list = new List<Sprite>();
-            for (int i = 0; ; i++) // animación limpia frame_000..frame_099 (libro sólido, sin croma)
+            for (int i = 0; ; i++) // frames keyed a 24fps (recortados: apertura + vuelta + cierre)
             {
-                var s = MenuAssets.Sprite("tomos/frame_" + i.ToString("000"));
+                var s = MenuAssets.Sprite("tomos/anim/f_" + i.ToString("000"));
                 if (s == null) break;
                 list.Add(s);
             }
-            return list.ToArray(); // list[0] = frame_000 (portada cerrada)
+            return list.ToArray(); // list[0] = f_000 (portada), 0-48 abre, 49-85 vuelta, 86-122 cierra
         }
 
-        // Índices en el array (list[0]=frame_000):
-        private const int TomoOpenEnd = 70;    // frame_070: libro totalmente abierto (reposo)
-        private const int TomoFlipStart = 60;  // frame_060: inicio de la vuelta de página
-        private const int TomoFlipEnd = 70;    // frame_070: fin de la vuelta (vuelve a abierto)
-        private const int TomoCloseStart = 72; // frame_072: inicio del cierre (desde abierto)
-        private const int TomoCloseEnd = 95;   // frame_095: portada cerrada
+        // Índices en el array recortado (24fps): 0-48 abre, 49-85 vuelta de página, 86-122 cierra.
+        private const int TomoOpenEnd = 48;    // libro totalmente abierto (reposo)
+        private const int TomoFlipStart = 49;  // inicio de la vuelta de página real
+        private const int TomoFlipEnd = 85;    // fin de la vuelta (vuelve a abierto)
+        private const int TomoCloseStart = 86; // inicio del cierre (desde abierto)
+        private const int TomoCloseEnd = 122;  // portada cerrada
 
         /// <summary>Abre un tomo: reproduce la apertura del libro por frames y luego muestra 5 cartas
         /// como páginas (carta a la izquierda, texto a la derecha), pasando de página al tocar; al
