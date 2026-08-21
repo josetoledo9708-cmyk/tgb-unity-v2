@@ -1879,20 +1879,19 @@ namespace Game.Runtime.Menu
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
 
-            // --- SELECTOR (capas como en Godot): fondo -> ranuras (bar) -> contenido -> marco ---
-            // Capa 1: fondo oscuro (detrás, casi tapado por las ranuras)
+            // --- SELECTOR (capas): fondo -> contenido -> marco. Fondo y marco comparten el MISMO
+            // rect para que sus bordes coincidan (sin rectángulo oscuro asomando fuera del marco).
+            var selRect = (min: new Vector2(-390f, 8f), max: new Vector2(390f, 190f));
+
+            // Capa 1: fondo oscuro (mismo rect que el marco)
             var selFondo = MenuTheme.Picture(screen, "SelFondo", MenuAssets.Sprite("tomos/sel_fondo"), preserveAspect: false);
             selFondo.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-340f, 26f), new Vector2(340f, 168f));
-            // Capa 2: paneles oscuros de las 3 ranuras (centro resaltado)
-            var selBar = MenuTheme.Picture(screen, "SelBar", MenuAssets.Sprite("tomos/sel_bar"), preserveAspect: false);
-            selBar.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)selBar.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-384f, 20f), new Vector2(384f, 176f));
+            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), selRect.min, selRect.max);
 
-            // Capa 3: carrusel infinito deslizable (contenido; el del centro es el seleccionado)
+            // Capa 2: carrusel infinito deslizable (contenido; el del centro es el seleccionado)
             var viewport = new GameObject("Selector", typeof(RectTransform), typeof(RectMask2D), typeof(Image)).GetComponent<RectTransform>();
             viewport.SetParent(screen, false);
-            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-380f, 18f), new Vector2(380f, 178f));
+            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-372f, 18f), new Vector2(372f, 180f));
             var vpImg = viewport.GetComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true; // capta el arrastre
 
             var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
@@ -1900,10 +1899,10 @@ namespace Game.Runtime.Menu
 
             tc = viewport.gameObject.AddComponent<TomoCarousel>();
 
-            // Capa 4: marco filigrana dorado (3 ranuras, centro resaltado), al frente
+            // Capa 3: marco filigrana dorado (3 ranuras, centro resaltado), al frente, mismo rect
             var marco = MenuTheme.Picture(screen, "SelMarco", MenuAssets.Sprite("tomos/sel_marco"), preserveAspect: false);
             marco.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)marco.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-390f, 6f), new Vector2(390f, 192f));
+            MenuTheme.Anchor((RectTransform)marco.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), selRect.min, selRect.max);
 
             // cantidad de tomos en la esquina inferior derecha de la ranura central
             var badge = MenuTheme.Label(marco.transform, PlayerData.Tomos.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
