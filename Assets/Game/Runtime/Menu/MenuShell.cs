@@ -1876,13 +1876,13 @@ namespace Game.Runtime.Menu
             // --- ABRIR TOMO (botón ancho, centrado, encima del selector) ---
             var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => OpenTomo(fb), 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
-            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 116f), new Vector2(190f, 172f));
+            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 142f), new Vector2(190f, 198f));
 
             // --- SELECTOR de tomos (fila inferior de 3 ranuras; el centro muestra el tomo y su cantidad) ---
             var selector = new GameObject("Selector", typeof(RectTransform)).GetComponent<RectTransform>();
             selector.SetParent(screen, false);
-            MenuTheme.Anchor(selector, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-300f, 8f), new Vector2(300f, 104f));
-            const float slotW = 170f, gap = 14f;
+            MenuTheme.Anchor(selector, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-300f, 8f), new Vector2(300f, 128f));
+            const float slotW = 185f, gap = 14f;
             for (int i = 0; i < 3; i++)
             {
                 var slot = new GameObject("Slot" + i, typeof(RectTransform), typeof(Image));
@@ -1893,7 +1893,7 @@ namespace Game.Runtime.Menu
                 slot.AddComponent<Outline>().effectColor = i == 1 ? MenuTheme.Gold : MenuTheme.GoldDim;
                 var srt = (RectTransform)slot.transform;
                 srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f); srt.pivot = new Vector2(0.5f, 0.5f);
-                srt.sizeDelta = new Vector2(slotW, 92f);
+                srt.sizeDelta = new Vector2(slotW, 112f);
                 srt.anchoredPosition = new Vector2((i - 1) * (slotW + gap), 0f);
                 if (i == 1)
                 {
@@ -1902,12 +1902,12 @@ namespace Game.Runtime.Menu
                     thumb.raycastTarget = false;
                     var trt = (RectTransform)thumb.transform;
                     trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f); trt.pivot = new Vector2(0.5f, 0.5f);
-                    trt.sizeDelta = new Vector2(84f, 88f); trt.anchoredPosition = Vector2.zero;
+                    trt.sizeDelta = new Vector2(108f, 104f); trt.anchoredPosition = Vector2.zero;
                     // cantidad disponible, sobre el icono en la parte inferior
                     var cnt = MenuTheme.Label(slot.transform, PlayerData.Tomos.ToString(), 26, MenuTheme.Gold, TextAnchor.LowerCenter, FontStyle.Bold);
                     cnt.raycastTarget = false;
                     cnt.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.85f);
-                    MenuTheme.Anchor((RectTransform)cnt.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-44f, 4f), new Vector2(44f, 34f));
+                    MenuTheme.Anchor((RectTransform)cnt.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-48f, 6f), new Vector2(48f, 40f));
                 }
             }
             return screen;
