@@ -1883,10 +1883,11 @@ namespace Game.Runtime.Menu
             // rect para que sus bordes coincidan (sin rectángulo oscuro asomando fuera del marco).
             var selRect = (min: new Vector2(-390f, 8f), max: new Vector2(390f, 190f));
 
-            // Capa 1: fondo oscuro (mismo rect que el marco)
+            // Capa 1: fondo oscuro, INSET dentro del marco (el oro no llena el borde del rect: hay
+            // margen transparente), para que la filigrana tape los bordes del fondo y no sobresalga.
             var selFondo = MenuTheme.Picture(screen, "SelFondo", MenuAssets.Sprite("tomos/sel_fondo"), preserveAspect: false);
             selFondo.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), selRect.min, selRect.max);
+            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-372f, 24f), new Vector2(372f, 174f));
 
             // Capa 2: carrusel infinito deslizable (contenido; el del centro es el seleccionado)
             var viewport = new GameObject("Selector", typeof(RectTransform), typeof(RectMask2D), typeof(Image)).GetComponent<RectTransform>();
