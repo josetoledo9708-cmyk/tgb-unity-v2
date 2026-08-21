@@ -1897,14 +1897,17 @@ namespace Game.Runtime.Menu
                 srt.anchoredPosition = new Vector2((i - 1) * (slotW + gap), 0f);
                 if (i == 1)
                 {
+                    // tomo seleccionado: icono grande centrado que abarca casi toda la ranura
                     var thumb = MenuTheme.Picture(slot.transform, "Thumb", MenuAssets.Sprite("tomos/frame_000"), preserveAspect: true);
                     thumb.raycastTarget = false;
                     var trt = (RectTransform)thumb.transform;
                     trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f); trt.pivot = new Vector2(0.5f, 0.5f);
-                    trt.sizeDelta = new Vector2(56f, 76f); trt.anchoredPosition = new Vector2(-26f, 0f);
-                    var cnt = MenuTheme.Label(slot.transform, PlayerData.Tomos.ToString(), 26, MenuTheme.Gold, TextAnchor.MiddleRight, FontStyle.Bold);
+                    trt.sizeDelta = new Vector2(84f, 88f); trt.anchoredPosition = Vector2.zero;
+                    // cantidad disponible, sobre el icono en la parte inferior
+                    var cnt = MenuTheme.Label(slot.transform, PlayerData.Tomos.ToString(), 26, MenuTheme.Gold, TextAnchor.LowerCenter, FontStyle.Bold);
                     cnt.raycastTarget = false;
-                    MenuTheme.Anchor((RectTransform)cnt.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-64f, 0f), new Vector2(-14f, 0f));
+                    cnt.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.85f);
+                    MenuTheme.Anchor((RectTransform)cnt.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-44f, 4f), new Vector2(44f, 34f));
                 }
             }
             return screen;
@@ -1986,7 +1989,7 @@ namespace Game.Runtime.Menu
             ci.sprite = MenuGraphics.Rounded(32, 10); ci.type = Image.Type.Sliced; ci.color = TypeColorDeck(c.Type);
             ci.raycastTarget = false;
             card.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            SetFrac((RectTransform)card.transform, 0.07f, 0.08f, 0.46f, 0.90f);
+            SetFrac((RectTransform)card.transform, 0.11f, 0.16f, 0.41f, 0.78f); // zona plana pág. izq
 
             var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 11, new Color(0.9f, 0.87f, 0.75f), TextAnchor.UpperLeft, FontStyle.Bold);
             tl.raycastTarget = false;
@@ -2001,11 +2004,11 @@ namespace Game.Runtime.Menu
             // --- PÁGINA DERECHA: texto en tinta oscura sobre la página (placeholder de verso) ---
             var rTitle = MenuTheme.Label(pages, c.Nombre, 15, new Color(0.28f, 0.2f, 0.08f), TextAnchor.UpperCenter, FontStyle.Bold);
             rTitle.raycastTarget = false;
-            SetFrac((RectTransform)rTitle.transform, 0.53f, 0.66f, 0.94f, 0.80f);
+            SetFrac((RectTransform)rTitle.transform, 0.57f, 0.60f, 0.90f, 0.73f); // zona plana pág. der
             var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "«Texto bíblico»";
             var rText = MenuTheme.Label(pages, body, 12, new Color(0.22f, 0.15f, 0.06f), TextAnchor.UpperCenter);
             rText.raycastTarget = false;
-            SetFrac((RectTransform)rText.transform, 0.53f, 0.22f, 0.94f, 0.62f);
+            SetFrac((RectTransform)rText.transform, 0.57f, 0.24f, 0.90f, 0.57f);
 
             // contador (arriba, sobre el lomo) y pista (abajo, entre páginas)
             var counter = MenuTheme.Label(pages, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
