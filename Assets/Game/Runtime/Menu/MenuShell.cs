@@ -1847,7 +1847,7 @@ namespace Game.Runtime.Menu
             var fb = book.AddComponent<Flipbook>();
             fb.frames = LoadTomoFrames();
             fb.fps = 24f;
-            bimg.sprite = MenuAssets.Sprite("tomos/frame_000"); // idle: portada sólida (los frames de video son tenues)
+            fb.ShowFrame(0); // idle: portada cerrada (mismo encuadre que la animación)
 
             var sub = MenuTheme.Label(screen, $"Tomos disponibles: {PlayerData.Tomos}", 18, new Color(0.95f, 0.9f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-320f, -108f), new Vector2(320f, -76f));
@@ -1909,7 +1909,7 @@ namespace Game.Runtime.Menu
             // de página caigan sobre las hojas.
             var pages = new GameObject("Pages", typeof(RectTransform)).GetComponent<RectTransform>();
             pages.SetParent(overlay.transform, false);
-            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-349f, -226f), new Vector2(353f, 255f));
+            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-381f, -248f), new Vector2(385f, 276f));
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
