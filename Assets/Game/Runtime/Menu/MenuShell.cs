@@ -137,7 +137,7 @@ namespace Game.Runtime.Menu
             // cortina de transición (cubre el instante del cambio y da tiempo a cargar el fondo)
             EnsureFade();
             _fader.transform.SetAsLastSibling();
-            _fader.Play(6.45f);
+            _fader.Play(1.2f);
         }
 
         private void EnsureFade()
