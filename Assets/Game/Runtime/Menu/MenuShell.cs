@@ -1877,12 +1877,20 @@ namespace Game.Runtime.Menu
             TomoCarousel tc = null; // referencia para el botón (se asigna abajo)
             var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; OpenTomo(fb); }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
-            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 142f), new Vector2(190f, 198f));
+            MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 168f), new Vector2(190f, 224f));
+
+            // marco exterior alrededor de todo el selector (detrás de las celdas)
+            var selBox = new GameObject("SelectorBox", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            selBox.transform.SetParent(screen, false);
+            selBox.sprite = MenuGraphics.Rounded(32, 12); selBox.type = Image.Type.Sliced;
+            selBox.color = new Color(0.05f, 0.06f, 0.12f, 0.55f); selBox.raycastTarget = false;
+            selBox.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            MenuTheme.Anchor((RectTransform)selBox.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-392f, -2f), new Vector2(392f, 160f));
 
             // --- SELECTOR: carrusel infinito deslizable (el del centro es el seleccionado) ---
             var viewport = new GameObject("Selector", typeof(RectTransform), typeof(RectMask2D), typeof(Image)).GetComponent<RectTransform>();
             viewport.SetParent(screen, false);
-            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-360f, 6f), new Vector2(360f, 140f));
+            MenuTheme.Anchor(viewport, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-370f, 4f), new Vector2(370f, 152f));
             var vpImg = viewport.GetComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true; // capta el arrastre
 
             var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
@@ -1898,7 +1906,7 @@ namespace Game.Runtime.Menu
             var fo = frame.AddComponent<Outline>(); fo.effectColor = MenuTheme.Gold; fo.effectDistance = new Vector2(2.5f, 2.5f);
             var frt = (RectTransform)frame.transform;
             frt.anchorMin = frt.anchorMax = new Vector2(0.5f, 0.5f); frt.pivot = new Vector2(0.5f, 0.5f);
-            frt.sizeDelta = new Vector2(200f, 132f);
+            frt.sizeDelta = new Vector2(210f, 152f);
 
             // cantidad de tomos en la esquina del marco
             var badge = MenuTheme.Label(frame.transform, PlayerData.Tomos.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);

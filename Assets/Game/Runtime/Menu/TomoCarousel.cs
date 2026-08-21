@@ -43,7 +43,7 @@ namespace Game.Runtime.Menu
                 cell.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
                 var crt = (RectTransform)cell.transform;
                 crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f); crt.pivot = new Vector2(0.5f, 0.5f);
-                crt.sizeDelta = new Vector2(170f, 112f);
+                crt.sizeDelta = new Vector2(176f, 126f);
 
                 var it = _items[i];
                 if (it.sprite != null)
@@ -54,7 +54,7 @@ namespace Game.Runtime.Menu
                     ti.sprite = it.sprite; ti.preserveAspect = true; ti.raycastTarget = false;
                     var thr = (RectTransform)th.transform;
                     thr.anchorMin = thr.anchorMax = new Vector2(0.5f, 0.5f); thr.pivot = new Vector2(0.5f, 0.5f);
-                    thr.sizeDelta = new Vector2(108f, 104f);
+                    thr.sizeDelta = new Vector2(134f, 118f);
                 }
                 else
                 {
