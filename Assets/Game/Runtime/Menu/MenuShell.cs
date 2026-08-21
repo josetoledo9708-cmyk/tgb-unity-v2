@@ -1861,20 +1861,21 @@ namespace Game.Runtime.Menu
         private Sprite[] LoadTomoFrames()
         {
             var list = new List<Sprite>();
-            for (int i = 1; ; i++) // los frames son f_001..f_120 (ffmpeg numera desde 1)
+            for (int i = 0; ; i++) // animación limpia frame_000..frame_099 (libro sólido, sin croma)
             {
-                var s = MenuAssets.Sprite("tomos/anim/f_" + i.ToString("000"));
+                var s = MenuAssets.Sprite("tomos/frame_" + i.ToString("000"));
                 if (s == null) break;
                 list.Add(s);
             }
-            return list.ToArray(); // list[0] = f_001
+            return list.ToArray(); // list[0] = frame_000 (portada cerrada)
         }
 
-        // Índices dentro del array (list[0]=f_001, por eso = nº de archivo − 1):
-        private const int TomoOpenEnd = 25;    // f_026: libro totalmente abierto (reposo)
-        private const int TomoFlipEnd = 41;    // f_042: fin de una vuelta de página (vuelve a abierto)
-        private const int TomoCloseStart = 95; // f_096: inicio del cierre (desde abierto)
-        private const int TomoCloseEnd = 112;  // f_113: portada cerrada
+        // Índices en el array (list[0]=frame_000):
+        private const int TomoOpenEnd = 70;    // frame_070: libro totalmente abierto (reposo)
+        private const int TomoFlipStart = 60;  // frame_060: inicio de la vuelta de página
+        private const int TomoFlipEnd = 70;    // frame_070: fin de la vuelta (vuelve a abierto)
+        private const int TomoCloseStart = 72; // frame_072: inicio del cierre (desde abierto)
+        private const int TomoCloseEnd = 95;   // frame_095: portada cerrada
 
         /// <summary>Abre un tomo: reproduce la apertura del libro por frames y luego muestra 5 cartas
         /// como páginas (carta a la izquierda, texto a la derecha), pasando de página al tocar; al
@@ -1967,7 +1968,7 @@ namespace Game.Runtime.Menu
                 for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
                 if (idx + 1 < picks.Count)
                 {
-                    if (canAnim) fb.Play(TomoOpenEnd, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1));
+                    if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1));
                     else ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1);
                 }
                 else
