@@ -27,6 +27,14 @@ namespace Game.Runtime.Menu
         public int Selected => _selected;
         public bool SelectedUnlocked => _selected >= 0 && _selected < _items.Count && _items[_selected].unlocked;
 
+        /// <summary>Muestra/oculta la miniatura del tomo de una celda (p. ej. al quedarse sin tomos).</summary>
+        public void SetThumbVisible(int itemIndex, bool visible)
+        {
+            if (itemIndex < 0 || itemIndex >= _cells.Count) return;
+            var t = _cells[itemIndex].Find("Thumb");
+            if (t != null) t.gameObject.SetActive(visible);
+        }
+
         public void Build(RectTransform content, float step, IList<Item> items)
         {
             _content = content;

@@ -1877,6 +1877,7 @@ namespace Game.Runtime.Menu
             TomoCarousel tc = null;              // referencia para el botón (se asigna abajo)
             System.Action hideBottom = null;     // oculta botón+selector al abrir (se asigna abajo)
             System.Action restoreBottom = null;  // los vuelve a mostrar al cerrar (sin reconstruir la pantalla → el fondo en video no se reinicia)
+            System.Action refreshAvail = null;   // ajusta visibilidad según haya tomos o no (se asigna abajo)
             var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; hideBottom?.Invoke(); OpenTomo(fb, restoreBottom); }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
@@ -1926,12 +1927,10 @@ namespace Game.Runtime.Menu
             restoreBottom = () =>
             {
                 fb.ShowFrame(0); // libro cerrado (idle)
-                badge.text = PlayerData.Tomos.ToString();
-                abrir.interactable = (tc == null || tc.SelectedUnlocked) && PlayerData.Tomos > 0;
-                abrir.gameObject.SetActive(true);
                 selFondo.gameObject.SetActive(true);
                 marco.gameObject.SetActive(true);
                 viewport.gameObject.SetActive(true);
+                refreshAvail?.Invoke(); // decide libro/botón/miniatura/contador según queden tomos
             };
 
             var items = new List<TomoCarousel.Item>
@@ -1942,11 +1941,23 @@ namespace Game.Runtime.Menu
             };
             tc.onSelect = (idx) =>
             {
-                bool unlocked = items[idx].unlocked;
-                badge.text = unlocked ? PlayerData.Tomos.ToString() : "";
-                abrir.interactable = unlocked && PlayerData.Tomos > 0;
+                bool avail = items[idx].unlocked && PlayerData.Tomos > 0;
+                badge.text = avail ? PlayerData.Tomos.ToString() : "";
+                abrir.interactable = avail;
             };
             tc.Build(content, 271f, items);
+
+            // sin tomos: desaparece el libro central, el botón y la miniatura+contador (la barra queda)
+            refreshAvail = () =>
+            {
+                bool has = PlayerData.Tomos > 0;
+                book.SetActive(has);
+                abrir.gameObject.SetActive(has);
+                abrir.interactable = has && (tc == null || tc.SelectedUnlocked);
+                badge.text = has ? PlayerData.Tomos.ToString() : "";
+                tc.SetThumbVisible(0, has); // oculta la imagen del tomo Genesis en el slot central
+            };
+            refreshAvail();
             return screen;
         }
 
