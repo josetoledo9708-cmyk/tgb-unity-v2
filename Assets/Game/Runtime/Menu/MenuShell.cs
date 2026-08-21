@@ -1843,7 +1843,7 @@ namespace Game.Runtime.Menu
             book.transform.SetParent(screen, false);
             var bimg = book.GetComponent<Image>();
             bimg.raycastTarget = false; bimg.preserveAspect = true;
-            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-399f, -250f), new Vector2(399f, 285f)); // aspecto ~1.49 del libro
+            MenuTheme.Anchor((RectTransform)book.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-319f, -196f), new Vector2(319f, 232f)); // aspecto ~1.49, 20% mas pequeno
             var fb = book.AddComponent<Flipbook>();
             fb.frames = LoadTomoFrames();
             fb.fps = 24f;
@@ -1909,7 +1909,7 @@ namespace Game.Runtime.Menu
             // de página caigan sobre las hojas.
             var pages = new GameObject("Pages", typeof(RectTransform)).GetComponent<RectTransform>();
             pages.SetParent(overlay.transform, false);
-            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-399f, -250f), new Vector2(399f, 285f));
+            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-319f, -196f), new Vector2(319f, 232f));
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
