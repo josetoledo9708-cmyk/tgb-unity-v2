@@ -1879,10 +1879,12 @@ namespace Game.Runtime.Menu
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
 
-            // fondo del selector (panel oscuro original)
-            var selFondo = MenuTheme.Picture(screen, "SelFondo", MenuAssets.Sprite("tomos/sel_fondo"), preserveAspect: false);
-            selFondo.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-410f, 2f), new Vector2(410f, 198f));
+            // fondo oscuro del selector (procedural; queda detrás del marco, sin bordes sobrantes)
+            var selFondo = new GameObject("SelFondo", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            selFondo.transform.SetParent(screen, false);
+            selFondo.sprite = MenuGraphics.Rounded(40, 16); selFondo.type = Image.Type.Sliced;
+            selFondo.color = new Color(0.03f, 0.05f, 0.12f, 0.92f); selFondo.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)selFondo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-402f, 8f), new Vector2(402f, 192f));
 
             // --- SELECTOR: carrusel infinito deslizable (el del centro es el seleccionado) ---
             var viewport = new GameObject("Selector", typeof(RectTransform), typeof(RectMask2D), typeof(Image)).GetComponent<RectTransform>();
