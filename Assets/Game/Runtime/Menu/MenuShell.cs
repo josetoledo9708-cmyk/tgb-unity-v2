@@ -1980,8 +1980,7 @@ namespace Game.Runtime.Menu
             // (hijas de esta capa) se dibujan por encima del libro.
             var overlay = MenuTheme.Rect(screen, "TomoOverlay", new Color(0f, 0f, 0f, 0f));
             overlay.raycastTarget = true;
-            var btn = overlay.gameObject.AddComponent<Button>();
-            btn.transition = Selectable.Transition.None;
+            var pc = overlay.gameObject.AddComponent<PointerClicks>();
             overlay.transform.SetAsLastSibling();
 
             // área de páginas alineada al RECUADRO REAL del libro (dentro del frame el libro ocupa
@@ -1993,14 +1992,14 @@ namespace Game.Runtime.Menu
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
-                fb.Play(0, TomoOpenEnd, false, () => ShowTomoSpread(fb, overlay.gameObject, pages, btn, picks, 0));
+                fb.Play(0, TomoOpenEnd, false, () => ShowTomoSpread(fb, overlay.gameObject, pages, pc, picks, 0));
             else
-                ShowTomoSpread(fb, overlay.gameObject, pages, btn, picks, 0);
+                ShowTomoSpread(fb, overlay.gameObject, pages, pc, picks, 0);
         }
 
         /// <summary>Dibuja la carta índice <paramref name="idx"/> como una página abierta del tomo y
         /// arma el toque para pasar a la siguiente (o cerrar tras la última).</summary>
-        private void ShowTomoSpread(Flipbook fb, GameObject overlay, RectTransform pages, Button btn, List<CardDefinition> picks, int idx)
+        private void ShowTomoSpread(Flipbook fb, GameObject overlay, RectTransform pages, PointerClicks pc, List<CardDefinition> picks, int idx)
         {
             fb.ShowFrame(TomoOpenEnd); // reposo: libro abierto
             for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
@@ -2042,23 +2041,24 @@ namespace Game.Runtime.Menu
             var counter = MenuTheme.Label(pages, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             counter.raycastTarget = false;
             SetFrac((RectTransform)counter.transform, 0.40f, 0.90f, 0.60f, 1.0f);
-            var hint = MenuTheme.Label(pages, idx + 1 < picks.Count ? "Toca para pasar la página" : "Toca para cerrar el tomo", 13, new Color(0.35f, 0.26f, 0.12f), TextAnchor.MiddleCenter);
+            var hint = MenuTheme.Label(pages, idx + 1 < picks.Count ? "Izq: pasar · Izq en carta: volver · Der: ampliar" : "Der: ampliar · Toca para cerrar", 13, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             hint.raycastTarget = false;
-            SetFrac((RectTransform)hint.transform, 0.26f, 0.01f, 0.74f, 0.09f);
+            hint.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.9f);
+            SetFrac((RectTransform)hint.transform, 0.20f, 0.0f, 0.80f, 0.085f);
 
-            btn.onClick.RemoveAllListeners();
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
-            btn.onClick.AddListener(() =>
+
+            // pasar de página / cerrar (click izq fuera de la carta)
+            System.Action next = () =>
             {
                 for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
                 if (idx + 1 < picks.Count)
                 {
-                    if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1));
-                    else ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1);
+                    if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx + 1));
+                    else ShowTomoSpread(fb, overlay, pages, pc, picks, idx + 1);
                 }
                 else
                 {
-                    btn.onClick.RemoveAllListeners();
                     System.Action done = () =>
                     {
                         Destroy(overlay);
@@ -2067,7 +2067,59 @@ namespace Game.Runtime.Menu
                     if (canAnim) fb.Play(TomoCloseStart, TomoCloseEnd, false, done);
                     else done();
                 }
-            });
+            };
+            // carta anterior (click izq sobre la página/carta izquierda)
+            System.Action prev = () =>
+            {
+                if (idx <= 0) return;
+                for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
+                if (canAnim) fb.Play(TomoFlipStart, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1));
+                else ShowTomoSpread(fb, overlay, pages, pc, picks, idx - 1);
+            };
+            System.Action zoom = () => ShowCardZoom(overlay.transform, c);
+
+            // zona de la página izquierda: click izq = anterior; click der = ampliar
+            var leftZone = new GameObject("LeftZone", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            leftZone.transform.SetParent(pages, false);
+            leftZone.color = new Color(0f, 0f, 0f, 0f); leftZone.raycastTarget = true;
+            SetFrac((RectTransform)leftZone.transform, 0.05f, 0.10f, 0.49f, 0.92f);
+            var lpc = leftZone.gameObject.AddComponent<PointerClicks>();
+            lpc.onLeft = prev; lpc.onRight = zoom;
+
+            pc.onLeft = next; pc.onRight = zoom;
+        }
+
+        /// <summary>Muestra la carta índice ampliada en un modal; se cierra al tocar.</summary>
+        private void ShowCardZoom(Transform parent, CardDefinition c)
+        {
+            var dim = MenuTheme.Rect(parent, "CardZoom", new Color(0f, 0f, 0f, 0.82f));
+            dim.raycastTarget = true;
+            dim.transform.SetAsLastSibling();
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => Destroy(dim.gameObject));
+
+            var card = new GameObject("BigCard", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(dim.transform, false);
+            var ci = card.GetComponent<Image>();
+            ci.sprite = MenuGraphics.Rounded(48, 14); ci.type = Image.Type.Sliced; ci.color = TypeColorDeck(c.Type);
+            ci.raycastTarget = false;
+            card.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            var crt = (RectTransform)card.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f); crt.pivot = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(360f, 500f);
+
+            var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 16, new Color(0.9f, 0.87f, 0.75f), TextAnchor.UpperLeft, FontStyle.Bold);
+            tl.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)tl.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(18f, -40f), new Vector2(-18f, -12f));
+            var nm = MenuTheme.Label(card.transform, c.Nombre, 28, Color.white, TextAnchor.UpperCenter, FontStyle.Bold);
+            nm.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(14f, -110f), new Vector2(-14f, -46f));
+            var cost = MenuTheme.Label(card.transform, CostText(c), 20, new Color(0.95f, 0.9f, 0.7f), TextAnchor.LowerCenter, FontStyle.Bold);
+            cost.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)cost.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(14f, 16f), new Vector2(-14f, 52f));
+            var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "";
+            var eff = MenuTheme.Label(card.transform, body, 16, new Color(0.96f, 0.94f, 0.86f), TextAnchor.MiddleCenter);
+            eff.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)eff.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(20f, 60f), new Vector2(-20f, -120f));
         }
 
         /// <summary>Ancla un RectTransform por fracciones del padre (esquinas inferior-izq y superior-der).</summary>
