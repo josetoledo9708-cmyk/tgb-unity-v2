@@ -1847,7 +1847,7 @@ namespace Game.Runtime.Menu
             var fb = book.AddComponent<Flipbook>();
             fb.frames = LoadTomoFrames();
             fb.fps = 12f;
-            fb.ShowFrame(0); // idle: libro cerrado
+            bimg.sprite = MenuAssets.Sprite("tomos/frame_000"); // idle: portada sólida (los frames de video son tenues)
 
             var sub = MenuTheme.Label(screen, $"Tomos disponibles: {PlayerData.Tomos}", 18, new Color(0.95f, 0.9f, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.Anchor((RectTransform)sub.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-320f, -108f), new Vector2(320f, -76f));
@@ -1894,43 +1894,44 @@ namespace Game.Runtime.Menu
             for (int i = 0; i < 5; i++) picks.Add(pool[Random.Range(0, pool.Count)]);
 
             var screen = (RectTransform)fb.transform.parent;
-            // capa transparente a pantalla completa: bloquea los botones y capta el toque para pasar página
-            var block = MenuTheme.Rect(screen, "TomoBlock", new Color(0f, 0f, 0f, 0f));
-            MenuTheme.Stretch((RectTransform)block.transform);
-            var btn = block.gameObject.AddComponent<Button>();
-            block.transform.SetAsLastSibling();
-            fb.transform.SetAsLastSibling(); // el libro por encima del bloqueo
+            // capa transparente a pantalla completa: capta el toque (pasar página) y bloquea botones.
+            // Es lo más alto de la jerarquía, así que el libro (debajo) se ve a través y las páginas
+            // (hijas de esta capa) se dibujan por encima del libro.
+            var overlay = MenuTheme.Rect(screen, "TomoOverlay", new Color(0f, 0f, 0f, 0f));
+            overlay.raycastTarget = true;
+            var btn = overlay.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            overlay.transform.SetAsLastSibling();
 
-            // contenedor de las páginas, alineado exactamente sobre el área del libro
-            var overlay = new GameObject("TomoPages", typeof(RectTransform)).GetComponent<RectTransform>();
-            overlay.SetParent(screen, false);
-            MenuTheme.Anchor(overlay, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-470f, -250f), new Vector2(470f, 285f));
-            overlay.SetAsLastSibling();
+            // área de páginas alineada exactamente sobre el libro (no captura toques)
+            var pages = new GameObject("Pages", typeof(RectTransform)).GetComponent<RectTransform>();
+            pages.SetParent(overlay.transform, false);
+            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-470f, -250f), new Vector2(470f, 285f));
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
-                fb.Play(0, TomoOpenEnd, false, () => ShowTomoSpread(fb, overlay, btn, picks, 0));
+                fb.Play(0, TomoOpenEnd, false, () => ShowTomoSpread(fb, overlay.gameObject, pages, btn, picks, 0));
             else
-                ShowTomoSpread(fb, overlay, btn, picks, 0);
+                ShowTomoSpread(fb, overlay.gameObject, pages, btn, picks, 0);
         }
 
         /// <summary>Dibuja la carta índice <paramref name="idx"/> como una página abierta del tomo y
         /// arma el toque para pasar a la siguiente (o cerrar tras la última).</summary>
-        private void ShowTomoSpread(Flipbook fb, RectTransform overlay, Button btn, List<CardDefinition> picks, int idx)
+        private void ShowTomoSpread(Flipbook fb, GameObject overlay, RectTransform pages, Button btn, List<CardDefinition> picks, int idx)
         {
             fb.ShowFrame(TomoOpenEnd); // reposo: libro abierto
-            for (int i = overlay.childCount - 1; i >= 0; i--) Destroy(overlay.GetChild(i).gameObject);
+            for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
 
             var c = picks[idx];
 
             // --- PÁGINA IZQUIERDA: carta (placeholder; arte real pendiente) ---
             var card = new GameObject("Card", typeof(RectTransform), typeof(Image));
-            card.transform.SetParent(overlay, false);
+            card.transform.SetParent(pages, false);
             var ci = card.GetComponent<Image>();
             ci.sprite = MenuGraphics.Rounded(32, 10); ci.type = Image.Type.Sliced; ci.color = TypeColorDeck(c.Type);
             ci.raycastTarget = false;
             card.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            SetFrac((RectTransform)card.transform, 0.13f, 0.17f, 0.45f, 0.85f);
+            SetFrac((RectTransform)card.transform, 0.18f, 0.16f, 0.46f, 0.82f);
 
             var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 11, new Color(0.9f, 0.87f, 0.75f), TextAnchor.UpperLeft, FontStyle.Bold);
             tl.raycastTarget = false;
@@ -1943,41 +1944,38 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)cost.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(8f, 12f), new Vector2(-8f, 36f));
 
             // --- PÁGINA DERECHA: texto en tinta oscura sobre la página (placeholder de verso) ---
-            var rTitle = MenuTheme.Label(overlay, c.Nombre, 15, new Color(0.28f, 0.2f, 0.08f), TextAnchor.UpperCenter, FontStyle.Bold);
+            var rTitle = MenuTheme.Label(pages, c.Nombre, 15, new Color(0.28f, 0.2f, 0.08f), TextAnchor.UpperCenter, FontStyle.Bold);
             rTitle.raycastTarget = false;
-            SetFrac((RectTransform)rTitle.transform, 0.55f, 0.72f, 0.9f, 0.85f);
+            SetFrac((RectTransform)rTitle.transform, 0.53f, 0.66f, 0.87f, 0.80f);
             var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "«Texto bíblico»";
-            var rText = MenuTheme.Label(overlay, body, 12, new Color(0.22f, 0.15f, 0.06f), TextAnchor.UpperCenter);
+            var rText = MenuTheme.Label(pages, body, 12, new Color(0.22f, 0.15f, 0.06f), TextAnchor.UpperCenter);
             rText.raycastTarget = false;
-            SetFrac((RectTransform)rText.transform, 0.55f, 0.2f, 0.9f, 0.7f);
+            SetFrac((RectTransform)rText.transform, 0.53f, 0.26f, 0.87f, 0.64f);
 
-            // contador y pista, fuera de las páginas (por encima/por debajo del libro)
-            var counter = MenuTheme.Label(overlay, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // contador (arriba, sobre el lomo) y pista (abajo, entre páginas)
+            var counter = MenuTheme.Label(pages, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             counter.raycastTarget = false;
-            SetFrac((RectTransform)counter.transform, 0.42f, 1.02f, 0.58f, 1.12f);
-            var hint = MenuTheme.Label(overlay, idx + 1 < picks.Count ? "Toca para pasar la página" : "Toca para cerrar el tomo", 14, new Color(0.85f, 0.82f, 0.72f), TextAnchor.MiddleCenter);
+            SetFrac((RectTransform)counter.transform, 0.42f, 0.87f, 0.58f, 0.97f);
+            var hint = MenuTheme.Label(pages, idx + 1 < picks.Count ? "Toca para pasar la página" : "Toca para cerrar el tomo", 13, new Color(0.35f, 0.26f, 0.12f), TextAnchor.MiddleCenter);
             hint.raycastTarget = false;
-            SetFrac((RectTransform)hint.transform, 0.3f, -0.12f, 0.7f, -0.02f);
+            SetFrac((RectTransform)hint.transform, 0.28f, 0.04f, 0.72f, 0.12f);
 
             btn.onClick.RemoveAllListeners();
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             btn.onClick.AddListener(() =>
             {
+                for (int i = pages.childCount - 1; i >= 0; i--) Destroy(pages.GetChild(i).gameObject);
                 if (idx + 1 < picks.Count)
                 {
-                    for (int i = overlay.childCount - 1; i >= 0; i--) Destroy(overlay.GetChild(i).gameObject);
-                    if (canAnim) fb.Play(TomoOpenEnd, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, btn, picks, idx + 1));
-                    else ShowTomoSpread(fb, overlay, btn, picks, idx + 1);
+                    if (canAnim) fb.Play(TomoOpenEnd, TomoFlipEnd, false, () => ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1));
+                    else ShowTomoSpread(fb, overlay, pages, btn, picks, idx + 1);
                 }
                 else
                 {
-                    for (int i = overlay.childCount - 1; i >= 0; i--) Destroy(overlay.GetChild(i).gameObject);
                     btn.onClick.RemoveAllListeners();
                     System.Action done = () =>
                     {
-                        Destroy(overlay.gameObject);
-                        Destroy(btn.gameObject);
-                        fb.ShowFrame(0);
+                        Destroy(overlay);
                         if (_stack.Count > 0 && _stack[_stack.Count - 1] == Screen.Tomos) Show(Screen.Tomos);
                     };
                     if (canAnim) fb.Play(TomoCloseStart, TomoCloseEnd, false, done);
