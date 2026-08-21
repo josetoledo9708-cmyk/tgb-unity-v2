@@ -144,6 +144,31 @@ namespace Game.Runtime.Menu
             return screen;
         }
 
+        /// <summary>Pone un video en bucle a pantalla completa justo encima del BG estático (que queda
+        /// de respaldo). No captura toques. <paramref name="resPath"/> es la ruta en Resources.</summary>
+        private void AddVideoBackground(RectTransform screen, string resPath)
+        {
+            var clip = Resources.Load<UnityEngine.Video.VideoClip>(resPath);
+            if (clip == null) return; // sin video: se queda el fondo estático
+            var rt = new RenderTexture(1280, 720, 0);
+            var go = new GameObject("BGVideo", typeof(RectTransform), typeof(RawImage), typeof(UnityEngine.Video.VideoPlayer));
+            go.transform.SetParent(screen, false);
+            MenuTheme.Stretch((RectTransform)go.transform);
+            go.transform.SetSiblingIndex(1); // encima del BG (índice 0), debajo del resto de la UI
+            var raw = go.GetComponent<RawImage>();
+            raw.texture = rt; raw.raycastTarget = false;
+            var vp = go.GetComponent<UnityEngine.Video.VideoPlayer>();
+            vp.renderMode = UnityEngine.Video.VideoRenderMode.RenderTexture;
+            vp.targetTexture = rt;
+            vp.clip = clip;
+            vp.isLooping = true;
+            vp.playOnAwake = true;
+            vp.waitForFirstFrame = true;
+            vp.audioOutputMode = UnityEngine.Video.VideoAudioOutputMode.None;
+            go.AddComponent<VideoLoopOnEnable>(); // reproduce al activarse la pantalla (no solo al construirla)
+            vp.Play();
+        }
+
         private void TopBar(RectTransform screen, bool withCoins)
         {
             var bar = MenuTheme.Panel(screen, "TopBar");
@@ -1833,8 +1858,7 @@ namespace Game.Runtime.Menu
         private RectTransform BuildTomos()
         {
             var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
-            var bgAnim = screen.Find("BG");
-            if (bgAnim != null) bgAnim.gameObject.AddComponent<BackgroundPulse>(); // fondo con vida (respiración + brillo)
+            AddVideoBackground(screen, "Menu/tomos/fondo_tomos"); // fondo animado en bucle (sobre el estático de respaldo)
             PlayerData.Tomos = 10; // TESTING: siempre 10 tomos al entrar (quitar cuando se pruebe con Tienda)
             Title(screen, "TOMOS");
             BackButton(screen);
