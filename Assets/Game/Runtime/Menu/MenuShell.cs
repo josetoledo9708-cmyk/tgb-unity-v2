@@ -62,6 +62,17 @@ namespace Game.Runtime.Menu
             BuildCanvas();
             PreloadArt();              // precarga el arte pesado en el arranque (no al abrir cada menú)
             Push(Screen.MainMenu);
+            PrewarmCacheable(Screen.Tomos); // pre-construye Tomos detrás → su video ya está listo al entrar
+        }
+
+        /// <summary>Construye una pantalla cacheable de antemano y la deja viva DETRÁS de la actual,
+        /// para que su VideoPlayer prepare/reproduzca ya y no haya retardo la primera vez que se entra.</summary>
+        private void PrewarmCacheable(Screen s)
+        {
+            if (!_cacheable.Contains(s) || _cache.ContainsKey(s)) return;
+            var go = Build(s).gameObject;
+            _cache[s] = go;
+            go.transform.SetAsFirstSibling(); // detrás de la pantalla actual (queda oculta pero activa)
         }
 
         /// <summary>Carga y cachea de una vez el arte pesado (cartas Historia + fondos) al arrancar,
