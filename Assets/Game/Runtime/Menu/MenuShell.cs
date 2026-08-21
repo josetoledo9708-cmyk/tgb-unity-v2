@@ -1904,10 +1904,12 @@ namespace Game.Runtime.Menu
             btn.transition = Selectable.Transition.None;
             overlay.transform.SetAsLastSibling();
 
-            // área de páginas alineada exactamente sobre el libro (no captura toques)
+            // área de páginas alineada al RECUADRO REAL del libro (dentro del frame el libro ocupa
+            // solo el centro ~0.13-0.87 x / 0.05-0.95 y, no todo el rect), para que las fracciones
+            // de página caigan sobre las hojas.
             var pages = new GameObject("Pages", typeof(RectTransform)).GetComponent<RectTransform>();
             pages.SetParent(overlay.transform, false);
-            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-470f, -250f), new Vector2(470f, 285f));
+            MenuTheme.Anchor(pages, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-349f, -226f), new Vector2(353f, 255f));
 
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
             if (canAnim)
@@ -1932,7 +1934,7 @@ namespace Game.Runtime.Menu
             ci.sprite = MenuGraphics.Rounded(32, 10); ci.type = Image.Type.Sliced; ci.color = TypeColorDeck(c.Type);
             ci.raycastTarget = false;
             card.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            SetFrac((RectTransform)card.transform, 0.18f, 0.16f, 0.46f, 0.82f);
+            SetFrac((RectTransform)card.transform, 0.07f, 0.09f, 0.45f, 0.88f);
 
             var tl = MenuTheme.Label(card.transform, TypeLabel(c.Type), 11, new Color(0.9f, 0.87f, 0.75f), TextAnchor.UpperLeft, FontStyle.Bold);
             tl.raycastTarget = false;
@@ -1947,19 +1949,19 @@ namespace Game.Runtime.Menu
             // --- PÁGINA DERECHA: texto en tinta oscura sobre la página (placeholder de verso) ---
             var rTitle = MenuTheme.Label(pages, c.Nombre, 15, new Color(0.28f, 0.2f, 0.08f), TextAnchor.UpperCenter, FontStyle.Bold);
             rTitle.raycastTarget = false;
-            SetFrac((RectTransform)rTitle.transform, 0.53f, 0.66f, 0.87f, 0.80f);
+            SetFrac((RectTransform)rTitle.transform, 0.55f, 0.66f, 0.93f, 0.80f);
             var body = c.Efecto ?? c.Condicion ?? c.AlEntrar ?? "«Texto bíblico»";
             var rText = MenuTheme.Label(pages, body, 12, new Color(0.22f, 0.15f, 0.06f), TextAnchor.UpperCenter);
             rText.raycastTarget = false;
-            SetFrac((RectTransform)rText.transform, 0.53f, 0.26f, 0.87f, 0.64f);
+            SetFrac((RectTransform)rText.transform, 0.55f, 0.22f, 0.93f, 0.62f);
 
             // contador (arriba, sobre el lomo) y pista (abajo, entre páginas)
             var counter = MenuTheme.Label(pages, $"{idx + 1} / {picks.Count}", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             counter.raycastTarget = false;
-            SetFrac((RectTransform)counter.transform, 0.42f, 0.87f, 0.58f, 0.97f);
+            SetFrac((RectTransform)counter.transform, 0.40f, 0.90f, 0.60f, 1.0f);
             var hint = MenuTheme.Label(pages, idx + 1 < picks.Count ? "Toca para pasar la página" : "Toca para cerrar el tomo", 13, new Color(0.35f, 0.26f, 0.12f), TextAnchor.MiddleCenter);
             hint.raycastTarget = false;
-            SetFrac((RectTransform)hint.transform, 0.28f, 0.04f, 0.72f, 0.12f);
+            SetFrac((RectTransform)hint.transform, 0.26f, 0.01f, 0.74f, 0.09f);
 
             btn.onClick.RemoveAllListeners();
             bool canAnim = fb.frames != null && fb.frames.Length > TomoCloseEnd;
