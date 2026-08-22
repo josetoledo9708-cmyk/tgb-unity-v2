@@ -1116,7 +1116,8 @@ namespace Game.Runtime.View
         {
             if (_rewardGiven) return;
             _rewardGiven = true;
-            Game.Runtime.Menu.PlayerData.Monedas += 700;
+            // Solo DESBLOQUEAR el logro; el oro se reclama desde la pantalla de Logros
+            // (así el tutorial guía al jugador a ese apartado en lugar de saltárselo).
             PlayerPrefs.SetInt("logro_primeros_pasos", 1);
             PlayerPrefs.SetInt("tutorial1_done", 1);
             PlayerPrefs.Save();
@@ -1178,7 +1179,7 @@ namespace Game.Runtime.View
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
             GUILayout.Space(8);
             GUILayout.Label("¡VICTORIA!", tt);
-            GUILayout.Label("Completaste tu Historia «La Caída del Edén».\nRecompensa: logro «Primeros Pasos» +700 monedas.",
+            GUILayout.Label("Completaste tu Historia «La Caída del Edén».\nDesbloqueaste el logro «Primeros Pasos»: reclámalo (+700) en Misiones y Logros.",
                 body, GUILayout.ExpandHeight(true));
             GUILayout.Space(6);
             if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))

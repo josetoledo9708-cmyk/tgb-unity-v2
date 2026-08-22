@@ -2265,14 +2265,16 @@ namespace Game.Runtime.Menu
             ("m2", "Busca la Victoria",    "Gana 1 partida contra la IA.",  1, 100),
             ("m3", "Entrenamiento Intenso","Juega 3 partidas en total.",    3, 150),
         };
-        private static readonly (string id, string nombre, string desc, string icon)[] Logros =
+        private static readonly (string id, string nombre, string desc, string icon, int reward)[] Logros =
         {
-            ("l1", "Primera Victoria", "Gana tu primera partida contra la IA.",     "⚔"),
-            ("l2", "Comandante de Fe", "Gana 10 partidas contra la IA.",            "🏆"),
-            ("l3", "Constructor",      "Crea tu primer mazo personalizado.",        "🔨"),
-            ("l4", "Historiador",      "Completa las 7 historias en modo Historia.", "📖"),
-            ("l5", "Veterano",         "Juega 25 partidas en total.",               "🎖"),
-            ("l6", "Dedicado",         "Juega 5 partidas en total.",                "⭐"),
+            ("lp", "Primeros Pasos",        "Completa la partida-tutorial.",              "👣", 700),
+            ("lh", "El Inicio de la Historia", "Completa el segundo tutorial (La Caída del Edén).", "📜", 1000),
+            ("l1", "Primera Victoria", "Gana tu primera partida contra la IA.",     "⚔", 0),
+            ("l2", "Comandante de Fe", "Gana 10 partidas contra la IA.",            "🏆", 0),
+            ("l3", "Constructor",      "Crea tu primer mazo personalizado.",        "🔨", 0),
+            ("l4", "Historiador",      "Completa las 7 historias en modo Historia.", "📖", 0),
+            ("l5", "Veterano",         "Juega 25 partidas en total.",               "🎖", 0),
+            ("l6", "Dedicado",         "Juega 5 partidas en total.",                "⭐", 0),
         };
 
         private bool _misionesTab = true;
@@ -2287,6 +2289,8 @@ namespace Game.Runtime.Menu
 
         private bool LogroDesbloqueado(string id) => id switch
         {
+            "lp" => PlayerPrefs.GetInt("logro_primeros_pasos", 0) == 1,
+            "lh" => PlayerPrefs.GetInt("logro_inicio_historia", 0) == 1,
             "l1" => StatVictorias >= 1,
             "l2" => StatVictorias >= 10,
             "l3" => StatMazos >= 1,
@@ -2350,7 +2354,7 @@ namespace Game.Runtime.Menu
             {
                 int unlocked = 0; foreach (var l in Logros) if (LogroDesbloqueado(l.id)) unlocked++;
                 _misionesHeader.text = $"Logros desbloqueados: {unlocked} / {Logros.Length}";
-                foreach (var l in Logros) AddLogroRow(l.id, l.nombre, l.desc, l.icon);
+                foreach (var l in Logros) AddLogroRow(l.id, l.nombre, l.desc, l.icon, l.reward);
             }
         }
 
@@ -2416,9 +2420,10 @@ namespace Game.Runtime.Menu
             }
         }
 
-        private void AddLogroRow(string id, string nombre, string desc, string icon)
+        private void AddLogroRow(string id, string nombre, string desc, string icon, int reward)
         {
             bool ok = LogroDesbloqueado(id);
+            bool claimed = PlayerPrefs.GetInt("log_claim_" + id, 0) == 1;
             var panel = MisRowPanel(78f, ok ? MenuTheme.Gold : new Color(0.35f, 0.3f, 0.15f, 0.6f));
             if (!ok) { var c = panel.color; c.a = 0.55f; panel.color = c; }
 
@@ -2430,8 +2435,24 @@ namespace Game.Runtime.Menu
             var ds = MenuTheme.Label(panel.transform, desc, 14, new Color(0.72f, 0.74f, 0.78f), TextAnchor.UpperLeft);
             ds.raycastTarget = false; MenuTheme.Anchor((RectTransform)ds.transform, new Vector2(0f, 1f), new Vector2(0.8f, 1f), new Vector2(74f, -54f), new Vector2(0f, -32f));
 
-            var st = MenuTheme.Label(panel.transform, ok ? "DESBLOQUEADO" : "BLOQUEADO", 15, ok ? MenuTheme.Gold : new Color(0.55f, 0.52f, 0.45f), TextAnchor.MiddleRight, FontStyle.Bold);
-            st.raycastTarget = false; MenuTheme.Anchor((RectTransform)st.transform, new Vector2(0.78f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(-18f, 0f));
+            // Logro con recompensa desbloqueado y sin reclamar -> botón Reclamar. Si no, estado/monto.
+            if (ok && reward > 0 && !claimed)
+            {
+                var claim = MenuTheme.TextButton(panel.transform, "Reclamar +" + reward, 14, () =>
+                {
+                    PlayerData.Monedas += reward;
+                    PlayerPrefs.SetInt("log_claim_" + id, 1); PlayerPrefs.Save();
+                    RebuildMisiones();
+                }, 150f, 34f);
+                MenuTheme.Anchor((RectTransform)claim.transform, new Vector2(0.8f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-150f, -17f), new Vector2(-14f, 17f));
+            }
+            else
+            {
+                string stTxt = !ok ? "BLOQUEADO" : (reward > 0 && claimed ? "RECLAMADO" : "DESBLOQUEADO");
+                var stCol = !ok ? new Color(0.55f, 0.52f, 0.45f) : (claimed ? new Color(0.5f, 0.55f, 0.5f) : MenuTheme.Gold);
+                var st = MenuTheme.Label(panel.transform, stTxt, 15, stCol, TextAnchor.MiddleRight, FontStyle.Bold);
+                st.raycastTarget = false; MenuTheme.Anchor((RectTransform)st.transform, new Vector2(0.78f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(-18f, 0f));
+            }
         }
 
         // --- TOMOS ---
