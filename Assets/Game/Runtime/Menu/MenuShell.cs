@@ -177,7 +177,7 @@ namespace Game.Runtime.Menu
             Screen.SelectDeck   => BuildSelectDeck(),
             Screen.ChooseHistoria => BuildChooseHistoria(),
             Screen.DeckBuilder  => BuildDeckBuilder(),
-            Screen.Misiones     => BuildSimple("MISIONES Y LOGROS", "Completa misiones para ganar monedas."),
+            Screen.Misiones     => BuildMisiones(),
             Screen.Tienda       => BuildTienda(),
             Screen.Tomos        => BuildTomos(),
             Screen.Opciones     => BuildOpciones(),
@@ -2111,6 +2111,183 @@ namespace Game.Runtime.Menu
             var rt = (RectTransform)img.transform;
             rt.anchorMin = rt.anchorMax = rt.pivot = corner;
             rt.sizeDelta = new Vector2(120f, 120f); rt.anchoredPosition = Vector2.zero;
+        }
+
+        // --- MISIONES Y LOGROS ---
+
+        private static readonly (string id, string nombre, string desc, int obj, int reward)[] Misiones =
+        {
+            ("m1", "Jugador del Día",      "Juega 1 partida contra la IA.", 1, 50),
+            ("m2", "Busca la Victoria",    "Gana 1 partida contra la IA.",  1, 100),
+            ("m3", "Entrenamiento Intenso","Juega 3 partidas en total.",    3, 150),
+        };
+        private static readonly (string id, string nombre, string desc, string icon)[] Logros =
+        {
+            ("l1", "Primera Victoria", "Gana tu primera partida contra la IA.",     "⚔"),
+            ("l2", "Comandante de Fe", "Gana 10 partidas contra la IA.",            "🏆"),
+            ("l3", "Constructor",      "Crea tu primer mazo personalizado.",        "🔨"),
+            ("l4", "Historiador",      "Completa las 7 historias en modo Historia.", "📖"),
+            ("l5", "Veterano",         "Juega 25 partidas en total.",               "🎖"),
+            ("l6", "Dedicado",         "Juega 5 partidas en total.",                "⭐"),
+        };
+
+        private bool _misionesTab = true;
+        private RectTransform _misionesList;
+        private Text _misionesHeader;
+
+        // Estadísticas (TESTING por defecto; luego se conectan al juego real)
+        private int StatPartidas => PlayerPrefs.GetInt("stat_partidas", 16);
+        private int StatVictorias => PlayerPrefs.GetInt("stat_victorias", 8);
+        private int StatMazos => PlayerPrefs.GetInt("stat_mazos", 2);
+        private int StatHistorias => PlayerPrefs.GetInt("stat_historias", 7);
+
+        private bool LogroDesbloqueado(string id) => id switch
+        {
+            "l1" => StatVictorias >= 1,
+            "l2" => StatVictorias >= 10,
+            "l3" => StatMazos >= 1,
+            "l4" => StatHistorias >= 7,
+            "l5" => StatPartidas >= 25,
+            "l6" => StatPartidas >= 5,
+            _ => false,
+        };
+
+        private int MisionProgreso(string id) => id switch
+        {
+            "m1" => Mathf.Min(StatPartidas, 1),
+            "m2" => Mathf.Min(StatVictorias, 1),
+            "m3" => Mathf.Min(StatPartidas, 3),
+            _ => 0,
+        };
+
+        private RectTransform BuildMisiones()
+        {
+            var screen = NewScreen("Misiones", "main_menu_bg", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.62f));
+            Title(screen, "MISIONES Y LOGROS");
+            BackButton(screen);
+
+            // pestañas
+            var tabM = MenuTheme.TextButton(screen, "MISIONES DIARIAS", 15, () => { _misionesTab = true; RebuildMisiones(); }, 240f, 44f, thicken: false);
+            MenuTheme.Anchor((RectTransform)tabM.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-252f, -120f), new Vector2(-6f, -76f));
+            var tabL = MenuTheme.TextButton(screen, "LOGROS", 15, () => { _misionesTab = false; RebuildMisiones(); }, 240f, 44f, thicken: false);
+            MenuTheme.Anchor((RectTransform)tabL.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(6f, -120f), new Vector2(252f, -76f));
+
+            _misionesHeader = MenuTheme.Label(screen, "", 17, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _misionesHeader.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)_misionesHeader.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-380f, -158f), new Vector2(380f, -130f));
+
+            // lista con layout vertical
+            var listGo = new GameObject("List", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            _misionesList = (RectTransform)listGo.transform;
+            _misionesList.SetParent(screen, false);
+            _misionesList.anchorMin = _misionesList.anchorMax = _misionesList.pivot = new Vector2(0.5f, 1f);
+            _misionesList.sizeDelta = new Vector2(880f, 0f); _misionesList.anchoredPosition = new Vector2(0f, -172f);
+            var vlg = listGo.GetComponent<VerticalLayoutGroup>();
+            vlg.spacing = 12f; vlg.childForceExpandWidth = true; vlg.childControlWidth = true;
+            vlg.childForceExpandHeight = false; vlg.childControlHeight = true; vlg.childAlignment = TextAnchor.UpperCenter;
+            listGo.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            RebuildMisiones();
+            return screen;
+        }
+
+        private void RebuildMisiones()
+        {
+            if (_misionesList == null) return;
+            for (int i = _misionesList.childCount - 1; i >= 0; i--) Destroy(_misionesList.GetChild(i).gameObject);
+
+            if (_misionesTab)
+            {
+                _misionesHeader.text = "Misiones diarias — " + System.DateTime.Now.ToString("yyyy-MM-dd");
+                foreach (var m in Misiones) AddMisionRow(m.id, m.nombre, m.desc, m.obj, m.reward);
+            }
+            else
+            {
+                int unlocked = 0; foreach (var l in Logros) if (LogroDesbloqueado(l.id)) unlocked++;
+                _misionesHeader.text = $"Logros desbloqueados: {unlocked} / {Logros.Length}";
+                foreach (var l in Logros) AddLogroRow(l.id, l.nombre, l.desc, l.icon);
+            }
+        }
+
+        private Image MisRowPanel(float height, Color accent)
+        {
+            var panel = new GameObject("Row", typeof(RectTransform), typeof(Image), typeof(LayoutElement)).GetComponent<Image>();
+            panel.transform.SetParent(_misionesList, false);
+            panel.sprite = MenuGraphics.Rounded(28, 10); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.05f, 0.06f, 0.11f, 0.9f); panel.raycastTarget = false;
+            panel.GetComponent<LayoutElement>().preferredHeight = height;
+            // barra de acento a la izquierda
+            var acc = new GameObject("Acc", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            acc.transform.SetParent(panel.transform, false);
+            acc.sprite = MenuGraphics.Rounded(8, 3); acc.type = Image.Type.Sliced; acc.color = accent; acc.raycastTarget = false;
+            var art = (RectTransform)acc.transform; art.anchorMin = new Vector2(0f, 0f); art.anchorMax = new Vector2(0f, 1f);
+            art.pivot = new Vector2(0f, 0.5f); art.sizeDelta = new Vector2(5f, -12f); art.anchoredPosition = new Vector2(4f, 0f);
+            return panel;
+        }
+
+        private void AddMisionRow(string id, string nombre, string desc, int obj, int reward)
+        {
+            int prog = MisionProgreso(id);
+            bool done = prog >= obj;
+            bool claimed = PlayerPrefs.GetInt("mis_claim_" + id, 0) == 1;
+            var panel = MisRowPanel(92f, done ? MenuTheme.Gold : new Color(0.4f, 0.55f, 0.8f, 0.9f));
+
+            var nm = MenuTheme.Label(panel.transform, nombre, 20, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
+            nm.raycastTarget = false; MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 1f), new Vector2(0.7f, 1f), new Vector2(28f, -30f), new Vector2(0f, -6f));
+            var ds = MenuTheme.Label(panel.transform, desc, 14, new Color(0.72f, 0.74f, 0.82f), TextAnchor.UpperLeft);
+            ds.raycastTarget = false; MenuTheme.Anchor((RectTransform)ds.transform, new Vector2(0f, 1f), new Vector2(0.7f, 1f), new Vector2(28f, -52f), new Vector2(0f, -30f));
+
+            // barra de progreso
+            var barBg = new GameObject("Bar", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            barBg.transform.SetParent(panel.transform, false);
+            barBg.sprite = MenuGraphics.Rounded(10, 4); barBg.type = Image.Type.Sliced; barBg.color = new Color(0f, 0f, 0f, 0.5f); barBg.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)barBg.transform, new Vector2(0f, 0f), new Vector2(0.7f, 0f), new Vector2(28f, 12f), new Vector2(-10f, 20f));
+            var barFill = new GameObject("Fill", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            barFill.transform.SetParent(barBg.transform, false);
+            barFill.sprite = MenuGraphics.Rounded(10, 4); barFill.type = Image.Type.Sliced; barFill.color = MenuTheme.Gold; barFill.raycastTarget = false;
+            var bf = (RectTransform)barFill.transform; bf.anchorMin = new Vector2(0f, 0f); bf.anchorMax = new Vector2(Mathf.Clamp01((float)prog / obj), 1f);
+            bf.offsetMin = Vector2.zero; bf.offsetMax = Vector2.zero;
+
+            var pl = MenuTheme.Label(panel.transform, $"{prog} / {obj}", 15, new Color(0.85f, 0.85f, 0.9f), TextAnchor.MiddleRight, FontStyle.Bold);
+            pl.raycastTarget = false; MenuTheme.Anchor((RectTransform)pl.transform, new Vector2(0.72f, 0.5f), new Vector2(0.86f, 1f), new Vector2(0f, -6f), new Vector2(0f, -2f));
+
+            // recompensa (moneda + monto) o botón reclamar
+            if (done && !claimed)
+            {
+                var claim = MenuTheme.TextButton(panel.transform, "Reclamar +" + reward, 14, () =>
+                {
+                    PlayerData.Monedas += reward;
+                    PlayerPrefs.SetInt("mis_claim_" + id, 1); PlayerPrefs.Save();
+                    RebuildMisiones();
+                }, 150f, 34f);
+                MenuTheme.Anchor((RectTransform)claim.transform, new Vector2(0.86f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-150f, -17f), new Vector2(-14f, 17f));
+            }
+            else
+            {
+                var ci = MenuTheme.Picture(panel.transform, "coin", MenuAssets.Sprite("Moneda"));
+                ci.raycastTarget = false; MenuTheme.Anchor((RectTransform)ci.transform, new Vector2(0.88f, 0.5f), new Vector2(0.88f, 0.5f), new Vector2(-4f, -12f), new Vector2(20f, 12f));
+                var rw = MenuTheme.Label(panel.transform, reward.ToString(), 17, claimed ? new Color(0.5f, 0.55f, 0.5f) : MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+                rw.raycastTarget = false; MenuTheme.Anchor((RectTransform)rw.transform, new Vector2(0.9f, 0.5f), new Vector2(1f, 0.5f), new Vector2(4f, -14f), new Vector2(-6f, 14f));
+            }
+        }
+
+        private void AddLogroRow(string id, string nombre, string desc, string icon)
+        {
+            bool ok = LogroDesbloqueado(id);
+            var panel = MisRowPanel(78f, ok ? MenuTheme.Gold : new Color(0.35f, 0.3f, 0.15f, 0.6f));
+            if (!ok) { var c = panel.color; c.a = 0.55f; panel.color = c; }
+
+            var ic = MenuTheme.Label(panel.transform, ok ? icon : "🔒", 26, ok ? Color.white : new Color(0.6f, 0.55f, 0.4f), TextAnchor.MiddleCenter);
+            ic.raycastTarget = false; MenuTheme.Anchor((RectTransform)ic.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(18f, 0f), new Vector2(66f, 0f));
+
+            var nm = MenuTheme.Label(panel.transform, ok ? nombre : "???", 19, ok ? MenuTheme.Gold : new Color(0.6f, 0.58f, 0.5f), TextAnchor.UpperLeft, FontStyle.Bold);
+            nm.raycastTarget = false; MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 1f), new Vector2(0.8f, 1f), new Vector2(74f, -30f), new Vector2(0f, -8f));
+            var ds = MenuTheme.Label(panel.transform, desc, 14, new Color(0.72f, 0.74f, 0.78f), TextAnchor.UpperLeft);
+            ds.raycastTarget = false; MenuTheme.Anchor((RectTransform)ds.transform, new Vector2(0f, 1f), new Vector2(0.8f, 1f), new Vector2(74f, -54f), new Vector2(0f, -32f));
+
+            var st = MenuTheme.Label(panel.transform, ok ? "DESBLOQUEADO" : "BLOQUEADO", 15, ok ? MenuTheme.Gold : new Color(0.55f, 0.52f, 0.45f), TextAnchor.MiddleRight, FontStyle.Bold);
+            st.raycastTarget = false; MenuTheme.Anchor((RectTransform)st.transform, new Vector2(0.78f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(-18f, 0f));
         }
 
         // --- TOMOS ---
