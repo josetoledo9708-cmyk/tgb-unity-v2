@@ -337,6 +337,7 @@ namespace Game.Runtime.Menu
             var tomoHover = tomos.gameObject.AddComponent<HoverScale>(); // hover en el botón: agranda el libro + resplandor
             tomoHover.target = tomoBook.transform;
             tomoHover.glow = tomoGlow;
+            tomoHover.glowAlpha = 1f;
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;
@@ -2250,7 +2251,7 @@ namespace Game.Runtime.Menu
                 {
                     float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c; // 0 centro .. 1 borde
                     float a = Mathf.Clamp01(1f - d);
-                    a = a * a * a; // caída suave
+                    a = a * a; // caída suave (halo más brillante)
                     tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
                 }
             tex.Apply();
