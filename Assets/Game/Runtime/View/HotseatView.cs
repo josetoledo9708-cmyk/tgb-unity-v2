@@ -936,6 +936,7 @@ namespace Game.Runtime.View
 
             if (_tutorial && _gameOver && _gameWinner == 0) DrawTutorialWin();
             if (_tutorial2 && _gameOver && _gameWinner == 0) DrawTutorial2Win();
+            if (!_tutorial && !_tutorial2 && _gameOver) DrawMatchEnd(); // partida normal: cierre + volver
 
             if (_decView != null)
             {
@@ -1251,6 +1252,29 @@ namespace Game.Runtime.View
             if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))
                 _deferredResolve = () => { ReturnRequested = true; };
             GUILayout.Space(8);
+            GUILayout.EndArea();
+        }
+
+        /// <summary>Cierre de una partida NORMAL (no tutorial): resultado + volver al menú.</summary>
+        private void DrawMatchEnd()
+        {
+            bool win = _gameWinner == 0;
+            const float w = 460f, h = 200f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
+            var reason = _engine.State.WinReason;
+            string how = reason == VictoryId.III ? "Se completó una Historia (5 piezas en el campo)."
+                : reason == VictoryId.II ? "Un jugador se quedó sin cartas en el mazo (deck-out)."
+                : reason == VictoryId.I ? "Se completó el ciclo de los 7 DÍAs."
+                : "";
+            GUILayout.Space(10);
+            GUILayout.Label(win ? "¡VICTORIA!" : "DERROTA", tt);
+            GUILayout.Label((win ? "Ganaste la partida. " : "El rival ganó la partida. ") + how, body, GUILayout.ExpandHeight(true));
+            GUILayout.Space(6);
+            if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))
+                _deferredResolve = () => { ReturnRequested = true; };
+            GUILayout.Space(10);
             GUILayout.EndArea();
         }
 
