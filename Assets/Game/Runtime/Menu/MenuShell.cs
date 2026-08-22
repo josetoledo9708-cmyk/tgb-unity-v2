@@ -2613,7 +2613,6 @@ namespace Game.Runtime.Menu
         {
             var screen = NewScreen("Tomos", "tomos/fondo_apertura", MenuTheme.DarkBg);
             AddVideoBackground(screen, "Menu/tomos/fondo_tomos"); // fondo animado en bucle (sobre el estático de respaldo)
-            PlayerData.Tomos = 10; // TESTING: siempre 10 tomos al entrar (quitar cuando se pruebe con Tienda)
             BackButton(screen); // sin TopBar/monedas ni título: el fondo del podio ya es el marco
             // atajo a la Tienda (arriba-derecha, espejo de VOLVER): comprar más tomos
             var tiendaBtn = MenuTheme.TextButton(screen, "TIENDA", 14, () => Push(Screen.Tienda), 120f, 40f, thicken: false);
@@ -2642,7 +2641,17 @@ namespace Game.Runtime.Menu
             System.Action hideBottom = null;     // oculta botón+selector al abrir (se asigna abajo)
             System.Action restoreBottom = null;  // los vuelve a mostrar al cerrar (sin reconstruir la pantalla → el fondo en video no se reinicia)
             System.Action refreshAvail = null;   // ajusta visibilidad según haya tomos o no (se asigna abajo)
-            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () => { if (tc != null && !tc.SelectedUnlocked) return; hideBottom?.Invoke(); OpenTomo(fb, restoreBottom); }, 380f, 56f);
+            var abrir = MenuTheme.TextButton(screen, "✦  ABRIR TOMO  ✦", 20, () =>
+            {
+                if (tc != null && !tc.SelectedUnlocked) return;
+                hideBottom?.Invoke();
+                if (PlayerPrefs.GetInt("tut_fixed_pack", 0) == 1) // pack fijo del tutorial
+                {
+                    PlayerPrefs.SetInt("tut_fixed_pack", 0); PlayerPrefs.Save();
+                    OpenFixedTomo(fb, restoreBottom);
+                }
+                else OpenTomo(fb, restoreBottom);
+            }, 380f, 56f);
             abrir.interactable = PlayerData.Tomos > 0;
             MenuTheme.Anchor((RectTransform)abrir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-190f, 206f), new Vector2(190f, 262f));
 
@@ -2722,7 +2731,7 @@ namespace Game.Runtime.Menu
                 tc.SetThumbVisible(0, has); // oculta la imagen del tomo Genesis en el slot central
             };
             refreshAvail();
-            _onShow[Screen.Tomos] = () => { PlayerData.Tomos = 10; PlayerData.Monedas = 10000; coinLbl.text = PlayerData.Monedas.ToString(); fb.ShowFrame(0); refreshAvail(); }; // al reusar del caché (TESTING)
+            _onShow[Screen.Tomos] = () => { PlayerData.Monedas = 10000; coinLbl.text = PlayerData.Monedas.ToString(); fb.ShowFrame(0); refreshAvail(); }; // TESTING: monedas 10000; los Tomos reflejan lo comprado
             return screen;
         }
 
@@ -2761,7 +2770,34 @@ namespace Game.Runtime.Menu
             PlayerData.Tomos -= 1;
             var picks = new List<CardDefinition>();
             for (int i = 0; i < 5; i++) picks.Add(pool[Random.Range(0, pool.Count)]);
+            RunTomoReveal(fb, picks, onClose);
+        }
 
+        /// <summary>Piezas del pack fijo del tutorial (4) + la Historia "El Primer Fratricidio" (h5) como 5ª.</summary>
+        private static readonly string[] FixedPackPieces = { "La Tierra de Nod", "Caín", "Abel", "La Maldición de la Tierra" };
+
+        /// <summary>Abre el TOMO FIJO del tutorial: 4 piezas de h5 + la Historia El Primer Fratricidio.</summary>
+        private void OpenFixedTomo(Flipbook fb, System.Action onClose)
+        {
+            if (PlayerData.Tomos <= 0) return;
+            EnsureCatalog();
+            if (_catalog == null) return;
+
+            var picks = new List<CardDefinition>();
+            foreach (var name in FixedPackPieces)
+                foreach (var c in _catalog.Cards.Values)
+                    if (c.Nombre == name) { picks.Add(c); break; }
+            var h = _catalog.FindHistoria("h5");
+            if (h != null) picks.Add(new CardDefinition(h.Id, h.Nombre, CardType.Historia)); // Historia sintética
+            if (picks.Count == 0) return;
+
+            PlayerData.Tomos -= 1;
+            RunTomoReveal(fb, picks, onClose);
+        }
+
+        /// <summary>Monta la capa de revelado (libro + páginas) y reproduce la apertura para las cartas dadas.</summary>
+        private void RunTomoReveal(Flipbook fb, List<CardDefinition> picks, System.Action onClose)
+        {
             var screen = (RectTransform)fb.transform.parent;
             // capa transparente a pantalla completa: capta el toque (pasar página) y bloquea botones.
             // Es lo más alto de la jerarquía, así que el libro (debajo) se ve a través y las páginas
