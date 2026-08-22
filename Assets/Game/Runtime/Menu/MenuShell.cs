@@ -39,6 +39,8 @@ namespace Game.Runtime.Menu
         private RectTransform _tutRaisedBtn;    // botón subido sobre el dim (para verlo iluminado)
         private Transform _tutRaisedParent;
         private int _tutRaisedIndex;
+        private bool _tutFlowHistorias;         // el tutorial continúa al entrar a Historias
+        private RectTransform _tutTutorialCard;
         private Game.Runtime.View.HotseatView _board;
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
@@ -447,18 +449,32 @@ namespace Game.Runtime.Menu
 
         private void ShowTutorialStep()
         {
-            ClearTutorial();
             if (_tutStep < 0 || _tutStep >= TutSteps.Length) { FinishTutorial(); return; }
             var step = TutSteps[_tutStep];
             bool last = _tutStep == TutSteps.Length - 1;
+            ShowTutBox(step.text, step.onHist ? _histBtn : null, last ? "Ir a Historias" : "Siguiente", last
+                ? () => { _tutFlowHistorias = true; ClearTutorial(); Push(Screen.Historias); }
+                : () => { _tutStep++; ShowTutorialStep(); });
+        }
 
+        // Continuación en la pantalla Historias: resalta el cuadro del Tutorial.
+        private void ShowTutHistorias()
+        {
+            ShowTutBox("Este es el Tutorial. Selecciónalo para aprender a jugar: te enseñará las zonas del campo, los tipos de carta y las fases del juego.",
+                _tutTutorialCard, "Entendido", () => FinishTutorial());
+        }
+
+        /// <summary>Caja de tutorial genérica: oscurece, resalta un objetivo (opcional), muestra texto,
+        /// un botón principal y "Saltar tutorial".</summary>
+        private void ShowTutBox(string text, RectTransform target, string mainLabel, System.Action mainAction)
+        {
+            ClearTutorial();
             var dim = MenuTheme.Rect(_root, "TutOverlay", new Color(0f, 0f, 0f, 0.72f));
             dim.raycastTarget = true; dim.transform.SetAsLastSibling();
             _tut = dim.gameObject;
 
-            if (step.onHist && _histBtn != null) { Canvas.ForceUpdateCanvases(); AddTutHighlight(_histBtn); }
+            if (target != null) { Canvas.ForceUpdateCanvases(); AddTutHighlight(target); }
 
-            // caja de diálogo (abajo-centro)
             var panel = new GameObject("TutBox", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             panel.transform.SetParent(dim.transform, false);
             panel.sprite = MenuGraphics.Rounded(48, 16); panel.type = Image.Type.Sliced;
@@ -468,20 +484,13 @@ namespace Game.Runtime.Menu
             prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f); prt.pivot = new Vector2(0.5f, 0f);
             prt.sizeDelta = new Vector2(680f, 180f); prt.anchoredPosition = new Vector2(0f, 40f);
 
-            var txt = MenuTheme.Label(panel.transform, step.text, 18, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
+            var txt = MenuTheme.Label(panel.transform, text, 18, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
             txt.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 56f), new Vector2(-24f, -18f));
 
-            // botón principal
-            var mainTxt = last ? "Ir a Historias" : "Siguiente";
-            var mainBtn = MenuTheme.TextButton(panel.transform, mainTxt, 16, () =>
-            {
-                if (last) { FinishTutorial(); Push(Screen.Historias); }
-                else { _tutStep++; ShowTutorialStep(); }
-            }, 180f, 40f);
+            var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, 16, mainAction, 180f, 40f);
             MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-198f, 12f), new Vector2(-18f, 52f));
 
-            // saltar
             var skip = MenuTheme.TextButton(panel.transform, "Saltar tutorial", 13, FinishTutorial, 150f, 34f, thicken: false);
             MenuTheme.Anchor((RectTransform)skip.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(18f, 15f), new Vector2(168f, 49f));
         }
@@ -671,6 +680,13 @@ namespace Game.Runtime.Menu
             grid.childAlignment = TextAnchor.UpperCenter;
 
             foreach (var d in Historias) BuildHistoriaCard(grid.transform, d);
+
+            if (_tutFlowHistorias)
+            {
+                _tutFlowHistorias = false;
+                _tutTutorialCard = grid.transform.Find("Card_Tutorial") as RectTransform;
+                ShowTutHistorias();
+            }
             return screen;
         }
 
