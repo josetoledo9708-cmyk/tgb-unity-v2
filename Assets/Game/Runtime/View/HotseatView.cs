@@ -170,8 +170,9 @@ namespace Game.Runtime.View
             if (_tutorial2)
             {
                 PlayerPrefs.SetInt("tutorial2_match", 0); PlayerPrefs.Save();
-                _reward2Given = false; _t2Ack = false; _t2Explained.Clear(); ReturnRequested = false;
-                SetupTutorial2(_engine.State.Players[1]); // mazo rival diminuto -> pierde por deck-out
+                _reward2Given = false; _t2Explained.Clear(); ReturnRequested = false;
+                SetupTutorial2(_engine.State.Players[1]); // rival no puede completar su Historia + demuestra mecánicas
+                _t2Info = T2Intro; _t2Ack = true; // mensaje inicial de objetivo/aviso
             }
 
             _status = "Partida iniciada.";
@@ -235,33 +236,41 @@ namespace Game.Runtime.View
             _aiRunning = true;
             _status = "IA pensando...";
             _engine.Decisions = _auto; // la IA decide sin UI
-            yield return new WaitForSeconds(0.7f);
-
-            // En hilo: así OnGUI sigue corriendo y puedes responder con una trampa.
-            // En tutorial la IA es PASIVA (no juega): solo pasa el turno, para no amenazar al jugador.
-            if (!_tutorial)
-            {
-                var t1 = System.Threading.Tasks.Task.Run(() =>
-                {
-                    try { SimpleAI.PlayTurn(_engine); }
-                    catch (System.Exception e) { Debug.LogError(e); }
-                });
-                while (!t1.IsCompleted) yield return null;
-            }
-            Rebuild();
-            if (_tutorial2) yield return T2Explain(); // explica la mecánica que la IA acaba de usar
             yield return new WaitForSeconds(0.6f);
 
-            if (!_engine.State.IsOver)
+            if (_tutorial2)
             {
-                var t2 = System.Threading.Tasks.Task.Run(() =>
-                {
-                    try { _engine.EndTurn(); }
-                    catch (System.Exception e) { Debug.LogError(e); }
-                });
-                while (!t2.IsCompleted) yield return null;
-                Rebuild();
+                // Tutorial #2: IA guionizada en el hilo principal (para pausar y explicar mecánicas).
+                yield return T2AiTurn(); // juega y termina su turno ella misma
             }
+            else
+            {
+                // En hilo: así OnGUI sigue corriendo y puedes responder con una trampa.
+                // En el tutorial #1 la IA es PASIVA (no juega): solo pasa el turno.
+                if (!_tutorial)
+                {
+                    var t1 = System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try { SimpleAI.PlayTurn(_engine); }
+                        catch (System.Exception e) { Debug.LogError(e); }
+                    });
+                    while (!t1.IsCompleted) yield return null;
+                }
+                Rebuild();
+                yield return new WaitForSeconds(0.6f);
+
+                if (!_engine.State.IsOver)
+                {
+                    var t2 = System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try { _engine.EndTurn(); }
+                        catch (System.Exception e) { Debug.LogError(e); }
+                    });
+                    while (!t2.IsCompleted) yield return null;
+                    Rebuild();
+                }
+            }
+
             _aiRunning = false;
             MaybeRunAI(); // por si el siguiente turno también es IA
         }
@@ -1245,49 +1254,155 @@ namespace Game.Runtime.View
             GUILayout.EndArea();
         }
 
-        // ---------------- Tutorial #2: IA activa que pierde por deck-out ----------------
+        // ---------------- Tutorial #2: partida normal contra IA guionizada que demuestra mecánicas ----------------
 
-        /// <summary>Deja al rival con un mazo diminuto para que se quede sin cartas y pierda (Victoria II).</summary>
+        private bool _t2AiActing; // la IA scriptada actúa en el hilo principal (evita bloquear por respuestas del humano)
+
+        private const string T2Enter = "Muchas cartas tienen EFECTOS AL ENTRAR al campo: se disparan una sola vez, en cuanto la carta se juega. El rival acaba de activar uno.";
+        private const string T2Dia = "El rival activó una carta DÍA. Los DÍAs (1→7) otorgan recompensas al activarse.\n\n⚠ CUIDADO: si el rival activa su DÍA 7 completa su ciclo y GANA la partida, aunque no complete su Historia. Vigila su avance… y avanza también los tuyos.";
+        private const string T2Ser = "El rival jugó un SER y ACTIVÓ su efecto (se hace clic sobre el SER en campo, pagando su coste). Muchos efectos ACTIVADOS sirven para ROBAR o AÑADIR cartas y ganar ventaja. Tus SER también pueden activarse.";
+        private const string T2Trap = "El rival colocó un CONCEPTO BOCA ABAJO: una TRAMPA. Podrá activarla en TU turno (si guardó el FD necesario) para responder a tus acciones. ¡Cuidado con lo que haces frente a cartas ocultas!";
+        private const string T2Dur = "Los SER permanecen en el campo un número limitado de TURNOS (su duración). Cuando se agota, el SER se va a Retirados. Algunas cartas dan PROTECCIÓN para que no sean destruidos ni retirados. Un SER del rival acaba de agotar su duración.";
+        private const string T2Intro = "Gana completando tu HISTORIA reuniendo sus 5 piezas en el campo.\n\nPero ahora te enfrentas a un rival que también intentará completar la suya para ganar. Juega con cuidado: coloca TIERRAs, genera FD, baja tus piezas y activa tus DÍAs. Te iré señalando las mecánicas nuevas conforme aparezcan.";
+
+        /// <summary>Prepara al rival del tutorial #2: no puede completar su Historia (le falta 1 pieza),
+        /// y su mano trae cartas para DEMOSTRAR mecánicas (tierra con efecto, SER con efecto activado, trampa).</summary>
         private void SetupTutorial2(PlayerState p)
         {
-            while (p.Mazo.Count > 3) p.Mazo.Remove(p.Mazo.Cards[p.Mazo.Count - 1]);
+            // Quitar TODAS las copias de una pieza de su Historia (h2: "Sem") -> nunca podrá completarla.
+            foreach (var c in p.Mazo.Cards.Where(c => c.Nombre == "Sem").ToList()) p.Mazo.Remove(c);
+            foreach (var c in p.Mano.Cards.Where(c => c.Nombre == "Sem").ToList()) p.Mano.Remove(c);
+
+            // Sembrar la mano con las cartas de demostración (desde el mazo si están).
+            foreach (var c in p.Mano.Cards.ToList()) { p.Mano.Remove(c); p.Mazo.Add(c); } // mano limpia
+            void Pull(System.Func<CardInstance, bool> match)
+            {
+                var c = p.Mazo.Cards.FirstOrDefault(match);
+                if (c != null) { p.Mazo.Remove(c); p.Mano.Add(c); }
+            }
+            void PullCheapest(System.Func<CardInstance, bool> match)
+            {
+                var c = p.Mazo.Cards.Where(match).OrderBy(x => x.Def.Coste ?? 0).FirstOrDefault();
+                if (c != null) { p.Mazo.Remove(c); p.Mano.Add(c); }
+            }
+            Pull(c => c.Nombre == "Río Tigris");                    // TIERRA con efecto AL ENTRAR
+            Pull(c => c.Type == CardType.Tierra && c.Nombre != "Río Tigris"); // otra TIERRA (FD)
+            Pull(c => c.Type == CardType.Tierra && c.Nombre != "Río Tigris"); // y otra
+            PullCheapest(c => CardTypeNames.IsSer(c.Type) && !string.IsNullOrEmpty(c.Def.Activado)); // SER con efecto activado (barato)
+            Pull(c => c.Type == CardType.Concepto && _engine.Effects.IsResponse(c.Def.Id));  // TRAMPA
         }
 
-        /// <summary>Mecánica que la IA acaba de usar (por el log), aún sin explicar. Prioridad de arriba a abajo.</summary>
-        private static readonly (string logSub, string key, string msg)[] T2Mechanics =
+        private static bool HasEnterEffect(CardInstance c)
         {
-            ("activa DÍA", "dia", "El rival activó una carta DÍA (1→7). Cada DÍA activado puede dar una recompensa, y llegar al DÍA 7 es una condición de victoria. Tú también avanzas tus DÍAs."),
-            ("activa trampa (", "trampa_on", "¡El rival activó una TRAMPA! Un CONCEPTO que tenía boca abajo se disparó como respuesta a una acción. Por eso conviene vigilar sus cartas ocultas."),
-            ("coloca CONCEPTO boca abajo", "trampa_set", "El rival colocó un CONCEPTO boca abajo: una TRAMPA. Podrá activarla incluso en tu turno si tiene el FD necesario."),
-            ("activa efecto de (", "ser_act", "El rival ACTIVÓ el efecto de un SER (clic sobre el SER en campo, pagando su coste). Tus SER también tienen efectos activables."),
-            ("juega CONCEPTO (", "concepto", "El rival jugó un CONCEPTO: una carta de efecto puntual que se resuelve al instante."),
-            ("juega SER (", "ser", "El rival jugó un SER pagando FD. Los SER se quedan en el campo mientras dure su duración y pueden actuar."),
-        };
+            var d = c.Def;
+            return !string.IsNullOrEmpty(d.AlEntrar)
+                   || (!string.IsNullOrEmpty(d.Efecto) && d.Efecto.ToUpperInvariant().Contains("AL ENTRAR"));
+        }
 
-        private IEnumerator T2Explain()
+        private void AiDo(System.Func<CommandResult> cmd) { try { cmd(); } catch (System.Exception e) { Debug.LogError(e); } }
+
+        private IEnumerator T2Say(string key, string text)
+        {
+            _t2Explained.Add(key);
+            _t2Info = text; _t2Ack = true;
+            while (_t2Ack) yield return null; // pausa hasta "Entendido"
+        }
+
+        /// <summary>Turno guionizado del rival: juega en flujo normal y demuestra una mecánica nueva por vez.</summary>
+        private IEnumerator T2AiTurn()
+        {
+            _t2AiActing = true;
+            var p = _engine.State.Players[1];
+            int logStart = _engine.State.Log.Count;
+
+            // Duración: si un SER del rival se agotó en su Preludio, explícalo (una vez).
+            if (!_t2Explained.Contains("dur") && LogHas("agota su duración"))
+                yield return T2Say("dur", T2Dur);
+
+            // A) Jugar una TIERRA (preferir una con efecto al entrar, si aún no se explicó).
+            CardInstance tierra = null;
+            if (!_t2Explained.Contains("enter"))
+                tierra = p.Mano.Cards.FirstOrDefault(c => c.Type == CardType.Tierra && HasEnterEffect(c));
+            if (tierra == null) tierra = p.Mano.Cards.FirstOrDefault(c => c.Type == CardType.Tierra);
+            if (tierra != null && !p.TierraPlayedThisTurn && !p.Tierras.IsFull)
+            {
+                bool hadEffect = HasEnterEffect(tierra);
+                AiDo(() => _engine.PlayTierra(tierra)); Rebuild(); yield return new WaitForSeconds(0.5f);
+                if (hadEffect && !_t2Explained.Contains("enter")) yield return T2Say("enter", T2Enter);
+            }
+
+            // B) Tapear TIERRAs para generar FD.
+            foreach (var t in p.Tierras.Cards.Where(t => !t.Tapped).ToList()) AiDo(() => _engine.TapTierra(t));
+            Rebuild(); yield return new WaitForSeconds(0.3f);
+
+            // C) Activar el DÍA una vez (demostración + aviso). Solo una vez para no acercarlo al DÍA 7.
+            if (!_t2Explained.Contains("dia"))
+            {
+                var dia = p.PilaDia.Cards.FirstOrDefault(d => PlayerState.DiaNumero(d) == p.DiaActual);
+                int coste = dia?.Def.Coste ?? 99;
+                if (dia != null && DiaConditions.Met(p, p.DiaActual) && p.Fd >= coste)
+                {
+                    AiDo(() => _engine.ActivateDia(false)); Rebuild(); yield return new WaitForSeconds(0.4f);
+                    yield return T2Say("dia", T2Dia);
+                }
+            }
+
+            // D) Jugar un SER con efecto activado y activarlo (demostración de robo/ventaja).
+            if (!_t2Explained.Contains("ser_act"))
+            {
+                var ser = p.Mano.Cards.FirstOrDefault(c => CardTypeNames.IsSer(c.Type)
+                    && !string.IsNullOrEmpty(c.Def.Activado) && !p.Seres.IsFull && p.Fd >= (c.Def.Coste ?? 0));
+                if (ser != null)
+                {
+                    AiDo(() => _engine.PlaySer(ser)); Rebuild(); yield return new WaitForSeconds(0.4f);
+                    if (!p.SeresActivatedThisTurn.Contains(ser.InstanceId) && p.Fd >= (ser.Def.ActCost ?? 0))
+                    { AiDo(() => _engine.ActivateSerEffect(ser)); Rebuild(); yield return new WaitForSeconds(0.4f); }
+                    yield return T2Say("ser_act", T2Ser);
+                }
+            }
+
+            // E) Colocar una TRAMPA boca abajo (deja el FD sin gastar para poder activarla en tu turno).
+            if (!_t2Explained.Contains("trap") && !p.Concepto.Cards.Any(x => x.FaceDown) && !p.Concepto.IsFull)
+            {
+                var trap = p.Mano.Cards.FirstOrDefault(c => c.Type == CardType.Concepto && _engine.Effects.IsResponse(c.Def.Id));
+                if (trap != null)
+                {
+                    AiDo(() => _engine.PlayConcepto(trap, faceDown: true)); Rebuild(); yield return new WaitForSeconds(0.4f);
+                    yield return T2Say("trap", T2Trap);
+                }
+            }
+
+            // F) Terminar el turno (pasa al jugador). En hilo para no bloquear si algún efecto pide respuesta.
+            yield return new WaitForSeconds(0.3f);
+            _t2AiActing = false;
+            if (!_engine.State.IsOver)
+            {
+                var te = System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { _engine.EndTurn(); }
+                    catch (System.Exception e) { Debug.LogError(e); }
+                });
+                while (!te.IsCompleted) yield return null;
+                Rebuild();
+            }
+            _ = logStart; // (reservado por si se quiere acotar el escaneo del log)
+        }
+
+        private bool LogHas(string sub)
         {
             var log = _engine.State.Log;
-            foreach (var m in T2Mechanics)
-            {
-                if (_t2Explained.Contains(m.key)) continue;
-                bool used = false;
-                for (int i = 0; i < log.Count; i++) if (log[i].Contains(m.logSub)) { used = true; break; }
-                if (!used) continue;
-                _t2Explained.Add(m.key);
-                _t2Info = m.msg; _t2Ack = true;
-                while (_t2Ack) yield return null; // pausa hasta "Entendido"
-                yield break; // una explicación por turno de la IA
-            }
+            for (int i = 0; i < log.Count; i++) if (log[i].Contains(sub)) return true;
+            return false;
         }
 
         private void DrawT2Info()
         {
-            const float w = 560f, h = 210f;
+            const float w = 580f, h = 290f;
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
             var tt = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
             GUILayout.Space(6);
-            GUILayout.Label("EL RIVAL ACTÚA", tt);
+            GUILayout.Label("TUTORIAL", tt);
             GUILayout.Label(_t2Info, body, GUILayout.ExpandHeight(true));
             GUILayout.Space(4);
             GUILayout.BeginHorizontal();
@@ -1344,6 +1459,8 @@ namespace Game.Runtime.View
         /// </summary>
         private CardInstance? OnResponseWindow(int defender, CardInstance attacker, EffectCategory cat)
         {
+            // La IA scriptada del tutorial #2 corre en el hilo principal: no bloquear pidiendo respuesta al humano.
+            if (_t2AiActing && defender != aiPlayer) return null;
             var dp = _engine.State.Players[defender];
             var trap = dp.Concepto.Cards.FirstOrDefault(c =>
                 c.FaceDown && _engine.Effects.IsResponse(c.Def.Id) && dp.Fd >= (c.Def.Coste ?? 0)
