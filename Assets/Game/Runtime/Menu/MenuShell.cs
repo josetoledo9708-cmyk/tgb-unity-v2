@@ -327,7 +327,8 @@ namespace Game.Runtime.Menu
             tomoPart.sizeDelta = new Vector2(160f, 220f); tomoPart.anchoredPosition = Vector2.zero;
             var tomoParticles = tomoPart.gameObject.AddComponent<GoldParticles>();
             tomoParticles.dotSprite = GlowSprite();
-            tomoParticles.count = 29; // más partículas
+            tomoParticles.count = 58;     // pool total (al hover se activan todas)
+            tomoParticles.baseCount = 29; // activas normalmente
 
             // resplandor radial suave detrás del libro (oculto; se ilumina al pasar el cursor)
             var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", GlowSprite(), preserveAspect: false);
@@ -347,6 +348,7 @@ namespace Game.Runtime.Menu
             tomoHover.target = tomoBook.transform;
             tomoHover.glow = tomoGlow;
             tomoHover.glowAlpha = 1f;
+            tomoHover.particles = tomoParticles; // hover: duplica las partículas
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;
