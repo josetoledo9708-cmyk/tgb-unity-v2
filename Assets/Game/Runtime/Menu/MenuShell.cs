@@ -1968,6 +1968,8 @@ namespace Game.Runtime.Menu
         {
             var screen = NewScreen("Tienda", "tienda/fondo_tienda", MenuTheme.DarkBg);
             PlayerData.Monedas = 10000; // TESTING
+            foreach (var pk in TiendaPacks) PlayerPrefs.DeleteKey("tienda_pack_" + pk.id); // TESTING: reinicia compras
+            PlayerPrefs.Save();
 
             // esquinas decorativas
             AddCorner(screen, "tienda/ESI", new Vector2(0f, 1f));
@@ -1978,10 +1980,11 @@ namespace Game.Runtime.Menu
             // banner del título (CUADRO 1 + "TIENDA")
             var banner = MenuTheme.Picture(screen, "Banner", MenuAssets.Sprite("tienda/CUADRO 1"), preserveAspect: true);
             banner.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)banner.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-360f, -132f), new Vector2(360f, -6f));
-            var btitle = MenuTheme.Label(screen, "TIENDA", 34, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.Anchor((RectTransform)banner.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-520f, -200f), new Vector2(520f, 6f));
+            var btitle = MenuTheme.Label(screen, "TIENDA", 40, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.GoldMetalText(btitle); btitle.raycastTarget = false;
-            MenuTheme.Anchor((RectTransform)btitle.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-200f, -96f), new Vector2(200f, -44f));
+            btitle.transform.SetAsLastSibling(); // por delante del marco
+            MenuTheme.Anchor((RectTransform)btitle.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-220f, -132f), new Vector2(220f, -60f));
 
             BackButton(screen);
 
