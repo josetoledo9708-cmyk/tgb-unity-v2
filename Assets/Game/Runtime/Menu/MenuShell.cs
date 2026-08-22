@@ -1952,37 +1952,162 @@ namespace Game.Runtime.Menu
 
         // --- TIENDA ---
 
+        // Datos de los packs (como en Godot)
+        private static readonly (string id, string img, int price, int tomos)[] TiendaPacks =
+        {
+            ("comienzos",  "tienda/promos/PromoComenzos",   750,  10),
+            ("explorador", "tienda/promos/pack explorador", 1500, 20),
+            ("legado",     "tienda/promos/legado",          3500, 50),
+        };
+
+        private string _tiendaCat = "paquetes";
+        private RectTransform _tiendaContent;
+        private Text _tiendaCoins;
+
         private RectTransform BuildTienda()
         {
             var screen = NewScreen("Tienda", "tienda/fondo_tienda", MenuTheme.DarkBg);
-            if (MenuAssets.Sprite("tienda/fondo_tienda") == null) MenuTheme.Rect(screen, "bg2", new Color(0.08f, 0.06f, 0.1f, 1f));
-            Title(screen, "TIENDA");
+            PlayerData.Monedas = 10000; // TESTING
+
+            // esquinas decorativas
+            AddCorner(screen, "tienda/ESI", new Vector2(0f, 1f));
+            AddCorner(screen, "tienda/ESD", new Vector2(1f, 1f));
+            AddCorner(screen, "tienda/EII", new Vector2(0f, 0f));
+            AddCorner(screen, "tienda/EID", new Vector2(1f, 0f));
+
+            // banner del título (CUADRO 1 + "TIENDA")
+            var banner = MenuTheme.Picture(screen, "Banner", MenuAssets.Sprite("tienda/CUADRO 1"), preserveAspect: true);
+            banner.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)banner.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-360f, -132f), new Vector2(360f, -6f));
+            var btitle = MenuTheme.Label(screen, "TIENDA", 34, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.GoldMetalText(btitle); btitle.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)btitle.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-200f, -96f), new Vector2(200f, -44f));
+
             BackButton(screen);
-            TopBar(screen, withCoins: true);
-            var grid = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup)).GetComponent<GridLayoutGroup>();
-            grid.transform.SetParent(screen, false);
-            MenuTheme.Anchor((RectTransform)grid.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-420f, 40f), new Vector2(420f, -100f));
-            grid.cellSize = new Vector2(200f, 240f); grid.spacing = new Vector2(20f, 20f);
-            grid.childAlignment = TextAnchor.UpperCenter;
-            string[] cuadros = { "tienda/CUADRO 1", "tienda/CADRO 2", "tienda/CUADRO 3", "tienda/CUADRO 6" };
-            int[] precios = { 100, 250, 500, 1000 };
-            for (int i = 0; i < cuadros.Length; i++)
+
+            // monedas arriba-derecha
+            var coinIcon = MenuTheme.Picture(screen, "CoinIcon", MenuAssets.Sprite("Moneda"));
+            coinIcon.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)coinIcon.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-150f, -58f), new Vector2(-114f, -22f));
+            _tiendaCoins = MenuTheme.Label(screen, PlayerData.Monedas.ToString(), 22, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+            MenuTheme.GoldMetalText(_tiendaCoins); _tiendaCoins.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)_tiendaCoins.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-108f, -58f), new Vector2(-16f, -22f));
+
+            // --- sidebar de categorías (marco + botones-imagen) ---
+            var marco = MenuTheme.Picture(screen, "SBMarco", MenuAssets.Sprite("tienda/promos/marco para botones"), preserveAspect: false);
+            marco.raycastTarget = false;
+            PlaceTL((RectTransform)marco.transform, 34f, 92f, 272f, 545f);
+            string[] cats = { "paquetes", "protectores", "tableros", "monedas" };
+            const float btnW = 205f, btnH = 70f, gap = 20f; int n = cats.Length;
+            float stackH = n * btnH + (n - 1) * gap;
+            float startY = 92f + (545f - stackH) / 2f;
+            float btnX = 34f + (272f - btnW) / 2f;
+            for (int i = 0; i < n; i++)
             {
-                int precio = precios[i];
-                var cell = MenuTheme.Panel(grid.transform, "Item");
-                ((RectTransform)cell.transform).sizeDelta = new Vector2(200f, 240f);
-                var pic = MenuAssets.Sprite(cuadros[i]);
-                if (pic != null) MenuTheme.Picture(cell, "pic", pic);
-                else MenuTheme.Rect(cell, "pic", MenuTheme.PanelBg);
-                var buy = MenuTheme.TextButton(cell, precio + " ◈", 18, () => TryBuy(precio), 160f, 40f);
-                MenuTheme.Anchor((RectTransform)buy.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-80f, 8f), new Vector2(80f, 48f));
+                string cid = cats[i];
+                float y = startY + i * (btnH + gap);
+                var holder = new GameObject("Cat_" + cid, typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<Image>();
+                holder.transform.SetParent(screen, false);
+                holder.color = new Color(0f, 0f, 0f, 0f); holder.raycastTarget = true;
+                PlaceTL((RectTransform)holder.transform, btnX, y, btnW, btnH);
+                var catPic = MenuTheme.Picture(holder.transform, "pic", MenuAssets.Sprite("tienda/promos/" + cid), preserveAspect: true);
+                catPic.raycastTarget = false; MenuTheme.Stretch((RectTransform)catPic.transform);
+                holder.gameObject.AddComponent<HoverScale>().target = catPic.transform;
+                holder.GetComponent<Button>().onClick.AddListener(() => { _tiendaCat = cid; RebuildTiendaContent(); });
             }
+
+            // --- área de contenido ---
+            _tiendaContent = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
+            _tiendaContent.SetParent(screen, false);
+            PlaceTL(_tiendaContent, 330f, 150f, 915f, 515f);
+            RebuildTiendaContent();
+
+            _onShow[Screen.Tienda] = () => { PlayerData.Monedas = 10000; if (_tiendaCoins != null) _tiendaCoins.text = "10000"; };
             return screen;
         }
 
-        private void TryBuy(int precio)
+        private void RebuildTiendaContent()
         {
-            if (PlayerData.Monedas >= precio) { PlayerData.Monedas -= precio; Show(Screen.Tienda); }
+            if (_tiendaContent == null) return;
+            for (int i = _tiendaContent.childCount - 1; i >= 0; i--) Destroy(_tiendaContent.GetChild(i).gameObject);
+            if (_tiendaCat == "paquetes") { BuildPaquetes(); return; }
+            // otras categorías: encabezado + "Próximamente" (pendiente de contenido)
+            string head = _tiendaCat == "protectores" ? "Protectores de Carta" : _tiendaCat == "tableros" ? "Tableros de Juego" : "Monedas";
+            var h = MenuTheme.Label(_tiendaContent, head, 24, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
+            h.raycastTarget = false; PlaceTL((RectTransform)h.transform, 0f, 0f, 915f, 40f);
+            var soon = MenuTheme.Label(_tiendaContent, "Próximamente", 20, new Color(0.7f, 0.68f, 0.6f), TextAnchor.MiddleCenter);
+            soon.raycastTarget = false; PlaceTL((RectTransform)soon.transform, 0f, 220f, 915f, 60f);
+        }
+
+        private void BuildPaquetes()
+        {
+            float heroW = 580f * 1.2f;            // 696
+            AddPack(0, (915f - heroW) / 2f, -34f, heroW);
+            float ew = 332f, lw = 348f, g = 24f;
+            float sx = (915f - (ew + g + lw)) / 2f;
+            AddPack(1, sx, 337f, ew);
+            AddPack(2, sx + ew + g, 337f, lw);
+        }
+
+        private void AddPack(int idx, float x, float y, float w)
+        {
+            var p = TiendaPacks[idx];
+            var sp = MenuAssets.Sprite(p.img);
+            if (sp == null) return;
+            float h = w * sp.rect.height / sp.rect.width;
+            bool bought = PlayerPrefs.GetInt("tienda_pack_" + p.id, 0) == 1;
+
+            var img = MenuTheme.Picture(_tiendaContent, "Pack_" + p.id, sp, preserveAspect: false);
+            img.raycastTarget = false;
+            if (bought) img.color = new Color(0.55f, 0.55f, 0.55f, 1f);
+            PlaceTL((RectTransform)img.transform, x, y, w, h);
+
+            // botón de costo / reclamado, superpuesto cerca del borde inferior
+            var cost = new GameObject("Cost_" + p.id, typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<Image>();
+            cost.transform.SetParent(_tiendaContent, false);
+            cost.sprite = MenuAssets.Sprite("tienda/promos/boton compras"); cost.type = Image.Type.Sliced;
+            cost.raycastTarget = true;
+            float cw = 168f, ch = 44f;
+            PlaceTL((RectTransform)cost.transform, x + (w - cw) / 2f, y + h - ch - 6f, cw, ch);
+            var cbtn = cost.GetComponent<Button>();
+            if (bought)
+            {
+                cost.color = new Color(0.5f, 0.5f, 0.5f, 0.9f); cbtn.interactable = false;
+                var rl = MenuTheme.Label(cost.transform, "✓ RECLAMADO", 16, new Color(0.55f, 0.85f, 0.55f), TextAnchor.MiddleCenter, FontStyle.Bold);
+                rl.raycastTarget = false; MenuTheme.Stretch((RectTransform)rl.transform);
+            }
+            else
+            {
+                var pl = MenuTheme.Label(cost.transform, p.price + "  ◈", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                MenuTheme.GoldMetalText(pl); pl.raycastTarget = false; MenuTheme.Stretch((RectTransform)pl.transform);
+                string id = p.id; int price = p.price; int tomos = p.tomos;
+                cbtn.onClick.AddListener(() =>
+                {
+                    if (PlayerData.Monedas < price) return;
+                    PlayerData.Monedas -= price;
+                    PlayerData.Tomos += tomos;
+                    PlayerPrefs.SetInt("tienda_pack_" + id, 1); PlayerPrefs.Save();
+                    if (_tiendaCoins != null) _tiendaCoins.text = PlayerData.Monedas.ToString();
+                    RebuildTiendaContent();
+                });
+            }
+        }
+
+        /// <summary>Coloca un RectTransform con coordenadas estilo Godot (origen arriba-izq, y hacia abajo).</summary>
+        private static void PlaceTL(RectTransform rt, float x, float y, float w, float h)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.offsetMin = new Vector2(x, -(y + h));
+            rt.offsetMax = new Vector2(x + w, -y);
+        }
+
+        private void AddCorner(RectTransform screen, string sprite, Vector2 corner)
+        {
+            var img = MenuTheme.Picture(screen, "Corner", MenuAssets.Sprite(sprite), preserveAspect: true);
+            img.raycastTarget = false;
+            var rt = (RectTransform)img.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = corner;
+            rt.sizeDelta = new Vector2(120f, 120f); rt.anchoredPosition = Vector2.zero;
         }
 
         // --- TOMOS ---
