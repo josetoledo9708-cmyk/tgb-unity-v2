@@ -65,6 +65,13 @@ namespace Game.Runtime.View
         private bool _rewardGiven;
         private CardInstance? _playInfoCard; // carta recién jugada cuyo efecto se está explicando
         private bool _awaitInfoAck;          // esperando "Entendido" tras jugar una pieza
+
+        // --- Tutorial #2: IA activa que pierde por deck-out; explica mecánicas al usarlas ---
+        private bool _tutorial2;
+        private bool _reward2Given;
+        private readonly HashSet<string> _t2Explained = new();
+        private string _t2Info = "";
+        private bool _t2Ack;                 // popup de explicación abierto (pausa a la IA)
         public static bool ReturnRequested; // el menú (MenuShell) lo detecta para volver al MainMenu
 
         private static readonly (string msg, TutHL hl)[] GuideSteps =
@@ -155,6 +162,14 @@ namespace Game.Runtime.View
                 SetupTutorialField(_engine.State.Players[0]); // mano fija + piezas preparadas para ganar
             }
 
+            _tutorial2 = PlayerPrefs.GetInt("tutorial2_match", 0) == 1;
+            if (_tutorial2)
+            {
+                PlayerPrefs.SetInt("tutorial2_match", 0); PlayerPrefs.Save();
+                _reward2Given = false; _t2Ack = false; _t2Explained.Clear(); ReturnRequested = false;
+                SetupTutorial2(_engine.State.Players[1]); // mazo rival diminuto -> pierde por deck-out
+            }
+
             _status = "Partida iniciada.";
             BuildBoard();
             Rebuild();
@@ -196,6 +211,7 @@ namespace Game.Runtime.View
                 while (!t1.IsCompleted) yield return null;
             }
             Rebuild();
+            if (_tutorial2) yield return T2Explain(); // explica la mecánica que la IA acaba de usar
             yield return new WaitForSeconds(0.6f);
 
             if (!_engine.State.IsOver)
@@ -869,7 +885,10 @@ namespace Game.Runtime.View
 
             if (_tutorial && _awaitInfoAck && _playInfoCard != null && !_gameOver) DrawPlayInfo();
 
+            if (_tutorial2 && _t2Ack && !_gameOver) DrawT2Info();
+
             if (_tutorial && _gameOver && _gameWinner == 0) DrawTutorialWin();
+            if (_tutorial2 && _gameOver && _gameWinner == 0) DrawTutorial2Win();
 
             if (_decView != null)
             {
@@ -1188,6 +1207,89 @@ namespace Game.Runtime.View
             GUILayout.EndArea();
         }
 
+        // ---------------- Tutorial #2: IA activa que pierde por deck-out ----------------
+
+        /// <summary>Deja al rival con un mazo diminuto para que se quede sin cartas y pierda (Victoria II).</summary>
+        private void SetupTutorial2(PlayerState p)
+        {
+            while (p.Mazo.Count > 3) p.Mazo.Remove(p.Mazo.Cards[p.Mazo.Count - 1]);
+        }
+
+        /// <summary>Mecánica que la IA acaba de usar (por el log), aún sin explicar. Prioridad de arriba a abajo.</summary>
+        private static readonly (string logSub, string key, string msg)[] T2Mechanics =
+        {
+            ("activa DÍA", "dia", "El rival activó una carta DÍA (1→7). Cada DÍA activado puede dar una recompensa, y llegar al DÍA 7 es una condición de victoria. Tú también avanzas tus DÍAs."),
+            ("activa trampa (", "trampa_on", "¡El rival activó una TRAMPA! Un CONCEPTO que tenía boca abajo se disparó como respuesta a una acción. Por eso conviene vigilar sus cartas ocultas."),
+            ("coloca CONCEPTO boca abajo", "trampa_set", "El rival colocó un CONCEPTO boca abajo: una TRAMPA. Podrá activarla incluso en tu turno si tiene el FD necesario."),
+            ("activa efecto de (", "ser_act", "El rival ACTIVÓ el efecto de un SER (clic sobre el SER en campo, pagando su coste). Tus SER también tienen efectos activables."),
+            ("juega CONCEPTO (", "concepto", "El rival jugó un CONCEPTO: una carta de efecto puntual que se resuelve al instante."),
+            ("juega SER (", "ser", "El rival jugó un SER pagando FD. Los SER se quedan en el campo mientras dure su duración y pueden actuar."),
+        };
+
+        private IEnumerator T2Explain()
+        {
+            var log = _engine.State.Log;
+            foreach (var m in T2Mechanics)
+            {
+                if (_t2Explained.Contains(m.key)) continue;
+                bool used = false;
+                for (int i = 0; i < log.Count; i++) if (log[i].Contains(m.logSub)) { used = true; break; }
+                if (!used) continue;
+                _t2Explained.Add(m.key);
+                _t2Info = m.msg; _t2Ack = true;
+                while (_t2Ack) yield return null; // pausa hasta "Entendido"
+                yield break; // una explicación por turno de la IA
+            }
+        }
+
+        private void DrawT2Info()
+        {
+            const float w = 560f, h = 210f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            var tt = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
+            GUILayout.Space(6);
+            GUILayout.Label("EL RIVAL ACTÚA", tt);
+            GUILayout.Label(_t2Info, body, GUILayout.ExpandHeight(true));
+            GUILayout.Space(4);
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Entendido", GUILayout.Height(32), GUILayout.Width(160)))
+                _deferredResolve = () => { _t2Ack = false; };
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Space(6);
+            GUILayout.EndArea();
+        }
+
+        private void GrantTutorial2Reward()
+        {
+            if (_reward2Given) return;
+            _reward2Given = true;
+            PlayerPrefs.SetInt("logro_inicio_historia", 1); // logro reclamable en Logros
+            PlayerPrefs.SetInt("mp_unlocked", 1);           // desbloquea Multijugador
+            PlayerPrefs.SetInt("tutorial2_done", 1);
+            PlayerPrefs.Save();
+        }
+
+        private void DrawTutorial2Win()
+        {
+            GrantTutorial2Reward();
+            const float w = 470f, h = 230f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
+            GUILayout.Space(8);
+            GUILayout.Label("¡VICTORIA!", tt);
+            GUILayout.Label("El rival se quedó sin cartas en el mazo (deck-out) y perdió. ¡Ya dominas lo esencial!\nDesbloqueaste el MULTIJUGADOR y el logro «El Inicio de la Historia»: reclámalo (+1000) en Misiones y Logros.",
+                body, GUILayout.ExpandHeight(true));
+            GUILayout.Space(6);
+            if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))
+                _deferredResolve = () => { ReturnRequested = true; };
+            GUILayout.Space(8);
+            GUILayout.EndArea();
+        }
+
         // --- cartas de respuesta (trampas) ---
         private CardInstance? _placeCard;          // CONCEPTO respuesta esperando colocación
         private bool _placePending;
@@ -1412,7 +1514,7 @@ namespace Game.Runtime.View
         {
             var s = _engine.State;
             if (s.TurnNumber != _timerTurn) { _timerTurn = s.TurnNumber; _turnTimer = turnSeconds; }
-            if (_tutorial) { _turnTimer = turnSeconds; return; } // el tutorial no consume tiempo (no reinicia FD)
+            if (_tutorial || _tutorial2) { _turnTimer = turnSeconds; return; } // el tutorial no consume tiempo (no reinicia FD)
             if (s.IsOver) return;
             bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
             if (!humanTurn) return; // la IA no consume el reloj

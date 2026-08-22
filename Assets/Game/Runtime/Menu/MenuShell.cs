@@ -303,7 +303,8 @@ namespace Game.Runtime.Menu
             {
                 // TESTING: relanza el tutorial completo como si fuese la primera vez
                 foreach (var k in new[] { "tut_intro_done", "tutorial1_done", "tut_postmatch_done",
-                                          "logro_primeros_pasos", "log_claim_lp", "tut_fixed_pack", "tienda_pack_comienzos" })
+                                          "logro_primeros_pasos", "log_claim_lp", "tut_fixed_pack", "tienda_pack_comienzos",
+                                          "tutorial2_done", "tutorial2_match", "logro_inicio_historia", "log_claim_lh", "mp_unlocked" })
                     PlayerPrefs.DeleteKey(k);
                 PlayerPrefs.Save();
                 _postStep = -1; _tutFlowMisiones = _tutFlowTienda = _tutFlowTomos = _tutFlowConstructor = false;
@@ -339,7 +340,12 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -280f), new Vector2(240f, 50f));
             var histBtn = DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
             _histBtn = (RectTransform)histBtn.transform;
-            DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
+            DesignedMenuButton(list.transform, "MULTIJUGADOR", () =>
+            {
+                if (PlayerPrefs.GetInt("mp_unlocked", 0) == 1) Push(Screen.Multijugador);
+                else ShowTutHint("El Multijugador se desbloquea al completar el Tutorial 2: juega «La Caída del Edén» desde Historias.",
+                    "Entendido", () => ClearTutorial());
+            });
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE HISTORIAS", () => Push(Screen.MisMazos));
             var misBtn = DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
             _misBtn = (RectTransform)misBtn.transform;
@@ -3228,6 +3234,16 @@ namespace Game.Runtime.Menu
 
         private void LaunchGame()
         {
+            // Tutorial #2: la primera vez que se juega "La Caída del Edén" (h1) tras el tutorial #1,
+            // y sin ser la propia partida-tutorial #1, se marca como partida-tutorial #2.
+            if (PlayerPrefs.GetInt("tutorial_match", 0) != 1
+                && PlayerData.SelectedHistoriaId == "h1"
+                && PlayerPrefs.GetInt("tutorial1_done", 0) == 1
+                && PlayerPrefs.GetInt("tutorial2_done", 0) != 1)
+            {
+                PlayerPrefs.SetInt("tutorial2_match", 1); PlayerPrefs.Save();
+            }
+
             // El campo ya está en la escena, solo desactivado: ocúltase el menú y se enciende.
             if (_board != null)
             {
