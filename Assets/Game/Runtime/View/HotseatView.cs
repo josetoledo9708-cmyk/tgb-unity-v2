@@ -73,7 +73,7 @@ namespace Game.Runtime.View
             ("¡Así se genera FD! Tienes las 2 primeras piezas (TIERRA) en el campo. Ahora arrastra a ADÁN a una ranura de SER.", TutHL.HandSer),
             ("¡Bien! Ahora arrastra a EVA a otra ranura de SER.", TutHL.HandSer),
             ("Ya casi. Arrastra a LA SERPIENTE a la última ranura de SER.", TutHL.HandSer),
-            ("¡Tus 5 piezas están en el campo! Pulsa SIGUIENTE FASE para completar tu Historia y GANAR.", TutHL.Phase),
+            ("¡HISTORIA COMPLETADA! Colocaste sus 5 piezas en el campo (2 TIERRAs + 3 SERes). Al TERMINAR tu turno con SIGUIENTE FASE, en la fase de ENTREGA se comprobará y GANARÁS la partida.", TutHL.Phase),
         };
 
         private readonly RuntimeDecisionProvider _decisions = new();
@@ -84,6 +84,7 @@ namespace Game.Runtime.View
         private string _cmdName = "";
 
         private DecisionRequest? _decReq;
+        private DecisionRequest? _decView;   // latch por-frame de _decisions.Pending (lo escribe el hilo de comando)
         private CardInstance? _decSelected;
         private readonly List<CardInstance> _decOrder = new();
         private Vector2 _decScroll;
@@ -222,6 +223,7 @@ namespace Game.Runtime.View
             // distintos) debe ver el MISMO valor aunque el hilo de comandos cambie IsOver en medio.
             _gameOver = _engine.State.IsOver;
             _gameWinner = _engine.State.Winner ?? -1;
+            _decView = _decisions.Pending; // estable durante Layout y Repaint del mismo frame
 
             // Fase B (guiada): avanzar el paso cuando el jugador cumple lo pedido.
             if (_tutorial && _tutIdx >= TutSteps.Length)
@@ -869,9 +871,9 @@ namespace Game.Runtime.View
 
             if (_tutorial && _gameOver && _gameWinner == 0) DrawTutorialWin();
 
-            if (_decisions.Pending != null)
+            if (_decView != null)
             {
-                DrawDecision(_decisions.Pending);
+                DrawDecision(_decView);
                 if (_decSelected != null) // ver la carta elegida en el menú + sus efectos
                     DrawCardDetailFor(_decSelected, s.ActivePlayer);
             }
