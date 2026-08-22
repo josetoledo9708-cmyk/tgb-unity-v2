@@ -131,8 +131,12 @@ namespace Game.Runtime.View
         private readonly List<GameObject>[] _glowSer = { new(), new() };
         private readonly GameObject?[] _glowConcepto = new GameObject?[2];
 
-        private void Start()
+        // El campo se enciende/apaga con `enabled` desde el menú; Start solo corre una vez, así que
+        // reinicializamos en CADA activación (OnEnable) para empezar una partida nueva y limpia.
+        private void OnEnable()
         {
+            CleanupPreviousMatch();
+
             EnsureSceneRig();
 
             string path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
@@ -174,6 +178,40 @@ namespace Game.Runtime.View
             BuildBoard();
             Rebuild();
             MaybeRunAI();
+        }
+
+        private void OnDisable() => StopAllCoroutines(); // al ocultar el campo, corta turnos de IA en curso
+
+        /// <summary>Limpia por completo la partida anterior antes de montar una nueva (el board se
+        /// re-enciende con `enabled`, pero Start no vuelve a correr).</summary>
+        private void CleanupPreviousMatch()
+        {
+            StopAllCoroutines(); // corta cualquier turno de IA en curso
+
+            if (_board != null) { Destroy(_board.gameObject); _board = null!; }
+            foreach (var v in _spawned) if (v != null) Destroy(v.gameObject);
+            _spawned.Clear();
+
+            _hovered = null; _drag = null;
+            _prevHandIds.Clear(); _wasTapped.Clear();
+            for (int p = 0; p < 2; p++)
+            {
+                _serSlot[p].Clear(); _tierraSlot[p].Clear();
+                _glowTierra[p].Clear(); _glowSer[p].Clear(); _glowConcepto[p] = null;
+            }
+
+            _busy = false; _aiRunning = false; _cmdTask = null;
+            _decView = null; _decReq = null; _decSelected = null; _decOrder.Clear();
+            _deferredResolve = null;
+            _placePending = false; _placeCard = null; _respShow = false; _respPending = false; _respTrap = null;
+            _showLog = false; _lastLogCount = -1; _logView.Clear();
+            _gameOver = false; _gameWinner = -1; _timerTurn = -1;
+
+            // Estado de tutoriales (se re-decide abajo según los flags).
+            _tutorial = false; _tutorial2 = false;
+            _tutIdx = 0; _guideStep = -1; _awaitInfoAck = false; _playInfoCard = null;
+            _rewardGiven = false; _reward2Given = false;
+            _t2Ack = false; _t2Explained.Clear();
         }
 
         /// <summary>Garantiza que la mano de apertura tenga una carta de respuesta (para probar trampas).</summary>
