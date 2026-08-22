@@ -320,13 +320,23 @@ namespace Game.Runtime.Menu
             // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
             MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-325f, -287f), new Vector2(-75f, 57f)); // marco de atrás ~30% más grande
+            // resplandor detrás del libro (oculto; se ilumina al pasar el cursor)
+            var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", MenuAssets.Sprite("GlowDorado"), preserveAspect: true);
+            tomoGlow.raycastTarget = false;
+            tomoGlow.color = new Color(1f, 0.87f, 0.55f, 0f); // oro, alfa 0 al inicio
+            var tgr = (RectTransform)tomoGlow.transform;
+            tgr.anchorMin = tgr.anchorMax = new Vector2(0.5f, 0.5f); tgr.pivot = new Vector2(0.5f, 0.5f);
+            tgr.sizeDelta = new Vector2(240f, 300f); tgr.anchoredPosition = Vector2.zero;
+
             // libro 3D al frente cubriendo el tomo del botón; SOLO este crece al pasar el cursor
             var tomoBook = MenuTheme.Picture(tomos.transform, "TomoBook", MenuAssets.Sprite("diseno_tomo"), preserveAspect: true);
             tomoBook.raycastTarget = false;
             var tbr = (RectTransform)tomoBook.transform;
             tbr.anchorMin = tbr.anchorMax = new Vector2(0.5f, 0.5f); tbr.pivot = new Vector2(0.5f, 0.5f);
             tbr.sizeDelta = new Vector2(138f, 184f); tbr.anchoredPosition = Vector2.zero;
-            tomos.gameObject.AddComponent<HoverScale>().target = tomoBook.transform; // hover en el botón agranda el libro
+            var tomoHover = tomos.gameObject.AddComponent<HoverScale>(); // hover en el botón: agranda el libro + resplandor
+            tomoHover.target = tomoBook.transform;
+            tomoHover.glow = tomoGlow;
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;

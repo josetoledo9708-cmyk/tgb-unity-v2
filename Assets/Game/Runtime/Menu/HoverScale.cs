@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Game.Runtime.Menu
 {
@@ -10,6 +11,8 @@ namespace Game.Runtime.Menu
         public float hoverScale = 1.08f;
         public float speed = 10f;
         public Transform target; // si se asigna, agranda ESTE en vez de sí mismo (p. ej. solo el libro del botón)
+        public Graphic glow;     // opcional: se ilumina (fade de alfa) al pasar el cursor
+        public float glowAlpha = 0.85f;
 
         private Vector3 _base = Vector3.one;
         private float _t;        // 0 = normal, 1 = hover
@@ -28,6 +31,7 @@ namespace Game.Runtime.Menu
             _t = Mathf.MoveTowards(_t, _target, speed * Time.unscaledDeltaTime);
             float k = Mathf.SmoothStep(1f, hoverScale, _t);
             Node.localScale = _base * k;
+            if (glow != null) { var c = glow.color; c.a = Mathf.Lerp(0f, glowAlpha, _t); glow.color = c; }
         }
     }
 }
