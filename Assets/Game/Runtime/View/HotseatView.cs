@@ -39,7 +39,7 @@ namespace Game.Runtime.View
         private int _gameWinner = -1;   // latch por-frame del ganador
 
         // Qué zona/carta iluminar en cada paso del tutorial.
-        private enum TutHL { None, Tierra, Ser, Concepto, Dia, Historia, HandTierra, HandSer, HandConcepto, Phase, Fd }
+        private enum TutHL { None, Tierra, Ser, Concepto, Dia, Historia, HandTierra, HandSer, HandConcepto, Phase, Fd, TapTierra }
 
         private static readonly (string msg, TutHL hl)[] TutSteps =
         {
@@ -49,7 +49,7 @@ namespace Game.Runtime.View
             ("Esta ranura es de CONCEPTO: cartas de efecto puntual. Puedes jugarlas al momento, o dejarlas boca abajo para activarlas después.", TutHL.Concepto),
             ("Esta es la zona de DÍA (1→7). Los DÍAs marcan el avance; cada DÍA activado puede darte una recompensa, y llegar al DÍA 7 ES una victoria.", TutHL.Dia),
             ("Esta es la zona de HISTORIA: tu otra vía de victoria. Reúne sus 5 piezas en tu campo para ganar.", TutHL.Historia),
-            ("El FD es tu recurso para jugar cartas. Aquí ves tu FD actual. En una partida normal empieza en 0 y se reinicia a 0 al comenzar cada uno de tus turnos.", TutHL.Fd),
+            ("El FD es tu recurso para jugar cartas. Aquí ves tu FD actual. En una partida NORMAL empieza en 0 y se reinicia a 0 al comenzar cada turno, hasta que giras una TIERRA. (Solo para este tutorial te regalo 10 FD, pero recuerda: normalmente empiezas en 0).", TutHL.Fd),
             ("¿Cómo consigues FD? Tapeando tus TIERRAs en campo (clic en una TIERRA sin tapear): cada una suma su FD. Así pagas SERes, CONCEPTOs y DÍAs.", TutHL.Tierra),
             ("Ahora los TIPOS DE CARTA en tu mano. Esta es una TIERRA: se coloca en campo (1 por turno) y, al taparla, te da FD.", TutHL.HandTierra),
             ("Esta es una carta de SER: tus personajes. Se juega pagando su coste en FD y ocupa una de las 3 ranuras de SER.", TutHL.HandSer),
@@ -67,7 +67,8 @@ namespace Game.Runtime.View
 
         private static readonly (string msg, TutHL hl)[] GuideSteps =
         {
-            ("Tienes las 2 primeras piezas (TIERRA) ya en el campo. Arrastra a ADÁN a una ranura de SER.", TutHL.HandSer),
+            ("Practiquemos el FD: haz clic en la TIERRA resaltada para taparla. Mira cómo tu FD (izquierda) sube al hacerlo.", TutHL.TapTierra),
+            ("¡Así se genera FD! Tienes las 2 primeras piezas (TIERRA) en el campo. Ahora arrastra a ADÁN a una ranura de SER.", TutHL.HandSer),
             ("¡Bien! Ahora arrastra a EVA a otra ranura de SER.", TutHL.HandSer),
             ("Ya casi. Arrastra a LA SERPIENTE a la última ranura de SER.", TutHL.HandSer),
             ("¡Tus 5 piezas están en el campo! Pulsa SIGUIENTE FASE para completar tu Historia y GANAR.", TutHL.Phase),
@@ -272,25 +273,29 @@ namespace Game.Runtime.View
                 OnCardClicked(cv);
         }
 
-        /// <summary>Tutorial: durante la explicación no se juega nada; en la fase guiada solo la carta esperada.</summary>
+        /// <summary>Tutorial: en la explicación no se juega nada; en la fase guiada solo la acción esperada.</summary>
         private bool TutBlocksPlay(CardInstance? card)
         {
             if (!_tutorial || card == null) return false;
             if (_tutIdx < TutSteps.Length) return true;        // Fase A: bloquear todo
-            return card.Nombre != ExpectedGuideCard();          // Fase B: solo la pieza del paso
+            var p = _engine.State.Players[0];
+            if (_guideStep == 0)                                // paso tapear: solo TIERRA propia en campo
+                return !(card.Type == CardType.Tierra && p.Tierras.Cards.Contains(card));
+            return card.Nombre != ExpectedGuideCard();          // pasos SER: solo la pieza esperada
         }
 
         private string? ExpectedGuideCard() => _guideStep switch
         {
-            0 => "Adán",
-            1 => "Eva",
-            2 => "La Serpiente",
+            1 => "Adán",
+            2 => "Eva",
+            3 => "La Serpiente",
             _ => null,
         };
 
         private string TutBlockMsg()
         {
             if (_tutIdx < TutSteps.Length) return "Sigue el tutorial: pulsa Siguiente.";
+            if (_guideStep == 0) return "Haz clic en la TIERRA resaltada para generar FD.";
             var e = ExpectedGuideCard();
             return e != null ? $"El tutorial pide jugar: {e}." : "Pulsa SIGUIENTE FASE para terminar tu Historia.";
         }
@@ -888,6 +893,13 @@ namespace Game.Runtime.View
                 case TutHL.HandConcepto: AddHandRect(rects, c => c.Type == CardType.Concepto); break;
                 case TutHL.Phase: rects.Add(_phaseRect); break;
                 case TutHL.Fd: rects.Add(FdRect()); break;
+                case TutHL.TapTierra:
+                {
+                    var pl = _engine.State.Players[0];
+                    var v = FindView(c => c.Type == CardType.Tierra && pl.Tierras.Cards.Contains(c) && !c.Tapped);
+                    if (v != null) rects.Add(ViewRect(v));
+                    break;
+                }
             }
 
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 3.2f);
@@ -978,10 +990,10 @@ namespace Game.Runtime.View
         private void DrawAura(Rect r, Color col, float pulse)
         {
             EnsureAuraTex();
-            float pad = 20f + 6f * pulse; // el halo "respira"
+            float pad = 7f + 3f * pulse; // marco delgado y ajustado que "respira"
             var outer = new Rect(r.x - pad, r.y - pad, r.width + 2f * pad, r.height + 2f * pad);
             var prev = GUI.color;
-            GUI.color = new Color(col.r, col.g, col.b, 0.45f + 0.4f * pulse);
+            GUI.color = new Color(col.r, col.g, col.b, 0.55f + 0.4f * pulse);
             GUI.DrawTexture(outer, _auraTex, ScaleMode.StretchToFill, true);
             GUI.color = prev;
         }
@@ -998,10 +1010,10 @@ namespace Game.Runtime.View
                 for (int x = 0; x < N; x++)
                 {
                     var p = new Vector2((x + 0.5f) / N * 2f - 1f, (y + 0.5f) / N * 2f - 1f);
-                    float d = SdRoundBox(p, new Vector2(0.60f, 0.60f), 0.34f); // <0 dentro, 0 borde
-                    float ring = Mathf.Exp(-(d * d) / (2f * 0.17f * 0.17f));    // halo gaussiano en el borde
-                    float inside = d < 0f ? 0.16f * Mathf.Clamp01(1f + d / 0.6f) : 0f;
-                    float a = Mathf.Clamp01(ring * 0.95f + inside);
+                    float d = SdRoundBox(p, new Vector2(0.74f, 0.74f), 0.22f); // <0 dentro, 0 borde
+                    float ring = Mathf.Exp(-(d * d) / (2f * 0.085f * 0.085f));  // halo delgado en el borde
+                    float inside = d < 0f ? 0.05f : 0f;                        // interior apenas visible
+                    float a = Mathf.Clamp01(ring + inside);
                     px[y * N + x] = new Color(1f, 1f, 1f, a);
                 }
             _auraTex.SetPixels(px);
@@ -1076,10 +1088,11 @@ namespace Game.Runtime.View
             var p = _engine.State.Players[0];
             return i switch
             {
-                0 => p.Seres.Cards.Any(c => c.Nombre == "Adán"),
-                1 => p.Seres.Cards.Any(c => c.Nombre == "Eva"),
-                2 => p.Seres.Cards.Any(c => c.Nombre == "La Serpiente"),
-                3 => _engine.State.IsOver,
+                0 => p.Tierras.Cards.Any(t => t.Tapped),
+                1 => p.Seres.Cards.Any(c => c.Nombre == "Adán"),
+                2 => p.Seres.Cards.Any(c => c.Nombre == "Eva"),
+                3 => p.Seres.Cards.Any(c => c.Nombre == "La Serpiente"),
+                4 => _engine.State.IsOver,
                 _ => false,
             };
         }
@@ -1336,6 +1349,7 @@ namespace Game.Runtime.View
         {
             var s = _engine.State;
             if (s.TurnNumber != _timerTurn) { _timerTurn = s.TurnNumber; _turnTimer = turnSeconds; }
+            if (_tutorial) { _turnTimer = turnSeconds; return; } // el tutorial no consume tiempo (no reinicia FD)
             if (s.IsOver) return;
             bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
             if (!humanTurn) return; // la IA no consume el reloj
