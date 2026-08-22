@@ -59,27 +59,42 @@ namespace Game.Editor
                 Debug.LogError($"Build Android falló: {s.result} ({s.totalErrors} errores).");
         }
 
+        // Arte de MARCOS/BOTONES (líneas doradas finas): se degradan al comprimir en Android.
+        private static readonly string[] UiFrameKeywords =
+        { "boton", "marco", "glow", "recuadro", "cuadro", "banner", "sel_", "btn", "diseno" };
+
         [MenuItem("The Great Book/Android/Arreglar texturas UI (sin comprimir)")]
         public static void FixUiTextures()
         {
             var guids = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/Game/Resources/Menu" });
-            int n = 0;
+            int ui = 0, reset = 0;
             foreach (var g in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(g);
                 if (AssetImporter.GetAtPath(path) is not TextureImporter ti) continue;
-                if (ti.textureType != TextureImporterType.Sprite && ti.textureType != TextureImporterType.Default) continue;
+
+                string file = System.IO.Path.GetFileName(path).ToLowerInvariant();
+                bool isUi = UiFrameKeywords.Any(k => file.Contains(k));
 
                 var s = ti.GetPlatformTextureSettings("Android");
-                s.overridden = true;
-                s.format = TextureImporterFormat.RGBA32;   // sin comprimir: líneas doradas finas nítidas
-                s.maxTextureSize = Mathf.Max(s.maxTextureSize, 2048);
-                s.textureCompression = TextureImporterCompression.Uncompressed;
+                if (isUi)
+                {
+                    s.overridden = true;
+                    s.format = TextureImporterFormat.RGBA32;   // sin comprimir: líneas nítidas
+                    s.textureCompression = TextureImporterCompression.Uncompressed;
+                    s.maxTextureSize = Mathf.Max(s.maxTextureSize, 2048);
+                    ui++;
+                }
+                else
+                {
+                    if (!s.overridden) continue; // ya está en compresión por defecto
+                    s.overridden = false;        // revertir: usar compresión Android por defecto (arte de cartas/animaciones)
+                    reset++;
+                }
                 ti.SetPlatformTextureSettings(s);
                 ti.SaveAndReimport();
-                n++;
             }
-            Debug.Log($"Texturas UI (Menu) forzadas a RGBA32 en Android: {n}.");
+            Debug.Log($"Android: {ui} texturas de UI a RGBA32; {reset} revertidas a compresión por defecto.");
         }
 
         private static void Configure()
