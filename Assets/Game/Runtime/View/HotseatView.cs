@@ -30,6 +30,18 @@ namespace Game.Runtime.View
         private float _turnTimer;
         private int _timerTurn = -1;
 
+        // --- Tutorial (partida-tutorial #1): IA pasiva + explicaciones ---
+        private bool _tutorial;
+        private int _tutIdx;
+        private static readonly string[] TutMsgs =
+        {
+            "Bienvenido al campo. Aquí se libran las historias. Te muestro lo básico antes de jugar.",
+            "ZONAS (tu lado, abajo): 7 ranuras de TIERRA (generan FD al taparlas), 3 de SER, 1 de CONCEPTO boca abajo (trampa), la zona de DÍA y la de HISTORIA. Arriba está el rival.",
+            "TIPOS DE CARTA: TIERRA da FD (recurso). SER se juega pagando FD. CONCEPTO es un efecto instantáneo. DÍA (1-7) marca el avance. HISTORIA es tu victoria: reúne sus piezas en el campo.",
+            "FASES DEL TURNO: PRELUDIO → GÉNESIS (robas 1) → PREPARACIÓN (juegas) → ENTREGA (se comprueba la victoria). Usa 'SIGUIENTE FASE' para avanzar y pasar el turno.",
+            "Objetivo: reúne las piezas de tu HISTORIA en el campo para ganar. Juega TIERRAs para generar FD y baja tus piezas. El rival no te atacará durante el tutorial. ¡Adelante!",
+        };
+
         private readonly RuntimeDecisionProvider _decisions = new();
         private AutoDecisionProvider _auto = new();
         private bool _busy;
@@ -99,6 +111,9 @@ namespace Game.Runtime.View
 
             EnsureResponseInHand(_engine.State.Players[0]); // P0 arranca con una trampa para probar
 
+            _tutorial = PlayerPrefs.GetInt("tutorial_match", 0) == 1;
+            if (_tutorial) { PlayerPrefs.SetInt("tutorial_match", 0); PlayerPrefs.Save(); _tutIdx = 0; }
+
             _status = "Partida iniciada.";
             BuildBoard();
             Rebuild();
@@ -129,12 +144,16 @@ namespace Game.Runtime.View
             yield return new WaitForSeconds(0.7f);
 
             // En hilo: así OnGUI sigue corriendo y puedes responder con una trampa.
-            var t1 = System.Threading.Tasks.Task.Run(() =>
+            // En tutorial la IA es PASIVA (no juega): solo pasa el turno, para no amenazar al jugador.
+            if (!_tutorial)
             {
-                try { SimpleAI.PlayTurn(_engine); }
-                catch (System.Exception e) { Debug.LogError(e); }
-            });
-            while (!t1.IsCompleted) yield return null;
+                var t1 = System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { SimpleAI.PlayTurn(_engine); }
+                    catch (System.Exception e) { Debug.LogError(e); }
+                });
+                while (!t1.IsCompleted) yield return null;
+            }
             Rebuild();
             yield return new WaitForSeconds(0.6f);
 
@@ -726,6 +745,23 @@ namespace Game.Runtime.View
             }
             GUILayout.Label(_status, center);
             GUILayout.EndArea();
+
+            if (_tutorial && _tutIdx < TutMsgs.Length)
+            {
+                float tw = 700f, th = 160f;
+                GUILayout.BeginArea(new Rect((Screen.width - tw) * 0.5f, Screen.height - th - 18f, tw, th), GUI.skin.box);
+                GUILayout.Space(4);
+                GUILayout.Label("TUTORIAL", title);
+                var wrap = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
+                GUILayout.Label(TutMsgs[_tutIdx], wrap, GUILayout.ExpandHeight(true));
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(_tutIdx == TutMsgs.Length - 1 ? "¡A jugar!" : "Siguiente", GUILayout.Height(30), GUILayout.Width(170)))
+                    _tutIdx++;
+                GUILayout.EndHorizontal();
+                GUILayout.Space(4);
+                GUILayout.EndArea();
+            }
 
             if (_decisions.Pending != null)
             {
