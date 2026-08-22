@@ -59,6 +59,29 @@ namespace Game.Editor
                 Debug.LogError($"Build Android falló: {s.result} ({s.totalErrors} errores).");
         }
 
+        [MenuItem("The Great Book/Android/Arreglar texturas UI (sin comprimir)")]
+        public static void FixUiTextures()
+        {
+            var guids = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/Game/Resources/Menu" });
+            int n = 0;
+            foreach (var g in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(g);
+                if (AssetImporter.GetAtPath(path) is not TextureImporter ti) continue;
+                if (ti.textureType != TextureImporterType.Sprite && ti.textureType != TextureImporterType.Default) continue;
+
+                var s = ti.GetPlatformTextureSettings("Android");
+                s.overridden = true;
+                s.format = TextureImporterFormat.RGBA32;   // sin comprimir: líneas doradas finas nítidas
+                s.maxTextureSize = Mathf.Max(s.maxTextureSize, 2048);
+                s.textureCompression = TextureImporterCompression.Uncompressed;
+                ti.SetPlatformTextureSettings(s);
+                ti.SaveAndReimport();
+                n++;
+            }
+            Debug.Log($"Texturas UI (Menu) forzadas a RGBA32 en Android: {n}.");
+        }
+
         private static void Configure()
         {
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.rinco.thegreatbook");
