@@ -14,6 +14,7 @@ namespace Game.Runtime.Menu
         public Graphic glow;     // opcional: se ilumina (fade de alfa) al pasar el cursor
         public float glowAlpha = 0.85f;
         public GoldParticles particles; // opcional: duplica las partículas al pasar el cursor
+        public SignSwing swing;         // opcional: sacude (balanceo) al entrar el cursor
 
         private Vector3 _base = Vector3.one;
         private float _t;        // 0 = normal, 1 = hover
@@ -23,7 +24,7 @@ namespace Game.Runtime.Menu
 
         private void Awake() => _base = Node.localScale;
 
-        public void OnPointerEnter(PointerEventData _) { _target = 1f; if (particles != null) particles.SetBoost(true); }
+        public void OnPointerEnter(PointerEventData _) { _target = 1f; if (particles != null) particles.SetBoost(true); if (swing != null) swing.Trigger(); }
         public void OnPointerExit(PointerEventData _) { _target = 0f; if (particles != null) particles.SetBoost(false); }
 
         private void Update()
