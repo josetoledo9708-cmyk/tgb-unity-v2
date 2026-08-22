@@ -36,6 +36,9 @@ namespace Game.Runtime.Menu
         private RectTransform _histBtn;   // botón HISTORIAS (para resaltar en el tutorial)
         private GameObject _tut;          // overlay del tutorial activo
         private int _tutStep;
+        private RectTransform _tutRaisedBtn;    // botón subido sobre el dim (para verlo iluminado)
+        private Transform _tutRaisedParent;
+        private int _tutRaisedIndex;
         private Game.Runtime.View.HotseatView _board;
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
@@ -425,6 +428,14 @@ namespace Game.Runtime.Menu
 
         private void ClearTutorial()
         {
+            // devolver el botón subido a su sitio ANTES de destruir el overlay (si no, se destruiría con él)
+            if (_tutRaisedBtn != null)
+            {
+                var hb = _tutRaisedBtn.GetComponent<Button>(); if (hb != null) hb.enabled = true;
+                _tutRaisedBtn.SetParent(_tutRaisedParent, false);
+                _tutRaisedBtn.SetSiblingIndex(_tutRaisedIndex);
+                _tutRaisedBtn = null;
+            }
             if (_tut != null) { Destroy(_tut); _tut = null; }
         }
 
@@ -451,7 +462,7 @@ namespace Game.Runtime.Menu
             var panel = new GameObject("TutBox", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             panel.transform.SetParent(dim.transform, false);
             panel.sprite = MenuGraphics.Rounded(48, 16); panel.type = Image.Type.Sliced;
-            panel.color = new Color(0.04f, 0.05f, 0.12f, 0.98f); panel.raycastTarget = true;
+            panel.color = new Color(0.03f, 0.03f, 0.06f, 0.22f); panel.raycastTarget = true; // transparente (glassy)
             panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
             var prt = (RectTransform)panel.transform;
             prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f); prt.pivot = new Vector2(0.5f, 0f);
@@ -475,7 +486,8 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)skip.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(18f, 15f), new Vector2(168f, 49f));
         }
 
-        /// <summary>Marco dorado resaltando un objetivo, calculado a partir de su rect en pantalla.</summary>
+        /// <summary>Resalta un objetivo: pone un resplandor radial palpitante DETRÁS y sube el botón por
+        /// encima del oscurecido para que se vea iluminado y siga siendo clicable.</summary>
         private void AddTutHighlight(RectTransform target)
         {
             var tutRt = (RectTransform)_tut.transform;
@@ -483,15 +495,23 @@ namespace Game.Runtime.Menu
             var cam = _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay ? _canvas.worldCamera : null;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(tutRt, RectTransformUtility.WorldToScreenPoint(cam, corners[0]), cam, out var bl);
             RectTransformUtility.ScreenPointToLocalPointInRectangle(tutRt, RectTransformUtility.WorldToScreenPoint(cam, corners[2]), cam, out var tr);
-            var frame = new GameObject("TutHL", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
-            frame.transform.SetParent(_tut.transform, false);
-            frame.sprite = MenuGraphics.Rounded(24, 10); frame.type = Image.Type.Sliced;
-            frame.color = new Color(1f, 0.85f, 0.4f, 0.12f); frame.raycastTarget = false;
-            var fo = frame.gameObject.AddComponent<Outline>(); fo.effectColor = MenuTheme.Gold; fo.effectDistance = new Vector2(3f, 3f);
-            var frt = (RectTransform)frame.transform;
-            frt.anchorMin = frt.anchorMax = frt.pivot = new Vector2(0.5f, 0.5f);
-            frt.anchoredPosition = (bl + tr) / 2f;
-            frt.sizeDelta = (tr - bl) + new Vector2(18f, 18f);
+            Vector2 center = (bl + tr) / 2f, size = tr - bl;
+
+            // resplandor radial palpitante DETRÁS del botón
+            var glow = MenuTheme.Picture(_tut.transform, "TutGlow", GlowSprite(), preserveAspect: false);
+            glow.raycastTarget = false; glow.color = new Color(1f, 0.86f, 0.45f, 0.5f);
+            var grt = (RectTransform)glow.transform;
+            grt.anchorMin = grt.anchorMax = grt.pivot = new Vector2(0.5f, 0.5f);
+            grt.anchoredPosition = center; grt.sizeDelta = size + new Vector2(190f, 150f);
+            var pulse = glow.gameObject.AddComponent<AlphaPulse>(); pulse.graphic = glow; pulse.min = 0.25f; pulse.max = 0.85f; pulse.speed = 3.2f;
+
+            // subir el botón por encima del oscurecido (queda iluminado y clicable), con el glow detrás
+            _tutRaisedParent = target.parent;
+            _tutRaisedIndex = target.GetSiblingIndex();
+            _tutRaisedBtn = target;
+            target.SetParent(_tut.transform, true); // conserva posición en pantalla
+            target.SetAsLastSibling();               // por delante del glow
+            var hb = target.GetComponent<Button>(); if (hb != null) hb.enabled = false; // el diálogo lleva a Historias
         }
 
         private Selectable DesignedMenuButton(Transform parent, string label, System.Action onClick,
