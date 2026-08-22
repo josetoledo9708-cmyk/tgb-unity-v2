@@ -457,23 +457,35 @@ namespace Game.Runtime.Menu
                 : () => { _tutStep++; ShowTutorialStep(); });
         }
 
-        // Continuación en la pantalla Historias: resalta el cuadro del Tutorial.
+        // Continuación en la pantalla Historias: resalta SOLO el cuadro del Tutorial (los demás quedan
+        // bajo el oscurecido, no seleccionables). Al pulsarlo arranca la partida-tutorial.
         private void ShowTutHistorias()
         {
-            ShowTutBox("Este es el Tutorial. Selecciónalo para aprender a jugar: te enseñará las zonas del campo, los tipos de carta y las fases del juego.",
-                _tutTutorialCard, "Entendido", () => FinishTutorial());
+            ShowTutBox("Selecciona el cuadro Tutorial para aprender a jugar: te enseñará las zonas del campo, los tipos de carta y las fases del juego.",
+                _tutTutorialCard, null, null, targetClickable: true,
+                onTargetClick: () => { PlayerPrefs.SetInt("tut_intro_done", 1); PlayerPrefs.SetInt("tutorial_match", 1); PlayerPrefs.Save(); ClearTutorial(); });
         }
 
         /// <summary>Caja de tutorial genérica: oscurece, resalta un objetivo (opcional), muestra texto,
-        /// un botón principal y "Saltar tutorial".</summary>
-        private void ShowTutBox(string text, RectTransform target, string mainLabel, System.Action mainAction)
+        /// un botón principal opcional y "Saltar tutorial". Si <paramref name="targetClickable"/>, el
+        /// objetivo resaltado queda clicable (y solo él) y ejecuta <paramref name="onTargetClick"/>.</summary>
+        private void ShowTutBox(string text, RectTransform target, string mainLabel, System.Action mainAction,
+                                bool targetClickable = false, System.Action onTargetClick = null)
         {
             ClearTutorial();
             var dim = MenuTheme.Rect(_root, "TutOverlay", new Color(0f, 0f, 0f, 0.72f));
             dim.raycastTarget = true; dim.transform.SetAsLastSibling();
             _tut = dim.gameObject;
 
-            if (target != null) { Canvas.ForceUpdateCanvases(); AddTutHighlight(target); }
+            if (target != null)
+            {
+                Canvas.ForceUpdateCanvases(); AddTutHighlight(target, targetClickable);
+                if (targetClickable && onTargetClick != null)
+                {
+                    var tb = target.GetComponent<Button>();
+                    if (tb != null) tb.onClick.AddListener(() => onTargetClick());
+                }
+            }
 
             var panel = new GameObject("TutBox", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             panel.transform.SetParent(dim.transform, false);
@@ -488,8 +500,11 @@ namespace Game.Runtime.Menu
             txt.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 56f), new Vector2(-24f, -18f));
 
-            var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, 16, mainAction, 180f, 40f);
-            MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-198f, 12f), new Vector2(-18f, 52f));
+            if (mainLabel != null)
+            {
+                var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, 16, mainAction, 180f, 40f);
+                MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-198f, 12f), new Vector2(-18f, 52f));
+            }
 
             var skip = MenuTheme.TextButton(panel.transform, "Saltar tutorial", 13, FinishTutorial, 150f, 34f, thicken: false);
             MenuTheme.Anchor((RectTransform)skip.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(18f, 15f), new Vector2(168f, 49f));
@@ -497,7 +512,7 @@ namespace Game.Runtime.Menu
 
         /// <summary>Resalta un objetivo: pone un resplandor radial palpitante DETRÁS y sube el botón por
         /// encima del oscurecido para que se vea iluminado y siga siendo clicable.</summary>
-        private void AddTutHighlight(RectTransform target)
+        private void AddTutHighlight(RectTransform target, bool keepClickable = false)
         {
             var tutRt = (RectTransform)_tut.transform;
             var corners = new Vector3[4]; target.GetWorldCorners(corners);
@@ -520,7 +535,7 @@ namespace Game.Runtime.Menu
             _tutRaisedBtn = target;
             target.SetParent(_tut.transform, true); // conserva posición en pantalla
             target.SetAsLastSibling();               // por delante del glow
-            var hb = target.GetComponent<Button>(); if (hb != null) hb.enabled = false; // el diálogo lleva a Historias
+            if (!keepClickable) { var hb = target.GetComponent<Button>(); if (hb != null) hb.enabled = false; } // solo visible; el diálogo navega
         }
 
         private Selectable DesignedMenuButton(Transform parent, string label, System.Action onClick,
