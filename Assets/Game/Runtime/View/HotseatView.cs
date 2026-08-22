@@ -30,16 +30,43 @@ namespace Game.Runtime.View
         private float _turnTimer;
         private int _timerTurn = -1;
 
-        // --- Tutorial (partida-tutorial #1): IA pasiva + explicaciones ---
+        // --- Tutorial (partida-tutorial #1): IA pasiva + explicaciones paso a paso ---
         private bool _tutorial;
         private int _tutIdx;
-        private static readonly string[] TutMsgs =
+        private Texture2D? _hlTex;      // 1x1 blanco para dibujar resaltados
+        private Rect _phaseRect;        // rect del panel de fase (para resaltarlo)
+
+        // Qué zona/carta iluminar en cada paso del tutorial.
+        private enum TutHL { None, Tierra, Ser, Concepto, Dia, Historia, HandTierra, HandSer, HandConcepto, Phase }
+
+        private static readonly (string msg, TutHL hl)[] TutSteps =
         {
-            "Bienvenido al campo. Aquí se libran las historias. Te muestro lo básico antes de jugar.",
-            "ZONAS (tu lado, abajo): 7 ranuras de TIERRA (generan FD al taparlas), 3 de SER, 1 de CONCEPTO boca abajo (trampa), la zona de DÍA y la de HISTORIA. Arriba está el rival.",
-            "TIPOS DE CARTA: TIERRA da FD (recurso). SER se juega pagando FD. CONCEPTO es un efecto instantáneo. DÍA (1-7) marca el avance. HISTORIA es tu victoria: reúne sus piezas en el campo.",
-            "FASES DEL TURNO: PRELUDIO → GÉNESIS (robas 1) → PREPARACIÓN (juegas) → ENTREGA (se comprueba la victoria). Usa 'SIGUIENTE FASE' para avanzar y pasar el turno.",
-            "Objetivo: reúne las piezas de tu HISTORIA en el campo para ganar. Juega TIERRAs para generar FD y baja tus piezas. El rival no te atacará durante el tutorial. ¡Adelante!",
+            ("Bienvenido al campo. Aquí se libran las historias. Te muestro tus zonas una por una.", TutHL.None),
+            ("Estas 7 ranuras son de TIERRA. Al taparlas generan FD, tu recurso para jugar.", TutHL.Tierra),
+            ("Estas 3 ranuras son de SER. Aquí bajas tus seres pagando FD.", TutHL.Ser),
+            ("Esta ranura es de CONCEPTO: efecto instantáneo, o boca abajo como trampa.", TutHL.Concepto),
+            ("Esta es la zona de DÍA (1-7): marca el avance de la partida.", TutHL.Dia),
+            ("Esta es la zona de HISTORIA: reúne sus piezas en el campo para ganar.", TutHL.Historia),
+            ("Ahora los TIPOS DE CARTA en tu mano. Esta es una TIERRA: da FD.", TutHL.HandTierra),
+            ("Esta es una carta de SER: se juega pagando FD.", TutHL.HandSer),
+            ("Esta es una carta de CONCEPTO: efecto instantáneo o trampa boca abajo.", TutHL.HandConcepto),
+            ("La carta de DÍA avanza el día del turno; se coloca en esta zona.", TutHL.Dia),
+            ("La carta de HISTORIA es tu condición de victoria; va en esta zona.", TutHL.Historia),
+            ("FASES del turno: PRELUDIO → GÉNESIS (robas) → PREPARACIÓN (juegas) → ENTREGA (victoria). Aquí ves la fase y el tiempo.", TutHL.Phase),
+            ("Objetivo: reúne las piezas de tu HISTORIA en el campo. Juega TIERRAs, genera FD y baja tus piezas. El rival no atacará. ¡Adelante!", TutHL.None),
+        };
+
+        // --- Fase B: jugadas guiadas hasta la victoria garantizada ---
+        private int _guideStep = -1;      // -1 = aún en la fase de explicación
+        private bool _rewardGiven;
+        public static bool ReturnRequested; // el menú (MenuShell) lo detecta para volver al MainMenu
+
+        private static readonly (string msg, TutHL hl)[] GuideSteps =
+        {
+            ("Tienes las 2 primeras piezas (TIERRA) ya en el campo. Arrastra a ADÁN a una ranura de SER.", TutHL.HandSer),
+            ("¡Bien! Ahora arrastra a EVA a otra ranura de SER.", TutHL.HandSer),
+            ("Ya casi. Arrastra a LA SERPIENTE a la última ranura de SER.", TutHL.HandSer),
+            ("¡Tus 5 piezas están en el campo! Pulsa SIGUIENTE FASE para completar tu Historia y GANAR.", TutHL.Phase),
         };
 
         private readonly RuntimeDecisionProvider _decisions = new();
@@ -112,7 +139,12 @@ namespace Game.Runtime.View
             EnsureResponseInHand(_engine.State.Players[0]); // P0 arranca con una trampa para probar
 
             _tutorial = PlayerPrefs.GetInt("tutorial_match", 0) == 1;
-            if (_tutorial) { PlayerPrefs.SetInt("tutorial_match", 0); PlayerPrefs.Save(); _tutIdx = 0; }
+            if (_tutorial)
+            {
+                PlayerPrefs.SetInt("tutorial_match", 0); PlayerPrefs.Save();
+                _tutIdx = 0; _guideStep = -1; _rewardGiven = false; ReturnRequested = false;
+                SetupTutorialField(_engine.State.Players[0]); // mano fija + piezas preparadas para ganar
+            }
 
             _status = "Partida iniciada.";
             BuildBoard();
@@ -177,6 +209,13 @@ namespace Game.Runtime.View
 
             // Resolver decisión (Aceptar) fuera del ciclo OnGUI para no romper el GUILayout.
             if (_deferredResolve != null) { var a = _deferredResolve; _deferredResolve = null; a(); }
+
+            // Fase B (guiada): avanzar el paso cuando el jugador cumple lo pedido.
+            if (_tutorial && _tutIdx >= TutSteps.Length)
+            {
+                if (_guideStep < 0) _guideStep = 0;
+                else if (_guideStep < GuideSteps.Length && GuideDone(_guideStep)) _guideStep++;
+            }
 
             SnapshotLog(); // congelar el log una vez por frame (la IA lo escribe en otro hilo)
             _respShow = _respPending; // latch (lo activa el hilo de la IA): estable durante los pases de OnGUI
@@ -723,7 +762,8 @@ namespace Game.Runtime.View
             timer.normal.textColor = new Color(0.45f, 0.6f, 1f);
 
             float pw = 200f, ph = 200f;
-            GUILayout.BeginArea(new Rect(Screen.width - pw - 14f, (Screen.height - ph) * 0.5f, pw, ph), GUI.skin.box);
+            _phaseRect = new Rect(Screen.width - pw - 14f, (Screen.height - ph) * 0.5f, pw, ph);
+            GUILayout.BeginArea(_phaseRect, GUI.skin.box);
             GUILayout.Space(6);
             GUILayout.Label("FASE ACTUAL", title);
             GUILayout.Label(PhaseName(s.Phase), big);
@@ -746,22 +786,37 @@ namespace Game.Runtime.View
             GUILayout.Label(_status, center);
             GUILayout.EndArea();
 
-            if (_tutorial && _tutIdx < TutMsgs.Length)
+            if (_tutorial && _tutIdx < TutSteps.Length)
             {
-                float tw = 700f, th = 160f;
-                GUILayout.BeginArea(new Rect((Screen.width - tw) * 0.5f, Screen.height - th - 18f, tw, th), GUI.skin.box);
+                DrawTutHighlight(TutSteps[_tutIdx].hl); // ilumina la zona/carta mencionada
+
+                float tw = 700f, th = 150f;
+                GUILayout.BeginArea(new Rect((Screen.width - tw) * 0.5f, 18f, tw, th), GUI.skin.box); // arriba: no tapa mano/zonas
                 GUILayout.Space(4);
-                GUILayout.Label("TUTORIAL", title);
+                GUILayout.Label($"TUTORIAL   ({_tutIdx + 1}/{TutSteps.Length})", title);
                 var wrap = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
-                GUILayout.Label(TutMsgs[_tutIdx], wrap, GUILayout.ExpandHeight(true));
+                GUILayout.Label(TutSteps[_tutIdx].msg, wrap, GUILayout.ExpandHeight(true));
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button(_tutIdx == TutMsgs.Length - 1 ? "¡A jugar!" : "Siguiente", GUILayout.Height(30), GUILayout.Width(170)))
+                if (GUILayout.Button(_tutIdx == TutSteps.Length - 1 ? "¡A jugar!" : "Siguiente", GUILayout.Height(30), GUILayout.Width(170)))
                     _tutIdx++;
                 GUILayout.EndHorizontal();
                 GUILayout.Space(4);
                 GUILayout.EndArea();
             }
+            else if (_tutorial && _guideStep >= 0 && _guideStep < GuideSteps.Length && !s.IsOver)
+            {
+                DrawTutHighlight(GuideSteps[_guideStep].hl); // ilumina la carta/panel del paso guiado
+                float gw = 700f, gh = 120f;
+                GUILayout.BeginArea(new Rect((Screen.width - gw) * 0.5f, 18f, gw, gh), GUI.skin.box);
+                GUILayout.Space(4);
+                GUILayout.Label($"TUTORIAL — Paso {_guideStep + 1}/{GuideSteps.Length}", title);
+                var gwrap = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
+                GUILayout.Label(GuideSteps[_guideStep].msg, gwrap, GUILayout.ExpandHeight(true));
+                GUILayout.EndArea();
+            }
+
+            if (_tutorial && s.IsOver && s.Winner == 0) DrawTutorialWin();
 
             if (_decisions.Pending != null)
             {
@@ -778,6 +833,165 @@ namespace Game.Runtime.View
 
             if (_respShow && _respTrap != null) DrawResponsePrompt();
             else if (_placePending && _placeCard != null) DrawPlacement();
+        }
+
+        // ---------------- resaltado del tutorial ----------------
+
+        /// <summary>Dibuja un marco dorado palpitante sobre la zona/carta que explica el paso actual.</summary>
+        private void DrawTutHighlight(TutHL hl)
+        {
+            if (hl == TutHL.None) return;
+            var cam = Camera.main;
+            if (cam == null) return;
+            if (_hlTex == null) { _hlTex = new Texture2D(1, 1); _hlTex.SetPixel(0, 0, Color.white); _hlTex.Apply(); }
+
+            var rects = new List<Rect>();
+            switch (hl)
+            {
+                case TutHL.Tierra: for (int i = 0; i < 7; i++) rects.Add(ZoneRect(BoardLayout.Tierra(0, i))); break;
+                case TutHL.Ser: for (int i = 0; i < 3; i++) rects.Add(ZoneRect(BoardLayout.Ser(0, i))); break;
+                case TutHL.Concepto: rects.Add(ZoneRect(BoardLayout.Concepto(0))); break;
+                case TutHL.Dia: rects.Add(ZoneRect(BoardLayout.Dia(0))); break;
+                case TutHL.Historia: rects.Add(ZoneRect(BoardLayout.Historia(0))); break;
+                case TutHL.HandTierra: AddHandRect(rects, c => c.Type == CardType.Tierra); break;
+                case TutHL.HandSer: AddHandRect(rects, c => CardTypeNames.IsSer(c.Type)); break;
+                case TutHL.HandConcepto: AddHandRect(rects, c => c.Type == CardType.Concepto); break;
+                case TutHL.Phase: rects.Add(_phaseRect); break;
+            }
+
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 4f);
+            var col = new Color(1f, 0.85f, 0.3f);
+            foreach (var r in rects) DrawGlowRect(r, col, pulse);
+        }
+
+        private Rect ZoneRect(Vector3 center) => WorldRect(center, 0.85f, 1.15f);
+
+        /// <summary>Resalta la primera carta de la mano del jugador que cumpla el filtro (o su zona si no hay).</summary>
+        private void AddHandRect(List<Rect> rects, System.Func<CardInstance, bool> match)
+        {
+            var mano = _engine.State.Players[0].Mano;
+            int n = mano.Count;
+            for (int i = 0; i < n; i++)
+            {
+                if (match(mano.Cards[i]))
+                {
+                    var (pos, _) = BoardLayout.HandFan(0, i, n);
+                    rects.Add(WorldRect(pos, 0.8f, 1.1f));
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Proyecta un rectángulo del plano XZ del tablero a un Rect en coordenadas de GUI.</summary>
+        private Rect WorldRect(Vector3 center, float hx, float hz)
+        {
+            var cam = Camera.main!;
+            Vector3[] corners =
+            {
+                center + new Vector3(-hx, 0f, -hz),
+                center + new Vector3( hx, 0f, -hz),
+                center + new Vector3(-hx, 0f,  hz),
+                center + new Vector3( hx, 0f,  hz),
+            };
+            float minx = float.MaxValue, miny = float.MaxValue, maxx = float.MinValue, maxy = float.MinValue;
+            foreach (var w in corners)
+            {
+                var sp = cam.WorldToScreenPoint(w);
+                float gx = sp.x, gy = Screen.height - sp.y; // GUI: y hacia abajo
+                minx = Mathf.Min(minx, gx); maxx = Mathf.Max(maxx, gx);
+                miny = Mathf.Min(miny, gy); maxy = Mathf.Max(maxy, gy);
+            }
+            return Rect.MinMaxRect(minx, miny, maxx, maxy);
+        }
+
+        private void DrawGlowRect(Rect r, Color col, float pulse)
+        {
+            r = new Rect(r.x - 6f, r.y - 6f, r.width + 12f, r.height + 12f);
+            GUI.color = new Color(col.r, col.g, col.b, 0.10f + 0.10f * pulse);
+            GUI.DrawTexture(r, _hlTex);
+            float th = 3f + 2f * pulse;
+            GUI.color = new Color(col.r, col.g, col.b, 0.6f + 0.4f * pulse);
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, th), _hlTex);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - th, r.width, th), _hlTex);
+            GUI.DrawTexture(new Rect(r.x, r.y, th, r.height), _hlTex);
+            GUI.DrawTexture(new Rect(r.xMax - th, r.y, th, r.height), _hlTex);
+            GUI.color = Color.white;
+        }
+
+        // ---------------- Fase B: partida guiada y victoria garantizada ----------------
+
+        /// <summary>Prepara el campo del jugador para el tutorial: 2 piezas TIERRA ya en campo,
+        /// mano fija con las 3 piezas SER (+ 1 TIERRA y 1 CONCEPTO de muestra) y FD de sobra.</summary>
+        private void SetupTutorialField(PlayerState p)
+        {
+            foreach (var c in p.Mano.Cards.ToList()) { p.Mano.Remove(c); p.Mazo.Add(c); } // limpiar mano
+
+            foreach (var name in new[] { "El Jardín del Edén", "El Árbol del Fruto Prohibido" })
+            {
+                var c = PullFromMazo(p, name);
+                if (c != null) { c.Tapped = false; c.TurnsLeftRemaining = c.Def.TurnsLeft ?? 0; p.Tierras.Add(c); }
+            }
+
+            foreach (var name in new[] { "Adán", "Eva", "La Serpiente" })
+            {
+                var c = PullFromMazo(p, name);
+                if (c != null) p.Mano.Add(c);
+            }
+            var land = p.Mazo.Cards.FirstOrDefault(x => x.Type == CardType.Tierra);
+            if (land != null) { p.Mazo.Remove(land); p.Mano.Add(land); }
+            var conc = p.Mazo.Cards.FirstOrDefault(x => x.Type == CardType.Concepto);
+            if (conc != null) { p.Mazo.Remove(conc); p.Mano.Add(conc); }
+
+            p.Fd = 10; // suficiente para bajar Adán(3) + Eva(3) + Serpiente(2)
+        }
+
+        private static CardInstance? PullFromMazo(PlayerState p, string nombre)
+        {
+            var c = p.Mazo.Cards.FirstOrDefault(x => x.Nombre == nombre);
+            if (c != null) p.Mazo.Remove(c);
+            return c;
+        }
+
+        /// <summary>¿El jugador cumplió el paso guiado i?</summary>
+        private bool GuideDone(int i)
+        {
+            var p = _engine.State.Players[0];
+            return i switch
+            {
+                0 => p.Seres.Cards.Any(c => c.Nombre == "Adán"),
+                1 => p.Seres.Cards.Any(c => c.Nombre == "Eva"),
+                2 => p.Seres.Cards.Any(c => c.Nombre == "La Serpiente"),
+                3 => _engine.State.IsOver,
+                _ => false,
+            };
+        }
+
+        private void GrantTutorialReward()
+        {
+            if (_rewardGiven) return;
+            _rewardGiven = true;
+            Game.Runtime.Menu.PlayerData.Monedas += 700;
+            PlayerPrefs.SetInt("logro_primeros_pasos", 1);
+            PlayerPrefs.SetInt("tutorial1_done", 1);
+            PlayerPrefs.Save();
+        }
+
+        private void DrawTutorialWin()
+        {
+            GrantTutorialReward();
+            const float w = 460f, h = 210f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
+            GUILayout.Space(8);
+            GUILayout.Label("¡VICTORIA!", tt);
+            GUILayout.Label("Completaste tu Historia «La Caída del Edén».\nRecompensa: logro «Primeros Pasos» +700 monedas.",
+                body, GUILayout.ExpandHeight(true));
+            GUILayout.Space(6);
+            if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))
+                _deferredResolve = () => { ReturnRequested = true; };
+            GUILayout.Space(8);
+            GUILayout.EndArea();
         }
 
         // --- cartas de respuesta (trampas) ---

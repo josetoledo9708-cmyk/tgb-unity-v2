@@ -2999,11 +2999,30 @@ namespace Game.Runtime.Menu
 
         private void Update()
         {
+            // El tutorial pide volver al menú al ganar (botón "Volver al menú" del campo).
+            if (_inMatch && Game.Runtime.View.HotseatView.ReturnRequested)
+            {
+                Game.Runtime.View.HotseatView.ReturnRequested = false;
+                EndMatchToMenu();
+                return;
+            }
+
             if (_inMatch && Input.GetKeyDown(KeyCode.Escape))
             {
                 if (_modal == null) OpenInGameOptions();
                 else CloseInGameOptions();
             }
+        }
+
+        /// <summary>Cierra la partida (tutorial ganado) y vuelve al menú principal.</summary>
+        private void EndMatchToMenu()
+        {
+            if (_modal != null) CloseModal();
+            _inMatch = false;
+            if (_board != null) _board.enabled = false;
+            _canvas.gameObject.SetActive(true);
+            _stack.Clear();
+            Push(Screen.MainMenu);
         }
 
         /// <summary>Engranaje en la esquina superior-derecha durante la partida (overlay IMGUI, por
