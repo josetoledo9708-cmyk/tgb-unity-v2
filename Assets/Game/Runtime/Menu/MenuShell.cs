@@ -302,10 +302,12 @@ namespace Game.Runtime.Menu
             var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, () =>
             {
                 // TESTING: relanza el tutorial completo como si fuese la primera vez
-                foreach (var k in new[] { "tut_intro_done", "tutorial1_done", "tut_postmatch_done", "logro_primeros_pasos", "log_claim_lp" })
+                foreach (var k in new[] { "tut_intro_done", "tutorial1_done", "tut_postmatch_done",
+                                          "logro_primeros_pasos", "log_claim_lp", "tut_fixed_pack", "tienda_pack_comienzos" })
                     PlayerPrefs.DeleteKey(k);
                 PlayerPrefs.Save();
-                _postStep = -1; _tutFlowMisiones = false; _postWaitClaim = false;
+                _postStep = -1; _tutFlowMisiones = _tutFlowTienda = _tutFlowTomos = _tutFlowConstructor = false;
+                _postWaitClaim = _postWaitTomo = false;
                 _tutStep = 0; ShowTutorialStep();
             }, 110f, 38f, thicken: false);
             MenuTheme.Anchor((RectTransform)tut.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-146f, -56f), new Vector2(-52f, -18f));
@@ -449,7 +451,12 @@ namespace Game.Runtime.Menu
 
         private int _postStep = -1;        // -1 = inactivo
         private bool _tutFlowMisiones;     // continuar el recorrido al entrar a Misiones
+        private bool _tutFlowTienda;       // ...a la Tienda
+        private bool _tutFlowTomos;        // ...a Tomos
+        private bool _tutFlowConstructor;  // ...al Constructor
         private bool _postWaitClaim;       // esperando que el jugador reclame el logro
+        private bool _postWaitTomo;        // esperando que compre un tomo en la Tienda
+        private int _postTomoBase;         // tomos antes de comprar (para detectar la compra)
 
         private void StartPostTutorial()
         {
@@ -468,11 +475,42 @@ namespace Game.Runtime.Menu
             ShowTutHint("Pulsa «Reclamar +700» en el logro «Primeros Pasos» para cobrar tu recompensa.");
         }
 
-        private void ShowPostClosing()
+        // Tras reclamar el logro: llevar a la Tienda a comprar un Tomo.
+        private void ShowPostAfterClaim()
         {
             _postWaitClaim = false;
-            ShowTutHint("¡Recompensa reclamada! Con esto terminas el tutorial. Explora la Tienda, abre tus Tomos y crea tu propio mazo cuando quieras. ¡Disfruta The Great Book!",
-                "Entendido", () => { PlayerPrefs.SetInt("tut_postmatch_done", 1); PlayerPrefs.Save(); _postStep = -1; ClearTutorial(); });
+            ShowTutHint("¡+700 monedas reclamadas! Ahora vamos a la Tienda para conseguir tu primer Tomo (sobre de cartas).",
+                "Ir a la Tienda", () => { _tutFlowTienda = true; ClearTutorial(); Push(Screen.Tienda); });
+        }
+
+        private void PostTutorialInTienda()
+        {
+            _tutFlowTienda = false;
+            _tiendaCat = "paquetes"; RebuildTiendaContent(); // asegurar que se ve el Tomo individual
+            _postTomoBase = PlayerData.Tomos;
+            _postWaitTomo = true;
+            ShowTutHint("En la categoría Paquetes, compra el «Tomo individual» (100 ◈) de la derecha para conseguir 1 Tomo.");
+        }
+
+        private void PostTutorialInTomos()
+        {
+            _tutFlowTomos = false;
+            ShowTutHint("Pulsa ✦ ABRIR TOMO ✦ para abrirlo: este contiene una Historia nueva y sus piezas.");
+        }
+
+        // Al cerrarse el pack fijo del tutorial: guiar al Constructor.
+        private void OnFixedPackClosed()
+        {
+            if (_postStep < 0) return; // solo durante el recorrido
+            ShowTutHint("¡Conseguiste la Historia «El Primer Fratricidio» y 4 de sus piezas! Por último, mira el Constructor de Historias.",
+                "Ir al Constructor", () => { _tutFlowConstructor = true; ClearTutorial(); Push(Screen.MisMazos); });
+        }
+
+        private void PostTutorialInConstructor()
+        {
+            _tutFlowConstructor = false;
+            ShowTutHint("Aquí creas y editas tus mazos con las cartas que consigas. ¡Ya estás listo para jugar The Great Book!",
+                "Terminar tutorial", () => { PlayerPrefs.SetInt("tut_postmatch_done", 1); PlayerPrefs.Save(); _postStep = -1; ClearTutorial(); });
         }
 
         /// <summary>Pista no-modal (sin oscurecer): panel inferior que NO bloquea los clics del menú.</summary>
@@ -980,6 +1018,7 @@ namespace Game.Runtime.Menu
                 int idx = i; // captura por valor: cada tarjeta abre el modal de SU mazo
                 BuildMazoBookCard(grid.transform, mazosGuardados[i], () => ShowMazoOptions(idx));
             }
+            if (_tutFlowConstructor) PostTutorialInConstructor(); // recorrido: cierre del tutorial
             return screen;
         }
 
@@ -2276,6 +2315,7 @@ namespace Game.Runtime.Menu
             RebuildTiendaContent();
 
             _onShow[Screen.Tienda] = () => { PlayerData.Monedas = 10000; if (_tiendaCoins != null) _tiendaCoins.text = "10000"; };
+            if (_tutFlowTienda) PostTutorialInTienda(); // recorrido: comprar un tomo
             return screen;
         }
 
@@ -2648,7 +2688,7 @@ namespace Game.Runtime.Menu
                 if (PlayerPrefs.GetInt("tut_fixed_pack", 0) == 1) // pack fijo del tutorial
                 {
                     PlayerPrefs.SetInt("tut_fixed_pack", 0); PlayerPrefs.Save();
-                    OpenFixedTomo(fb, restoreBottom);
+                    OpenFixedTomo(fb, () => { restoreBottom?.Invoke(); OnFixedPackClosed(); });
                 }
                 else OpenTomo(fb, restoreBottom);
             }, 380f, 56f);
@@ -2731,7 +2771,12 @@ namespace Game.Runtime.Menu
                 tc.SetThumbVisible(0, has); // oculta la imagen del tomo Genesis en el slot central
             };
             refreshAvail();
-            _onShow[Screen.Tomos] = () => { PlayerData.Monedas = 10000; coinLbl.text = PlayerData.Monedas.ToString(); fb.ShowFrame(0); refreshAvail(); }; // TESTING: monedas 10000; los Tomos reflejan lo comprado
+            _onShow[Screen.Tomos] = () =>
+            {
+                PlayerData.Monedas = 10000; coinLbl.text = PlayerData.Monedas.ToString(); fb.ShowFrame(0); refreshAvail(); // TESTING: monedas 10000; los Tomos reflejan lo comprado
+                if (_tutFlowTomos) PostTutorialInTomos(); // recorrido (Tomos es cacheable: disparar al reusar)
+            };
+            if (_tutFlowTomos) PostTutorialInTomos(); // por si se construye por primera vez dentro del recorrido
             return screen;
         }
 
@@ -3222,9 +3267,17 @@ namespace Game.Runtime.Menu
                 else CloseInGameOptions();
             }
 
-            // Recorrido post-partida: al reclamar el logro, mostrar el cierre.
+            // Recorrido post-partida: al reclamar el logro -> Tienda.
             if (_postWaitClaim && PlayerPrefs.GetInt("log_claim_lp", 0) == 1)
-                ShowPostClosing();
+                ShowPostAfterClaim();
+            // ...al comprar un Tomo -> abrir el pack fijo en Tomos.
+            if (_postWaitTomo && PlayerData.Tomos > _postTomoBase)
+            {
+                _postWaitTomo = false;
+                PlayerPrefs.SetInt("tut_fixed_pack", 1); PlayerPrefs.Save();
+                ShowTutHint("¡Tomo comprado! Vamos a abrirlo.", "Ir a Tomos",
+                    () => { _tutFlowTomos = true; ClearTutorial(); Push(Screen.Tomos); });
+            }
         }
 
         /// <summary>Cierra la partida (tutorial ganado) y vuelve al menú principal.</summary>
