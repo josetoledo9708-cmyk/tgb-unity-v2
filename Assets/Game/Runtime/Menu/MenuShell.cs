@@ -2350,38 +2350,37 @@ namespace Game.Runtime.Menu
             AddTomoIndividual(sx + 2f * (cardW + g), rowY, cardW);
         }
 
-        /// <summary>Card de compra de UN tomo (Libro) suelto. Repetible: resta monedas y suma 1 Tomo.</summary>
+        /// <summary>Card de compra de UN tomo (Libro) suelto. Repetible: resta monedas y suma 1 Tomo.
+        /// Su alto iguala al de los packs vecinos para que la fila quede alineada.</summary>
         private void AddTomoIndividual(float x, float y, float w)
         {
             const int price = 100;
-            float h = w * 1.30f;
+            var packSp = MenuAssets.Sprite(TiendaPacks[1].img); // mismo aspecto que un pack
+            float h = packSp != null ? w * packSp.rect.height / packSp.rect.width : w * 0.72f;
 
             var panel = new GameObject("TomoIndividual", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             panel.transform.SetParent(_tiendaContent, false);
             panel.sprite = MenuGraphics.Rounded(48, 16); panel.type = Image.Type.Sliced;
-            panel.color = new Color(0.05f, 0.05f, 0.09f, 0.85f); panel.raycastTarget = false;
+            panel.color = new Color(0.06f, 0.06f, 0.10f, 0.9f); panel.raycastTarget = false;
             panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
             PlaceTL((RectTransform)panel.transform, x, y, w, h);
 
-            var title = MenuTheme.Label(panel.transform, "TOMO INDIVIDUAL", 18, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
+            var title = MenuTheme.Label(panel.transform, "TOMO INDIVIDUAL", 15, MenuTheme.Gold, TextAnchor.UpperCenter, FontStyle.Bold);
             MenuTheme.GoldMetalText(title); title.raycastTarget = false;
-            PlaceTL((RectTransform)title.transform, 8f, 22f, w - 16f, 30f);
+            PlaceTL((RectTransform)title.transform, 6f, 10f, w - 12f, 24f);
 
-            var glyph = MenuTheme.Label(panel.transform, "1\nLIBRO", 40, new Color(0.92f, 0.82f, 0.5f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            var glyph = MenuTheme.Label(panel.transform, "1 LIBRO", 24, new Color(0.92f, 0.82f, 0.5f), TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.GoldMetalText(glyph); glyph.raycastTarget = false;
-            PlaceTL((RectTransform)glyph.transform, 0f, 70f, w, h - 190f);
+            PlaceTL((RectTransform)glyph.transform, 0f, 34f, w, Mathf.Max(24f, h - 92f));
 
-            var sub = MenuTheme.Label(panel.transform, "1 Libro (sobre) para abrir en Tomos", 14, new Color(0.78f, 0.76f, 0.68f), TextAnchor.UpperCenter);
-            sub.raycastTarget = false;
-            PlaceTL((RectTransform)sub.transform, 10f, h - 108f, w - 20f, 40f);
-
+            // botón de costo (mismo sprite que los packs), superpuesto cerca del borde inferior
             var cost = new GameObject("Cost_tomo", typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<Image>();
             cost.transform.SetParent(panel.transform, false);
             cost.sprite = MenuAssets.Sprite("tienda/promos/boton compras"); cost.type = Image.Type.Sliced;
             cost.raycastTarget = true;
-            float cw = 168f, ch = 44f;
-            PlaceTL((RectTransform)cost.transform, (w - cw) / 2f, h - ch - 14f, cw, ch);
-            var pl = MenuTheme.Label(cost.transform, price + "  ◈", 18, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            float cw = Mathf.Min(160f, w - 24f), ch = 40f;
+            PlaceTL((RectTransform)cost.transform, (w - cw) / 2f, h - ch - 10f, cw, ch);
+            var pl = MenuTheme.Label(cost.transform, price + "  ◈", 17, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             MenuTheme.GoldMetalText(pl); pl.raycastTarget = false; MenuTheme.Stretch((RectTransform)pl.transform);
             cost.GetComponent<Button>().onClick.AddListener(() =>
             {
