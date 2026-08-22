@@ -3,7 +3,9 @@
     "rootNamespace": "Game.Runtime",
     "references": [
         "Game.Core",
-        "Unity.Nuget.Newtonsoft-Json"
+        "Unity.Nuget.Newtonsoft-Json",
+        "Unity.Netcode.Runtime",
+        "Unity.Networking.Transport"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

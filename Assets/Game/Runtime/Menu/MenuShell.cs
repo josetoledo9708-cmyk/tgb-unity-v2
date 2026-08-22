@@ -180,7 +180,7 @@ namespace Game.Runtime.Menu
             Screen.MainMenu     => BuildMainMenu(),
             Screen.Historias    => BuildHistorias(),
             Screen.ContraIA     => BuildContraIA(),
-            Screen.Multijugador => BuildSimple("MULTIJUGADOR", "Partida LAN 1v1 — próximamente."),
+            Screen.Multijugador => BuildMultijugador(),
             Screen.MisMazos     => BuildMisMazos(),
             Screen.SelectDeck   => BuildSelectDeck(),
             Screen.ChooseHistoria => BuildChooseHistoria(),
@@ -948,6 +948,101 @@ namespace Game.Runtime.Menu
         }
 
         // --- CONTRA IA: seleccionar mazo ---
+
+        // --- MULTIJUGADOR (LAN 1v1 vía Netcode) ---
+
+        private InputField _mpIp;
+        private Text _mpStatus;
+        private Button _mpStart;
+
+        private RectTransform BuildMultijugador()
+        {
+            var screen = NewScreen("Multijugador", "fondo_constructor", MenuTheme.DarkBg);
+            MenuTheme.Rect(screen, "Dim", new Color(0f, 0f, 0f, 0.5f));
+            Title(screen, "MULTIJUGADOR");
+            BackButton(screen);
+            Game.Runtime.Net.NetPlay.Launch = LaunchNetGame; // la red pedirá encender el campo al empezar
+
+            var col = MenuTheme.VBox(screen, 14f, 0, TextAnchor.MiddleCenter);
+            MenuTheme.Anchor((RectTransform)col.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-260f, -230f), new Vector2(260f, 210f));
+
+            var hint = MenuTheme.Label(col.transform, "Partida LAN 1v1. Un jugador CREA la sala; el otro se UNE con la IP del host (misma red).", 15, new Color(0.85f, 0.83f, 0.75f), TextAnchor.MiddleCenter);
+            hint.raycastTarget = false; AddLE(hint.gameObject, 500f, 54f);
+
+            // IP local del host (para compartir)
+            string localIp = LocalIPv4();
+            var ipInfo = MenuTheme.Label(col.transform, "Tu IP (host): " + localIp, 15, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            ipInfo.raycastTarget = false; AddLE(ipInfo.gameObject, 500f, 26f);
+
+            var host = MenuTheme.TextButton(col.transform, "CREAR SALA (HOST)", 18, () => Game.Runtime.Net.NetworkBootstrap.StartHost(), 360f, 52f);
+            AddLE(host.gameObject, 360f, 52f);
+
+            _mpIp = MakeInput(col.transform, "IP del host (ej. 192.168.1.20)");
+            AddLE(_mpIp.gameObject, 360f, 46f);
+
+            var join = MenuTheme.TextButton(col.transform, "UNIRSE", 18, () => Game.Runtime.Net.NetworkBootstrap.StartClient(_mpIp != null ? _mpIp.text : ""), 360f, 52f);
+            AddLE(join.gameObject, 360f, 52f);
+
+            _mpStatus = MenuTheme.Label(col.transform, Game.Runtime.Net.NetworkBootstrap.Status, 16, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _mpStatus.raycastTarget = false; AddLE(_mpStatus.gameObject, 500f, 28f);
+
+            _mpStart = MenuTheme.TextButton(col.transform, "EMPEZAR PARTIDA", 18, () => Game.Runtime.Net.NetRelay.HostStart(), 360f, 52f).GetComponent<Button>();
+            AddLE(_mpStart.gameObject, 360f, 52f);
+            _mpStart.interactable = false;
+
+            var disc = MenuTheme.TextButton(col.transform, "Desconectar", 14, () => { Game.Runtime.Net.NetworkBootstrap.Shutdown(); }, 200f, 38f, thicken: false);
+            AddLE(disc.gameObject, 200f, 38f);
+
+            return screen;
+        }
+
+        private static void AddLE(GameObject go, float w, float h)
+        {
+            var le = go.GetComponent<LayoutElement>() ?? go.AddComponent<LayoutElement>();
+            le.preferredWidth = w; le.preferredHeight = h; le.minHeight = h;
+        }
+
+        private static string LocalIPv4()
+        {
+            try
+            {
+                foreach (var a in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
+                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) return a.ToString();
+            }
+            catch { /* ignora */ }
+            return "127.0.0.1";
+        }
+
+        private InputField MakeInput(Transform parent, string placeholder)
+        {
+            var go = new GameObject("Input", typeof(RectTransform), typeof(Image), typeof(InputField));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = MenuGraphics.Rounded(24, 8); img.type = Image.Type.Sliced; img.color = new Color(0f, 0f, 0f, 0.55f);
+            var input = go.GetComponent<InputField>();
+
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            Text Mk(string name, Color c)
+            {
+                var t = new GameObject(name, typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+                t.transform.SetParent(go.transform, false);
+                t.font = font; t.color = c; t.fontSize = 18; t.alignment = TextAnchor.MiddleLeft; t.supportRichText = false;
+                var rt = (RectTransform)t.transform;
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = new Vector2(12f, 4f); rt.offsetMax = new Vector2(-12f, -4f);
+                return t;
+            }
+            var ph = Mk("Placeholder", new Color(1f, 1f, 1f, 0.4f)); ph.text = placeholder;
+            var txt = Mk("Text", Color.white);
+            input.textComponent = txt; input.placeholder = ph;
+            input.lineType = InputField.LineType.SingleLine;
+            return input;
+        }
+
+        private void LaunchNetGame()
+        {
+            _canvas.gameObject.SetActive(false);
+            if (_board != null) { _board.enabled = true; _inMatch = true; }
+        }
 
         private RectTransform BuildContraIA()
         {
@@ -3282,6 +3377,13 @@ namespace Game.Runtime.Menu
                 else CloseInGameOptions();
             }
 
+            // Multijugador: refrescar estado de conexión y habilitar EMPEZAR (solo host con 2 conectados).
+            if (_currentScreen == Screen.Multijugador)
+            {
+                if (_mpStatus != null) _mpStatus.text = Game.Runtime.Net.NetworkBootstrap.Status;
+                if (_mpStart != null) _mpStart.interactable = Game.Runtime.Net.NetworkBootstrap.ClientCount >= 2;
+            }
+
             // Recorrido post-partida: al reclamar el logro -> Tienda.
             if (_postWaitClaim && PlayerPrefs.GetInt("log_claim_lp", 0) == 1)
                 ShowPostAfterClaim();
@@ -3301,6 +3403,7 @@ namespace Game.Runtime.Menu
             if (_modal != null) CloseModal();
             _inMatch = false;
             if (_board != null) _board.enabled = false;
+            if (Game.Runtime.Net.NetPlay.Active) Game.Runtime.Net.NetworkBootstrap.Shutdown(); // cerrar la red si era partida online
             _canvas.gameObject.SetActive(true);
             _stack.Clear();
             Push(Screen.MainMenu);

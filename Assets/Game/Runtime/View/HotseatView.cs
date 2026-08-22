@@ -8,6 +8,7 @@ using Game.Core.Data;
 using Game.Core.Effects;
 using Game.Core.Engine;
 using Game.Core.Model;
+using Game.Runtime.Net;
 
 namespace Game.Runtime.View
 {
@@ -65,6 +66,11 @@ namespace Game.Runtime.View
         private bool _rewardGiven;
         private CardInstance? _playInfoCard; // carta recién jugada cuyo efecto se está explicando
         private bool _awaitInfoAck;          // esperando "Entendido" tras jugar una pieza
+
+        // --- Multijugador en red (LAN) ---
+        private bool _net;          // partida en red (lockstep de comandos)
+        private int _netMyPlayer;   // 0 host, 1 cliente
+        private int LocalPlayer => _net ? _netMyPlayer : 0; // lado propio (mano visible / input)
 
         // --- Tutorial #2: IA activa que pierde por deck-out; explica mecánicas al usarlas ---
         private bool _tutorial2;
@@ -150,14 +156,20 @@ namespace Game.Runtime.View
             _auto = new AutoDecisionProvider(catalog); // IA consciente de sus piezas al usar tutores
             _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver(), Decisions = _auto };
             _engine.ResponseWindow = OnResponseWindow; // permite activar trampas en el turno rival
+
+            // Modo RED: misma semilla en ambos lados (motor determinista), sin IA.
+            _net = NetPlay.Active;
+            if (_net) { _netMyPlayer = NetPlay.MyPlayer; aiPlayer = -1; }
+            ulong matchSeed = _net ? NetPlay.Seed : seed;
+
             _engine.StartGame(
                 SampleDeckBuilder.Build(catalog, historiaP0, 40, pieceCopies: 3), // 3 copias de cada pieza
                 SampleDeckBuilder.Build(catalog, historiaP1, 40, pieceCopies: 3),
-                seed, firstPlayer: 0);
+                matchSeed, firstPlayer: 0);
 
-            EnsureResponseInHand(_engine.State.Players[0]); // P0 arranca con una trampa para probar
+            if (!_net) EnsureResponseInHand(_engine.State.Players[0]); // (determinismo en red: no alterar la mano)
 
-            _tutorial = PlayerPrefs.GetInt("tutorial_match", 0) == 1;
+            _tutorial = !_net && PlayerPrefs.GetInt("tutorial_match", 0) == 1;
             if (_tutorial)
             {
                 PlayerPrefs.SetInt("tutorial_match", 0); PlayerPrefs.Save();
@@ -166,7 +178,7 @@ namespace Game.Runtime.View
                 SetupTutorialField(_engine.State.Players[0]); // mano fija + piezas preparadas para ganar
             }
 
-            _tutorial2 = PlayerPrefs.GetInt("tutorial2_match", 0) == 1;
+            _tutorial2 = !_net && PlayerPrefs.GetInt("tutorial2_match", 0) == 1;
             if (_tutorial2)
             {
                 PlayerPrefs.SetInt("tutorial2_match", 0); PlayerPrefs.Save();
@@ -207,6 +219,8 @@ namespace Game.Runtime.View
             _placePending = false; _placeCard = null; _respShow = false; _respPending = false; _respTrap = null;
             _showLog = false; _lastLogCount = -1; _logView.Clear();
             _gameOver = false; _gameWinner = -1; _timerTurn = -1;
+
+            _net = false; aiPlayer = 1; // por defecto: partida local con IA en P1 (se re-decide abajo)
 
             // Estado de tutoriales (se re-decide abajo según los flags).
             _tutorial = false; _tutorial2 = false;
@@ -282,6 +296,10 @@ namespace Game.Runtime.View
             // Resolver decisión (Aceptar) fuera del ciclo OnGUI para no romper el GUILayout.
             if (_deferredResolve != null) { var a = _deferredResolve; _deferredResolve = null; a(); }
 
+            // RED: aplicar los comandos ya ordenados por el servidor (mismo orden en ambos lados).
+            if (_net)
+                while (NetPlay.Incoming.Count > 0) ApplyNetCommand(NetPlay.Incoming.Dequeue());
+
             // Latch estable por-frame de fin de partida: OnGUI (Layout y Repaint son eventos
             // distintos) debe ver el MISMO valor aunque el hilo de comandos cambie IsOver en medio.
             _gameOver = _engine.State.IsOver;
@@ -340,6 +358,7 @@ namespace Game.Runtime.View
         private void OnPointerDown(CardView cv)
         {
             var s = _engine.State;
+            if (_net && s.ActivePlayer != _netMyPlayer) return; // red: solo actúas en tu turno
             if (TutBlocksPlay(cv.Card)) { _status = TutBlockMsg(); return; } // tutorial: solo la carta guiada
 
             // Carta jugable de tu mano (visible) -> arrastrar; resto (tapear TIERRA) -> clic.
@@ -402,10 +421,7 @@ namespace Game.Runtime.View
             if (inField && !_engine.State.IsOver)
             {
                 if (card.Type == CardType.Concepto) { PlayOrPlaceConcepto(card); return; }
-                System.Func<CommandResult> cmd = card.Type == CardType.Tierra
-                    ? () => _engine.PlayTierra(card)
-                    : () => _engine.PlaySer(card);
-                RunHumanCommand(card.Nombre, cmd);
+                Act(card.Type == CardType.Tierra ? NetCmd.PlayTierra : NetCmd.PlaySer, card);
             }
             else
             {
@@ -426,7 +442,7 @@ namespace Game.Runtime.View
             }
             else
             {
-                RunHumanCommand(card.Nombre, () => _engine.PlayConcepto(card, faceDown: false));
+                Act(NetCmd.PlayConcepto, card, 0);
             }
         }
 
@@ -450,6 +466,59 @@ namespace Game.Runtime.View
                 foreach (var g in _glowSer[p]) g.SetActive(false);
                 _glowConcepto[p]?.SetActive(false);
             }
+        }
+
+        /// <summary>Punto único de acción del jugador: en red envía el comando (lockstep); local lo ejecuta.</summary>
+        private void Act(NetCmd cmd, CardInstance card, byte flag = 0)
+        {
+            if (_net)
+            {
+                if (_engine.State.ActivePlayer != _netMyPlayer) return; // solo en tu turno
+                NetPlay.Submit?.Invoke(new NetCommand(cmd, card?.InstanceId ?? 0, flag));
+                return;
+            }
+            string name = card?.Nombre ?? "Acción";
+            switch (cmd)
+            {
+                case NetCmd.PlayTierra: RunHumanCommand(name, () => _engine.PlayTierra(card)); break;
+                case NetCmd.TapTierra: RunHumanCommand(name, () => _engine.TapTierra(card)); break;
+                case NetCmd.PlaySer: RunHumanCommand(name, () => _engine.PlaySer(card)); break;
+                case NetCmd.PlayConcepto: RunHumanCommand(name, () => _engine.PlayConcepto(card, flag == 1)); break;
+                case NetCmd.ActivateDia: RunHumanCommand("DÍA", () => _engine.ActivateDia(false)); break;
+                case NetCmd.ActivateSer: RunHumanCommand(name, () => _engine.ActivateSerEffect(card)); break;
+                case NetCmd.EndTurn: RunHumanCommand("Terminar turno", () => _engine.EndTurn()); break;
+            }
+        }
+
+        /// <summary>Aplica en el motor un comando recibido por la red (ambos lados, mismo orden).</summary>
+        private void ApplyNetCommand(NetCommand c)
+        {
+            _engine.Decisions = _auto; // decisiones deterministas en red
+            var card = c.InstanceId != 0 ? FindInstance(c.InstanceId) : null;
+            try
+            {
+                switch (c.Cmd)
+                {
+                    case NetCmd.PlayTierra: if (card != null) _engine.PlayTierra(card); break;
+                    case NetCmd.TapTierra: if (card != null) _engine.TapTierra(card); break;
+                    case NetCmd.PlaySer: if (card != null) _engine.PlaySer(card); break;
+                    case NetCmd.PlayConcepto: if (card != null) _engine.PlayConcepto(card, c.Flag == 1); break;
+                    case NetCmd.ActivateDia: _engine.ActivateDia(false); break;
+                    case NetCmd.ActivateSer: if (card != null) _engine.ActivateSerEffect(card); break;
+                    case NetCmd.EndTurn: _engine.EndTurn(); break;
+                }
+            }
+            catch (System.Exception e) { Debug.LogError(e); }
+            Rebuild();
+        }
+
+        private CardInstance? FindInstance(int id)
+        {
+            foreach (var pl in _engine.State.Players)
+                foreach (var z in new[] { pl.Mano, pl.Tierras, pl.Seres, pl.Concepto, pl.PilaDia, pl.Retirados, pl.Mazo })
+                    for (int i = 0; i < z.Cards.Count; i++)
+                        if (z.Cards[i].InstanceId == id) return z.Cards[i];
+            return null;
         }
 
         /// <summary>Ejecuta un comando del jugador en un hilo (para que las decisiones puedan pausar).</summary>
@@ -505,23 +574,18 @@ namespace Game.Runtime.View
             if (cv.OwnerId != s.ActivePlayer || cv.Card == null) return;
             var p = s.Active;
             var card = cv.Card;
-            System.Func<CommandResult>? cmd = null;
 
-            if (p.Tierras.Cards.Contains(card) && !card.Tapped)
-                cmd = () => _engine.TapTierra(card);               // tapear TIERRA -> FD
-            else if (p.Seres.Cards.Contains(card))
-                cmd = () => _engine.ActivateSerEffect(card);       // efecto ACTIVADO del SER
-            else if (card.Type == CardType.Dia)
-                cmd = () => _engine.ActivateDia(useFree: false);   // activar el DÍA actual
-            else if (p.Mano.Cards.Contains(card))                  // mano no arrastrable -> intentar jugar
+            NetCmd? act = null;
+            if (p.Tierras.Cards.Contains(card) && !card.Tapped) act = NetCmd.TapTierra;      // tapear TIERRA -> FD
+            else if (p.Seres.Cards.Contains(card)) act = NetCmd.ActivateSer;                  // efecto ACTIVADO del SER
+            else if (card.Type == CardType.Dia) act = NetCmd.ActivateDia;                     // activar el DÍA actual
+            else if (p.Mano.Cards.Contains(card))                                             // mano no arrastrable -> jugar
             {
                 if (card.Type == CardType.Concepto) { PlayOrPlaceConcepto(card); return; }
-                cmd = card.Type == CardType.Tierra
-                    ? () => _engine.PlayTierra(card)
-                    : () => _engine.PlaySer(card);
+                act = card.Type == CardType.Tierra ? NetCmd.PlayTierra : NetCmd.PlaySer;
             }
 
-            if (cmd != null) RunHumanCommand(card.Nombre, cmd);
+            if (act.HasValue) Act(act.Value, card);
         }
 
         // ---------------- render ----------------
@@ -545,7 +609,7 @@ namespace Game.Runtime.View
             for (int p = 0; p < 2; p++)
             {
                 var ps = s.Players[p];
-                bool hideHand = p != 0; // ocultar la mano del rival
+                bool hideHand = p != LocalPlayer; // ocultar la mano del rival (en red, la del oponente)
 
                 for (int i = 0; i < ps.Mano.Count; i++)
                 {
@@ -890,9 +954,10 @@ namespace Game.Runtime.View
                 bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
                 // En el tutorial, SIGUIENTE FASE solo se habilita en el último paso guiado.
                 bool tutOk = !_tutorial || _guideStep >= GuideSteps.Length - 1;
-                GUI.enabled = humanTurn && !_aiRunning && !_busy && tutOk;
+                bool netOk = !_net || s.ActivePlayer == _netMyPlayer; // en red, solo en tu turno
+                GUI.enabled = humanTurn && !_aiRunning && !_busy && tutOk && netOk;
                 if (GUILayout.Button("SIGUIENTE FASE", GUILayout.Height(28)))
-                    RunHumanCommand("Terminar turno", () => _engine.EndTurn());
+                    Act(NetCmd.EndTurn, null);
                 GUI.enabled = true;
             }
             GUILayout.Label(_status, center);
@@ -1498,6 +1563,7 @@ namespace Game.Runtime.View
         {
             // La IA scriptada del tutorial #2 corre en el hilo principal: no bloquear pidiendo respuesta al humano.
             if (_t2AiActing && defender != aiPlayer) return null;
+            if (_net) return null; // TODO(red): trampas de respuesta aún no soportadas en lockstep
             var dp = _engine.State.Players[defender];
             var trap = dp.Concepto.Cards.FirstOrDefault(c =>
                 c.FaceDown && _engine.Effects.IsResponse(c.Def.Id) && dp.Fd >= (c.Def.Coste ?? 0)
@@ -1526,12 +1592,12 @@ namespace Game.Runtime.View
             if (GUILayout.Button("Jugar ya", GUILayout.Height(30)))
             {
                 var c = _placeCard!; _placePending = false; _placeCard = null;
-                _deferredResolve = () => RunHumanCommand(c.Nombre, () => _engine.PlayConcepto(c, faceDown: false));
+                _deferredResolve = () => Act(NetCmd.PlayConcepto, c, 0);
             }
             if (GUILayout.Button("Boca abajo (trampa)", GUILayout.Height(30)))
             {
                 var c = _placeCard!; _placePending = false; _placeCard = null;
-                _deferredResolve = () => RunHumanCommand(c.Nombre, () => _engine.PlayConcepto(c, faceDown: true));
+                _deferredResolve = () => Act(NetCmd.PlayConcepto, c, 1);
             }
             GUILayout.EndArea();
         }
