@@ -33,6 +33,9 @@ namespace Game.Runtime.Menu
         private readonly Dictionary<Screen, GameObject> _cache = new();
         private readonly Dictionary<Screen, System.Action> _onShow = new();
         private ScreenFader _fader; // cortina de transición entre menús
+        private RectTransform _histBtn;   // botón HISTORIAS (para resaltar en el tutorial)
+        private GameObject _tut;          // overlay del tutorial activo
+        private int _tutStep;
         private Game.Runtime.View.HotseatView _board;
         private CardCatalog _catalog;      // catálogo de cartas, para previews reales en los modales
         private CardArtLibrary _cardArt;   // arte de carta, misma carpeta que usa el campo
@@ -319,7 +322,8 @@ namespace Game.Runtime.Menu
             // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
             var list = MenuTheme.VBox(screen, 6f, 0, TextAnchor.MiddleCenter); // mas juntos
             MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -280f), new Vector2(240f, 50f));
-            DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
+            var histBtn = DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
+            _histBtn = (RectTransform)histBtn.transform;
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE HISTORIAS", () => Push(Screen.MisMazos));
             DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
@@ -399,16 +403,105 @@ namespace Game.Runtime.Menu
             tomoHover.particles = tomoParticles; // hover: duplica las partículas
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
+            MaybeStartTutorial();
             return screen;
         }
 
-        private void DesignedMenuButton(Transform parent, string label, System.Action onClick,
+        // --- TUTORIAL (Etapa 1: capa de menú) ---
+
+        private static readonly (string text, bool onHist)[] TutSteps =
+        {
+            ("Hola, sé bienvenido a The Great Book: un juego de cartas basado en las historias bíblicas que nos han acompañado desde hace mucho tiempo, y que nos las vuelve a relatar para recordar sus orígenes.", false),
+            ("HISTORIAS: aquí revivirás las historias más emblemáticas de este libro, recreándolas tal como las vivieron sus personajes.", true),
+            ("En este primer apartado aprenderemos a jugar antes de adentrarnos en la historia. Selecciona el Tutorial para aprender.", true),
+        };
+
+        private void MaybeStartTutorial()
+        {
+            if (PlayerPrefs.GetInt("tut_intro_done", 0) == 1) return;
+            _tutStep = 0;
+            ShowTutorialStep();
+        }
+
+        private void ClearTutorial()
+        {
+            if (_tut != null) { Destroy(_tut); _tut = null; }
+        }
+
+        private void FinishTutorial()
+        {
+            PlayerPrefs.SetInt("tut_intro_done", 1); PlayerPrefs.Save();
+            ClearTutorial();
+        }
+
+        private void ShowTutorialStep()
+        {
+            ClearTutorial();
+            if (_tutStep < 0 || _tutStep >= TutSteps.Length) { FinishTutorial(); return; }
+            var step = TutSteps[_tutStep];
+            bool last = _tutStep == TutSteps.Length - 1;
+
+            var dim = MenuTheme.Rect(_root, "TutOverlay", new Color(0f, 0f, 0f, 0.72f));
+            dim.raycastTarget = true; dim.transform.SetAsLastSibling();
+            _tut = dim.gameObject;
+
+            if (step.onHist && _histBtn != null) { Canvas.ForceUpdateCanvases(); AddTutHighlight(_histBtn); }
+
+            // caja de diálogo (abajo-centro)
+            var panel = new GameObject("TutBox", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            panel.transform.SetParent(dim.transform, false);
+            panel.sprite = MenuGraphics.Rounded(48, 16); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.04f, 0.05f, 0.12f, 0.98f); panel.raycastTarget = true;
+            panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            var prt = (RectTransform)panel.transform;
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f); prt.pivot = new Vector2(0.5f, 0f);
+            prt.sizeDelta = new Vector2(680f, 180f); prt.anchoredPosition = new Vector2(0f, 40f);
+
+            var txt = MenuTheme.Label(panel.transform, step.text, 18, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
+            txt.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 56f), new Vector2(-24f, -18f));
+
+            // botón principal
+            var mainTxt = last ? "Ir a Historias" : "Siguiente";
+            var mainBtn = MenuTheme.TextButton(panel.transform, mainTxt, 16, () =>
+            {
+                if (last) { FinishTutorial(); Push(Screen.Historias); }
+                else { _tutStep++; ShowTutorialStep(); }
+            }, 180f, 40f);
+            MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-198f, 12f), new Vector2(-18f, 52f));
+
+            // saltar
+            var skip = MenuTheme.TextButton(panel.transform, "Saltar tutorial", 13, FinishTutorial, 150f, 34f, thicken: false);
+            MenuTheme.Anchor((RectTransform)skip.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(18f, 15f), new Vector2(168f, 49f));
+        }
+
+        /// <summary>Marco dorado resaltando un objetivo, calculado a partir de su rect en pantalla.</summary>
+        private void AddTutHighlight(RectTransform target)
+        {
+            var tutRt = (RectTransform)_tut.transform;
+            var corners = new Vector3[4]; target.GetWorldCorners(corners);
+            var cam = _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay ? _canvas.worldCamera : null;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(tutRt, RectTransformUtility.WorldToScreenPoint(cam, corners[0]), cam, out var bl);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(tutRt, RectTransformUtility.WorldToScreenPoint(cam, corners[2]), cam, out var tr);
+            var frame = new GameObject("TutHL", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            frame.transform.SetParent(_tut.transform, false);
+            frame.sprite = MenuGraphics.Rounded(24, 10); frame.type = Image.Type.Sliced;
+            frame.color = new Color(1f, 0.85f, 0.4f, 0.12f); frame.raycastTarget = false;
+            var fo = frame.gameObject.AddComponent<Outline>(); fo.effectColor = MenuTheme.Gold; fo.effectDistance = new Vector2(3f, 3f);
+            var frt = (RectTransform)frame.transform;
+            frt.anchorMin = frt.anchorMax = frt.pivot = new Vector2(0.5f, 0.5f);
+            frt.anchoredPosition = (bl + tr) / 2f;
+            frt.sizeDelta = (tr - bl) + new Vector2(18f, 18f);
+        }
+
+        private Selectable DesignedMenuButton(Transform parent, string label, System.Action onClick,
                                         float width = 410f, float height = 70f, // largo reducido, sin icono
                                         System.Func<Transform, RectTransform> icon = null)
         {
             var b = MenuTheme.DesignedButton(parent, label, onClick, width, height, icon);
             var le = b.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = width; le.preferredHeight = height;
+            return b;
         }
 
         private void AddMenuButton(Transform parent, string sprite, string fallbackText, System.Action onClick,
