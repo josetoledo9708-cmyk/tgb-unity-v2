@@ -261,18 +261,29 @@ namespace Game.Runtime.Menu
             var screen = NewScreen("MainMenu", "main_menu_bg");
             TryVideoBackground(screen, "Menu/MM"); // video en bucle detrás (fallback = imagen estática)
 
-            // --- Perfil arriba-izquierda ---
-            var prof = MenuTheme.Rect(screen, "Profile", new Color(0.10f, 0.09f, 0.16f, 0.85f));
-            MenuTheme.Anchor((RectTransform)prof.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -74f), new Vector2(280f, -16f));
-            prof.gameObject.AddComponent<Outline>().effectColor = MenuTheme.GoldDim;
-            var av = MenuTheme.Rect(prof.transform, "Avatar", new Color(0.30f, 0.28f, 0.55f, 1f));
-            MenuTheme.Anchor((RectTransform)av.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, -22f), new Vector2(52f, 22f));
-            MenuTheme.Label(av.transform, "W", 22, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // --- Perfil arriba-izquierda (mismo lenguaje del menú: oscuro redondeado + borde dorado) ---
+            var prof = new GameObject("Profile", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            prof.transform.SetParent(screen, false);
+            prof.sprite = MenuGraphics.Rounded(40, 14); prof.type = Image.Type.Sliced;
+            prof.color = new Color(0.05f, 0.05f, 0.11f, 0.72f); prof.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)prof.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -76f), new Vector2(286f, -16f));
+            var profOut = prof.gameObject.AddComponent<Outline>(); profOut.effectColor = MenuTheme.Gold; profOut.effectDistance = new Vector2(1.6f, 1.6f);
+
+            // avatar circular con aro dorado
+            var av = new GameObject("Avatar", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            av.transform.SetParent(prof.transform, false);
+            av.sprite = MenuGraphics.Rounded(48, 24); av.type = Image.Type.Sliced; av.color = new Color(0.09f, 0.09f, 0.17f, 1f);
+            av.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            MenuTheme.Anchor((RectTransform)av.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, -22f), new Vector2(54f, 22f));
+            var avl = MenuTheme.Label(av.transform, "W", 22, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            MenuTheme.GoldMetalText(avl); avl.raycastTarget = false;
+
             var pname = MenuTheme.Label(prof.transform, "Jugador", 18, MenuTheme.Gold, TextAnchor.UpperLeft, FontStyle.Bold);
-            MenuTheme.GoldMetalText(pname); // mismo oro metálico que los botones
-            MenuTheme.Anchor((RectTransform)pname.transform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(62f, -4f), new Vector2(-6f, -6f));
-            var pinfo = MenuTheme.Label(prof.transform, "Nv 1 · 0 amigos", 13, new Color(0.75f, 0.72f, 0.6f), TextAnchor.LowerLeft);
-            MenuTheme.Anchor((RectTransform)pinfo.transform, new Vector2(0f, 0f), new Vector2(1f, 0.5f), new Vector2(62f, 6f), new Vector2(-6f, 0f));
+            MenuTheme.GoldMetalText(pname); pname.raycastTarget = false; // mismo oro metálico que los botones
+            MenuTheme.Anchor((RectTransform)pname.transform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(64f, -4f), new Vector2(-8f, -6f));
+            var pinfo = MenuTheme.Label(prof.transform, "Nv 1 · 0 amigos", 13, new Color(0.82f, 0.75f, 0.55f), TextAnchor.LowerLeft);
+            pinfo.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)pinfo.transform, new Vector2(0f, 0f), new Vector2(1f, 0.5f), new Vector2(64f, 6f), new Vector2(-8f, 0f));
 
             // --- Cluster arriba-derecha: monedas + tutorial + engranaje ---
             var coinIcon = MenuTheme.Picture(screen, "CoinIcon", MenuAssets.Sprite("Moneda"));
