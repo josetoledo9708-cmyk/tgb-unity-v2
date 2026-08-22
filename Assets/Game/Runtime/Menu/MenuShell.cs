@@ -299,7 +299,15 @@ namespace Game.Runtime.Menu
             var coinLbl = MenuTheme.Label(screen, PlayerData.Monedas.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
             MenuTheme.GoldMetalText(coinLbl); // mismo oro metálico que los botones
             MenuTheme.Anchor((RectTransform)coinLbl.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-256f, -56f), new Vector2(-150f, -18f));
-            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, () => { PlayerPrefs.DeleteKey("tut_intro_done"); _tutStep = 0; ShowTutorialStep(); }, 110f, 38f, thicken: false); // TESTING: relanza el tutorial
+            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, () =>
+            {
+                // TESTING: relanza el tutorial completo como si fuese la primera vez
+                foreach (var k in new[] { "tut_intro_done", "tutorial1_done", "tut_postmatch_done", "logro_primeros_pasos", "log_claim_lp" })
+                    PlayerPrefs.DeleteKey(k);
+                PlayerPrefs.Save();
+                _postStep = -1; _tutFlowMisiones = false; _postWaitClaim = false;
+                _tutStep = 0; ShowTutorialStep();
+            }, 110f, 38f, thicken: false);
             MenuTheme.Anchor((RectTransform)tut.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-146f, -56f), new Vector2(-52f, -18f));
 
             // Engranaje = icono cog dorado procedural, SIN caja detrás.
@@ -332,7 +340,8 @@ namespace Game.Runtime.Menu
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE HISTORIAS", () => Push(Screen.MisMazos));
             var misBtn = DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
-            _misLogrosGlow = AddPendingGlow((RectTransform)misBtn.transform); // brilla si hay algo por reclamar
+            _misBtn = (RectTransform)misBtn.transform;
+            _misLogrosGlow = AddPendingGlow(_misBtn); // brilla si hay algo por reclamar
 
             // --- Tienda = estandarte a la izquierda con efectos (hover: agranda + resplandor + partículas) ---
             var tiendaGo = new GameObject("BtnTienda", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -412,6 +421,7 @@ namespace Game.Runtime.Menu
             {
                 coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
                 if (_misLogrosGlow != null) _misLogrosGlow.SetActive(HayReclamosPendientes());
+                MaybeStartTutorial(); // Etapa 2: al volver de la partida ganada (MainMenu viene del caché)
             };
             MaybeStartTutorial();
             return screen;
@@ -428,9 +438,67 @@ namespace Game.Runtime.Menu
 
         private void MaybeStartTutorial()
         {
-            if (PlayerPrefs.GetInt("tut_intro_done", 0) == 1) return;
-            _tutStep = 0;
-            ShowTutorialStep();
+            if (_tut != null || _postStep >= 0) return; // ya hay un tutorial en curso
+            if (PlayerPrefs.GetInt("tut_intro_done", 0) != 1) { _tutStep = 0; ShowTutorialStep(); return; }
+            // Etapa 2 (post-partida): ganó el tutorial y aún no hizo el recorrido de reclamo.
+            if (PlayerPrefs.GetInt("tutorial1_done", 0) == 1 && PlayerPrefs.GetInt("tut_postmatch_done", 0) != 1)
+                StartPostTutorial();
+        }
+
+        // --- TUTORIAL (Etapa 2: post-partida en el menú) ---
+
+        private int _postStep = -1;        // -1 = inactivo
+        private bool _tutFlowMisiones;     // continuar el recorrido al entrar a Misiones
+        private bool _postWaitClaim;       // esperando que el jugador reclame el logro
+
+        private void StartPostTutorial()
+        {
+            _postStep = 0;
+            ShowTutBox("¡Bien hecho! Ganaste tu primera partida y desbloqueaste el logro «Primeros Pasos». Vamos a reclamar tu recompensa: abre Misiones y Logros (brilla).",
+                _misBtn, "Ir a Misiones", () => { _tutFlowMisiones = true; ClearTutorial(); Push(Screen.Misiones); });
+        }
+
+        /// <summary>Al entrar a Misiones durante el recorrido: pestaña Logros + pista para reclamar.</summary>
+        private void PostTutorialInMisiones()
+        {
+            _tutFlowMisiones = false;
+            _misionesTab = false;      // pestaña LOGROS
+            RebuildMisiones();
+            _postWaitClaim = true;
+            ShowTutHint("Pulsa «Reclamar +700» en el logro «Primeros Pasos» para cobrar tu recompensa.");
+        }
+
+        private void ShowPostClosing()
+        {
+            _postWaitClaim = false;
+            ShowTutHint("¡Recompensa reclamada! Con esto terminas el tutorial. Explora la Tienda, abre tus Tomos y crea tu propio mazo cuando quieras. ¡Disfruta The Great Book!",
+                "Entendido", () => { PlayerPrefs.SetInt("tut_postmatch_done", 1); PlayerPrefs.Save(); _postStep = -1; ClearTutorial(); });
+        }
+
+        /// <summary>Pista no-modal (sin oscurecer): panel inferior que NO bloquea los clics del menú.</summary>
+        private void ShowTutHint(string text, string mainLabel = null, System.Action mainAction = null)
+        {
+            ClearTutorial();
+            var panel = new GameObject("TutHint", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            panel.transform.SetParent(_root, false);
+            panel.sprite = MenuGraphics.Rounded(48, 16); panel.type = Image.Type.Sliced;
+            panel.color = new Color(0.03f, 0.03f, 0.06f, 0.92f); panel.raycastTarget = true;
+            panel.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
+            var prt = (RectTransform)panel.transform;
+            prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f); prt.pivot = new Vector2(0.5f, 0f);
+            prt.sizeDelta = new Vector2(700f, mainLabel != null ? 150f : 110f); prt.anchoredPosition = new Vector2(0f, 26f);
+            panel.transform.SetAsLastSibling();
+            _tut = panel.gameObject; // ClearTutorial lo destruye
+
+            var txt = MenuTheme.Label(panel.transform, text, 17, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
+            txt.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(22f, mainLabel != null ? 52f : 16f), new Vector2(-22f, -16f));
+
+            if (mainLabel != null)
+            {
+                var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, 16, mainAction, 180f, 40f);
+                MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-90f, 10f), new Vector2(90f, 50f));
+            }
         }
 
         private void ClearTutorial()
@@ -554,6 +622,7 @@ namespace Game.Runtime.Menu
         }
 
         private GameObject _misLogrosGlow; // aura pulsante del botón MISIONES Y LOGROS
+        private RectTransform _misBtn;     // botón MISIONES Y LOGROS (para resaltar en el tutorial)
 
         /// <summary>¿Hay alguna misión completa o logro desbloqueado sin reclamar?</summary>
         private bool HayReclamosPendientes()
@@ -2374,6 +2443,7 @@ namespace Game.Runtime.Menu
             listGo.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             RebuildMisiones();
+            if (_tutFlowMisiones) PostTutorialInMisiones(); // recorrido post-partida: pestaña Logros + pista
             return screen;
         }
 
@@ -3070,6 +3140,10 @@ namespace Game.Runtime.Menu
                 if (_modal == null) OpenInGameOptions();
                 else CloseInGameOptions();
             }
+
+            // Recorrido post-partida: al reclamar el logro, mostrar el cierre.
+            if (_postWaitClaim && PlayerPrefs.GetInt("log_claim_lp", 0) == 1)
+                ShowPostClosing();
         }
 
         /// <summary>Cierra la partida (tutorial ganado) y vuelve al menú principal.</summary>
