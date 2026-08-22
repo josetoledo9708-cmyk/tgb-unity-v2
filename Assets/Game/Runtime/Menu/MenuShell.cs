@@ -325,7 +325,9 @@ namespace Game.Runtime.Menu
             tomoPart.SetParent(tomos.transform, false);
             tomoPart.anchorMin = tomoPart.anchorMax = new Vector2(0.5f, 0.5f); tomoPart.pivot = new Vector2(0.5f, 0.5f);
             tomoPart.sizeDelta = new Vector2(160f, 220f); tomoPart.anchoredPosition = Vector2.zero;
-            tomoPart.gameObject.AddComponent<GoldParticles>().dotSprite = GlowSprite();
+            var tomoParticles = tomoPart.gameObject.AddComponent<GoldParticles>();
+            tomoParticles.dotSprite = GlowSprite();
+            tomoParticles.count = 19; // +20%
 
             // resplandor radial suave detrás del libro (oculto; se ilumina al pasar el cursor)
             var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", GlowSprite(), preserveAspect: false);
