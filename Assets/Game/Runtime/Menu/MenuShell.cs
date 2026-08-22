@@ -331,7 +331,8 @@ namespace Game.Runtime.Menu
             _histBtn = (RectTransform)histBtn.transform;
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () => Push(Screen.Multijugador));
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE HISTORIAS", () => Push(Screen.MisMazos));
-            DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
+            var misBtn = DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
+            _misLogrosGlow = AddPendingGlow((RectTransform)misBtn.transform); // brilla si hay algo por reclamar
 
             // --- Tienda = estandarte a la izquierda con efectos (hover: agranda + resplandor + partículas) ---
             var tiendaGo = new GameObject("BtnTienda", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -407,7 +408,11 @@ namespace Game.Runtime.Menu
             tomoHover.glowAlpha = 1f;
             tomoHover.particles = tomoParticles; // hover: duplica las partículas
 
-            _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
+            _onShow[Screen.MainMenu] = () =>
+            {
+                coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
+                if (_misLogrosGlow != null) _misLogrosGlow.SetActive(HayReclamosPendientes());
+            };
             MaybeStartTutorial();
             return screen;
         }
@@ -546,6 +551,38 @@ namespace Game.Runtime.Menu
             var le = b.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = width; le.preferredHeight = height;
             return b;
+        }
+
+        private GameObject _misLogrosGlow; // aura pulsante del botón MISIONES Y LOGROS
+
+        /// <summary>¿Hay alguna misión completa o logro desbloqueado sin reclamar?</summary>
+        private bool HayReclamosPendientes()
+        {
+            foreach (var m in Misiones)
+                if (MisionProgreso(m.id) >= m.obj && PlayerPrefs.GetInt("mis_claim_" + m.id, 0) == 0) return true;
+            foreach (var l in Logros)
+                if (l.reward > 0 && LogroDesbloqueado(l.id) && PlayerPrefs.GetInt("log_claim_" + l.id, 0) == 0) return true;
+            return false;
+        }
+
+        /// <summary>Añade un aura dorada pulsante alrededor del botón; devuelve el objeto (activo solo si hay reclamos).</summary>
+        private GameObject AddPendingGlow(RectTransform btn)
+        {
+            var go = new GameObject("PendingGlow", typeof(RectTransform), typeof(Image));
+            var img = go.GetComponent<Image>();
+            img.sprite = MenuGraphics.GlowFrame(96, 26, 16, 11f);
+            img.type = Image.Type.Sliced;
+            img.color = new Color(1f, 0.86f, 0.38f, 0.7f);
+            img.raycastTarget = false;
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(btn, false);
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(-16f, -16f); rt.offsetMax = new Vector2(16f, 16f);
+            go.transform.SetAsLastSibling(); // el centro del aura es transparente: no tapa el texto
+            var pulse = go.AddComponent<AlphaPulse>();
+            pulse.graphic = img; pulse.min = 0.25f; pulse.max = 0.8f; pulse.speed = 3f;
+            go.SetActive(HayReclamosPendientes());
+            return go;
         }
 
         private void AddMenuButton(Transform parent, string sprite, string fallbackText, System.Action onClick,

@@ -36,6 +36,37 @@ namespace Game.Runtime.Menu
             return s;
         }
 
+        /// <summary>Marco/aura de contorno redondeado: anillo brillante en el borde de un rect
+        /// redondeado insertado por 'margin'; centro transparente. 9-slice. Se tiñe con Image.color.</summary>
+        public static Sprite GlowFrame(int size = 96, int radius = 26, int margin = 16, float soft = 10f)
+        {
+            string key = $"glowframe_{size}_{radius}_{margin}_{soft}";
+            if (_cache.TryGetValue(key, out var s)) return s;
+
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            float r = radius;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    // proyección del pixel al "núcleo" (rect insertado por margin+radius): la frontera
+                    // del rect redondeado queda a distancia r de ese núcleo.
+                    float cx = Mathf.Clamp(x, margin + r, size - margin - r);
+                    float cy = Mathf.Clamp(y, margin + r, size - margin - r);
+                    float d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                    float edge = Mathf.Abs(d - r);                 // 0 en el contorno
+                    float a = Mathf.Clamp01(1f - edge / soft);
+                    a *= a;                                        // más nítido
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            tex.wrapMode = TextureWrapMode.Clamp;
+            int b = margin + radius;
+            s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+            _cache[key] = s;
+            return s;
+        }
+
         /// <summary>Engranaje (cog) blanco sobre transparente: cuerpo dentado + agujero central.
         /// Se tiñe con Image.color. Antialias 1px en bordes.</summary>
         public static Sprite Gear(int size = 72, int teeth = 8)
