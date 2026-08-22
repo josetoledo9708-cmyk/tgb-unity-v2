@@ -319,7 +319,7 @@ namespace Game.Runtime.Menu
 
             // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
-            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-296f, -247f), new Vector2(-104f, 17f));
+            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-325f, -287f), new Vector2(-75f, 57f)); // marco de atrás ~30% más grande
             // libro 3D al frente cubriendo el tomo del botón; SOLO este crece al pasar el cursor
             var tomoBook = MenuTheme.Picture(tomos.transform, "TomoBook", MenuAssets.Sprite("diseno_tomo"), preserveAspect: true);
             tomoBook.raycastTarget = false;
