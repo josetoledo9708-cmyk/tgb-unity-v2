@@ -320,6 +320,13 @@ namespace Game.Runtime.Menu
             // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
             MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-325f, -287f), new Vector2(-75f, 57f)); // marco de atrás ~30% más grande
+            // partículas doradas ambientales que suben desde detrás del tomo
+            var tomoPart = new GameObject("TomoParticles", typeof(RectTransform)).GetComponent<RectTransform>();
+            tomoPart.SetParent(tomos.transform, false);
+            tomoPart.anchorMin = tomoPart.anchorMax = new Vector2(0.5f, 0.5f); tomoPart.pivot = new Vector2(0.5f, 0.5f);
+            tomoPart.sizeDelta = new Vector2(160f, 220f); tomoPart.anchoredPosition = Vector2.zero;
+            tomoPart.gameObject.AddComponent<GoldParticles>().dotSprite = GlowSprite();
+
             // resplandor radial suave detrás del libro (oculto; se ilumina al pasar el cursor)
             var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", GlowSprite(), preserveAspect: false);
             tomoGlow.raycastTarget = false;
