@@ -318,13 +318,13 @@ namespace Game.Runtime.Menu
             tiendaGo.transform.SetParent(screen, false);
             var tiClick = tiendaGo.GetComponent<Image>(); tiClick.color = new Color(0f, 0f, 0f, 0f); tiClick.raycastTarget = true; // click transparente
             tiendaGo.GetComponent<Button>().onClick.AddListener(() => Push(Screen.Tienda));
-            MenuTheme.Anchor((RectTransform)tiendaGo.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, -160f), new Vector2(200f, 160f));
+            MenuTheme.Anchor((RectTransform)tiendaGo.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(75f, -287f), new Vector2(325f, 57f)); // espejo del botón Tomos (altura media)
 
             // partículas doradas detrás del estandarte
             var tiPart = new GameObject("TiendaParticles", typeof(RectTransform)).GetComponent<RectTransform>();
             tiPart.SetParent(tiendaGo.transform, false);
             tiPart.anchorMin = tiPart.anchorMax = new Vector2(0.5f, 0.5f); tiPart.pivot = new Vector2(0.5f, 0.5f);
-            tiPart.sizeDelta = new Vector2(150f, 260f); tiPart.anchoredPosition = Vector2.zero;
+            tiPart.sizeDelta = new Vector2(190f, 300f); tiPart.anchoredPosition = Vector2.zero;
             var tiParticles = tiPart.gameObject.AddComponent<GoldParticles>();
             tiParticles.dotSprite = GlowSprite(); tiParticles.count = 44; tiParticles.baseCount = 22;
 
@@ -333,14 +333,14 @@ namespace Game.Runtime.Menu
             tiGlow.raycastTarget = false; tiGlow.color = new Color(1f, 0.85f, 0.5f, 0f);
             var tigr = (RectTransform)tiGlow.transform;
             tigr.anchorMin = tigr.anchorMax = new Vector2(0.5f, 0.5f); tigr.pivot = new Vector2(0.5f, 0.5f);
-            tigr.sizeDelta = new Vector2(210f, 300f); tigr.anchoredPosition = Vector2.zero;
+            tigr.sizeDelta = new Vector2(250f, 340f); tigr.anchoredPosition = Vector2.zero;
 
             // estandarte al frente; SOLO este crece al pasar el cursor
             var tiendaBanner = MenuTheme.Picture(tiendaGo.transform, "TiendaBanner", MenuAssets.Sprite("tienda_banner"), preserveAspect: true);
             tiendaBanner.raycastTarget = false;
             var tibr = (RectTransform)tiendaBanner.transform;
             tibr.anchorMin = tibr.anchorMax = new Vector2(0.5f, 0.5f); tibr.pivot = new Vector2(0.5f, 0.5f);
-            tibr.sizeDelta = new Vector2(176f, 300f); tibr.anchoredPosition = Vector2.zero;
+            tibr.sizeDelta = new Vector2(232f, 344f); tibr.anchoredPosition = Vector2.zero;
 
             var tiHover = tiendaGo.AddComponent<HoverScale>();
             tiHover.target = tiendaBanner.transform;
