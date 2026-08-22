@@ -63,6 +63,18 @@ namespace Game.Editor
         private static readonly string[] UiFrameKeywords =
         { "boton", "marco", "glow", "recuadro", "cuadro", "banner", "sel_", "btn", "diseno" };
 
+        [MenuItem("The Great Book/Reimportar marcos UI")]
+        public static void ReimportUiFrames()
+        {
+            foreach (var n in new[] { "Botones", "BtnGold", "BtnRojo", "BtnVerde" })
+            {
+                var path = $"Assets/Game/Resources/Menu/{n}.png";
+                if (System.IO.File.Exists(path)) AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
+            AssetDatabase.Refresh();
+            Debug.Log("Marcos UI reimportados (border actualizado).");
+        }
+
         [MenuItem("The Great Book/Android/Arreglar texturas UI (sin comprimir)")]
         public static void FixUiTextures()
         {

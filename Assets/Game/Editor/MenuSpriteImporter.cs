@@ -57,7 +57,7 @@ namespace Game.Editor
             if (name == "Botones")
             {
                 ti.maxTextureSize = 1024;                        // más nitidez para el marco
-                ti.spriteBorder = new Vector4(120f, 40f, 120f, 40f); // x,z (puntas) grandes; y,w (arriba/abajo) chicos
+                ti.spriteBorder = new Vector4(120f, 30f, 120f, 30f); // x,z (puntas) grandes; y,w (arriba/abajo) chicos (<< mitad de la altura del botón)
             }
             else if (name is "BtnGold" or "BtnRojo" or "BtnVerde")
                 ti.spriteBorder = new Vector4(20f, 20f, 20f, 20f);
