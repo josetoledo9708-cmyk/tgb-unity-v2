@@ -320,13 +320,13 @@ namespace Game.Runtime.Menu
             // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
             MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-325f, -287f), new Vector2(-75f, 57f)); // marco de atrás ~30% más grande
-            // resplandor detrás del libro (oculto; se ilumina al pasar el cursor)
-            var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", MenuAssets.Sprite("GlowDorado"), preserveAspect: true);
+            // resplandor radial suave detrás del libro (oculto; se ilumina al pasar el cursor)
+            var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", GlowSprite(), preserveAspect: false);
             tomoGlow.raycastTarget = false;
-            tomoGlow.color = new Color(1f, 0.87f, 0.55f, 0f); // oro, alfa 0 al inicio
+            tomoGlow.color = new Color(1f, 0.85f, 0.5f, 0f); // oro, alfa 0 al inicio
             var tgr = (RectTransform)tomoGlow.transform;
             tgr.anchorMin = tgr.anchorMax = new Vector2(0.5f, 0.5f); tgr.pivot = new Vector2(0.5f, 0.5f);
-            tgr.sizeDelta = new Vector2(240f, 300f); tgr.anchoredPosition = Vector2.zero;
+            tgr.sizeDelta = new Vector2(300f, 360f); tgr.anchoredPosition = Vector2.zero;
 
             // libro 3D al frente cubriendo el tomo del botón; SOLO este crece al pasar el cursor
             var tomoBook = MenuTheme.Picture(tomos.transform, "TomoBook", MenuAssets.Sprite("diseno_tomo"), preserveAspect: true);
@@ -2234,6 +2234,28 @@ namespace Game.Runtime.Menu
         {
             t.offsetMin += new Vector2(dx, 0f);
             t.offsetMax += new Vector2(dx, 0f);
+        }
+
+        private Sprite _glowSprite;
+        /// <summary>Resplandor radial suave (blanco con alfa que decae del centro al borde), generado
+        /// una sola vez. Se tiñe con Image.color.</summary>
+        private Sprite GlowSprite()
+        {
+            if (_glowSprite != null) return _glowSprite;
+            const int n = 128;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c; // 0 centro .. 1 borde
+                    float a = Mathf.Clamp01(1f - d);
+                    a = a * a * a; // caída suave
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            _glowSprite = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f));
+            return _glowSprite;
         }
 
         private static void SetFrac(RectTransform t, float minX, float minY, float maxX, float maxY)
