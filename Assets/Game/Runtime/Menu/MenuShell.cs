@@ -327,7 +327,7 @@ namespace Game.Runtime.Menu
             tomoPart.sizeDelta = new Vector2(160f, 220f); tomoPart.anchoredPosition = Vector2.zero;
             var tomoParticles = tomoPart.gameObject.AddComponent<GoldParticles>();
             tomoParticles.dotSprite = GlowSprite();
-            tomoParticles.count = 19; // +20%
+            tomoParticles.count = 29; // más partículas
 
             // resplandor radial suave detrás del libro (oculto; se ilumina al pasar el cursor)
             var tomoGlow = MenuTheme.Picture(tomos.transform, "TomoGlow", GlowSprite(), preserveAspect: false);
