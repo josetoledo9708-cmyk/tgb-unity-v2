@@ -265,14 +265,14 @@ namespace Game.Runtime.Menu
             var prof = new GameObject("Profile", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             prof.transform.SetParent(screen, false);
             prof.sprite = MenuGraphics.Rounded(40, 14); prof.type = Image.Type.Sliced;
-            prof.color = new Color(0.05f, 0.05f, 0.11f, 0.72f); prof.raycastTarget = false;
+            prof.color = new Color(0.02f, 0.02f, 0.02f, 0.8f); prof.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)prof.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -76f), new Vector2(286f, -16f));
             var profOut = prof.gameObject.AddComponent<Outline>(); profOut.effectColor = MenuTheme.Gold; profOut.effectDistance = new Vector2(1.6f, 1.6f);
 
             // avatar circular con aro dorado
             var av = new GameObject("Avatar", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             av.transform.SetParent(prof.transform, false);
-            av.sprite = MenuGraphics.Rounded(48, 24); av.type = Image.Type.Sliced; av.color = new Color(0.09f, 0.09f, 0.17f, 1f);
+            av.sprite = MenuGraphics.Rounded(48, 24); av.type = Image.Type.Sliced; av.color = new Color(0.03f, 0.03f, 0.03f, 1f);
             av.gameObject.AddComponent<Outline>().effectColor = MenuTheme.Gold;
             MenuTheme.Anchor((RectTransform)av.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, -22f), new Vector2(54f, 22f));
             var avl = MenuTheme.Label(av.transform, "W", 22, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
