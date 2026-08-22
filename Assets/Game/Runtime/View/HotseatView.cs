@@ -33,27 +33,31 @@ namespace Game.Runtime.View
         // --- Tutorial (partida-tutorial #1): IA pasiva + explicaciones paso a paso ---
         private bool _tutorial;
         private int _tutIdx;
-        private Texture2D? _hlTex;      // 1x1 blanco para dibujar resaltados
+        private Texture2D? _auraTex;    // aura suave redondeada para resaltar
         private Rect _phaseRect;        // rect del panel de fase (para resaltarlo)
+        private bool _gameOver;         // latch por-frame de State.IsOver (evita carrera Layout/Repaint)
+        private int _gameWinner = -1;   // latch por-frame del ganador
 
         // Qué zona/carta iluminar en cada paso del tutorial.
-        private enum TutHL { None, Tierra, Ser, Concepto, Dia, Historia, HandTierra, HandSer, HandConcepto, Phase }
+        private enum TutHL { None, Tierra, Ser, Concepto, Dia, Historia, HandTierra, HandSer, HandConcepto, Phase, Fd }
 
         private static readonly (string msg, TutHL hl)[] TutSteps =
         {
-            ("Bienvenido al campo. Aquí se libran las historias. Te muestro tus zonas una por una.", TutHL.None),
-            ("Estas 7 ranuras son de TIERRA. Al taparlas generan FD, tu recurso para jugar.", TutHL.Tierra),
-            ("Estas 3 ranuras son de SER. Aquí bajas tus seres pagando FD.", TutHL.Ser),
-            ("Esta ranura es de CONCEPTO: efecto instantáneo, o boca abajo como trampa.", TutHL.Concepto),
-            ("Esta es la zona de DÍA (1-7): marca el avance de la partida.", TutHL.Dia),
-            ("Esta es la zona de HISTORIA: reúne sus piezas en el campo para ganar.", TutHL.Historia),
-            ("Ahora los TIPOS DE CARTA en tu mano. Esta es una TIERRA: da FD.", TutHL.HandTierra),
-            ("Esta es una carta de SER: se juega pagando FD.", TutHL.HandSer),
-            ("Esta es una carta de CONCEPTO: efecto instantáneo o trampa boca abajo.", TutHL.HandConcepto),
-            ("La carta de DÍA avanza el día del turno; se coloca en esta zona.", TutHL.Dia),
-            ("La carta de HISTORIA es tu condición de victoria; va en esta zona.", TutHL.Historia),
-            ("FASES del turno: PRELUDIO → GÉNESIS (robas) → PREPARACIÓN (juegas) → ENTREGA (victoria). Aquí ves la fase y el tiempo.", TutHL.Phase),
-            ("Objetivo: reúne las piezas de tu HISTORIA en el campo. Juega TIERRAs, genera FD y baja tus piezas. El rival no atacará. ¡Adelante!", TutHL.None),
+            ("Bienvenido al campo. Aquí se libran las Historias de la Biblia. Te enseño tus zonas, tus cartas y cómo se gana antes de jugar.", TutHL.None),
+            ("Estas 7 ranuras son de TIERRA. Las TIERRAs son tu base: colocas una por turno y, al taparlas, generan FD (tu recurso).", TutHL.Tierra),
+            ("Estas 3 ranuras son de SER (personajes/criaturas). Se bajan pagando su coste en FD y actúan en tu campo.", TutHL.Ser),
+            ("Esta ranura es de CONCEPTO: cartas de efecto puntual. Puedes jugarlas al momento, o dejarlas boca abajo para activarlas después.", TutHL.Concepto),
+            ("Esta es la zona de DÍA (1→7). Los DÍAs marcan el avance; cada DÍA activado puede darte una recompensa, y llegar al DÍA 7 ES una victoria.", TutHL.Dia),
+            ("Esta es la zona de HISTORIA: tu otra vía de victoria. Reúne sus 5 piezas en tu campo para ganar.", TutHL.Historia),
+            ("El FD es tu recurso para jugar cartas. Aquí ves tu FD actual. En una partida normal empieza en 0 y se reinicia a 0 al comenzar cada uno de tus turnos.", TutHL.Fd),
+            ("¿Cómo consigues FD? Tapeando tus TIERRAs en campo (clic en una TIERRA sin tapear): cada una suma su FD. Así pagas SERes, CONCEPTOs y DÍAs.", TutHL.Tierra),
+            ("Ahora los TIPOS DE CARTA en tu mano. Esta es una TIERRA: se coloca en campo (1 por turno) y, al taparla, te da FD.", TutHL.HandTierra),
+            ("Esta es una carta de SER: tus personajes. Se juega pagando su coste en FD y ocupa una de las 3 ranuras de SER.", TutHL.HandSer),
+            ("Esta es una carta de CONCEPTO: efecto puntual. Puedes jugarla ya, o dejarla boca abajo y activarla más tarde —incluso en el turno del rival— si tienes el FD que pide.", TutHL.HandConcepto),
+            ("Las cartas DÍA (1→7) avanzan la partida en orden. Cada DÍA activado puede darte una recompensa, y activar el DÍA 7 es una condición de VICTORIA.", TutHL.Dia),
+            ("La HISTORIA es tu condición de victoria principal: reúne sus 5 piezas en el campo (TIERRAs y SERes) y ganarás.", TutHL.Historia),
+            ("FASES del turno: PRELUDIO (se reinicia tu FD a 0) → GÉNESIS (robas) → PREPARACIÓN (juegas y tapeas) → ENTREGA (se comprueba la victoria). Aquí ves la fase y el tiempo.", TutHL.Phase),
+            ("Objetivo de esta partida: reúne las 5 piezas de tu HISTORIA en el campo. Ya tienes 2 TIERRAs puestas y FD de sobra; te guío para bajar las 3 SER. El rival no atacará. ¡Adelante!", TutHL.None),
         };
 
         // --- Fase B: jugadas guiadas hasta la victoria garantizada ---
@@ -210,6 +214,11 @@ namespace Game.Runtime.View
             // Resolver decisión (Aceptar) fuera del ciclo OnGUI para no romper el GUILayout.
             if (_deferredResolve != null) { var a = _deferredResolve; _deferredResolve = null; a(); }
 
+            // Latch estable por-frame de fin de partida: OnGUI (Layout y Repaint son eventos
+            // distintos) debe ver el MISMO valor aunque el hilo de comandos cambie IsOver en medio.
+            _gameOver = _engine.State.IsOver;
+            _gameWinner = _engine.State.Winner ?? -1;
+
             // Fase B (guiada): avanzar el paso cuando el jugador cumple lo pedido.
             if (_tutorial && _tutIdx >= TutSteps.Length)
             {
@@ -254,6 +263,8 @@ namespace Game.Runtime.View
         private void OnPointerDown(CardView cv)
         {
             var s = _engine.State;
+            if (TutBlocksPlay(cv.Card)) { _status = TutBlockMsg(); return; } // tutorial: solo la carta guiada
+
             // Carta jugable de tu mano (visible) -> arrastrar; resto (tapear TIERRA) -> clic.
             if (cv.OwnerId == s.ActivePlayer && !cv.FaceDown && s.Active.Mano.Cards.Contains(cv.Card) && IsPlayable(s.Active, cv.Card))
                 BeginDrag(cv);
@@ -261,9 +272,33 @@ namespace Game.Runtime.View
                 OnCardClicked(cv);
         }
 
+        /// <summary>Tutorial: durante la explicación no se juega nada; en la fase guiada solo la carta esperada.</summary>
+        private bool TutBlocksPlay(CardInstance? card)
+        {
+            if (!_tutorial || card == null) return false;
+            if (_tutIdx < TutSteps.Length) return true;        // Fase A: bloquear todo
+            return card.Nombre != ExpectedGuideCard();          // Fase B: solo la pieza del paso
+        }
+
+        private string? ExpectedGuideCard() => _guideStep switch
+        {
+            0 => "Adán",
+            1 => "Eva",
+            2 => "La Serpiente",
+            _ => null,
+        };
+
+        private string TutBlockMsg()
+        {
+            if (_tutIdx < TutSteps.Length) return "Sigue el tutorial: pulsa Siguiente.";
+            var e = ExpectedGuideCard();
+            return e != null ? $"El tutorial pide jugar: {e}." : "Pulsa SIGUIENTE FASE para terminar tu Historia.";
+        }
+
         private void BeginDrag(CardView cv)
         {
             _drag = cv;
+            cv.transform.rotation = Quaternion.identity;      // enderezar la carta al arrastrarla
             if (_hovered != null) { _hovered.SetHovered(false); _hovered = null; }
             ShowGlowFor(cv.Card.Type, _engine.State.ActivePlayer);
         }
@@ -271,6 +306,7 @@ namespace Game.Runtime.View
         private void DragUpdate()
         {
             _drag!.transform.position = CursorOnPlane(0.5f); // sigue al cursor, levantada
+            _drag.transform.rotation = Quaternion.identity;  // se mantiene recta mientras se arrastra
             if (Input.GetMouseButtonUp(0)) EndDrag();
         }
 
@@ -321,16 +357,9 @@ namespace Game.Runtime.View
             return plane.Raycast(ray, out var d) ? ray.GetPoint(d) : Vector3.zero;
         }
 
-        private void ShowGlowFor(CardType type, int player)
-        {
-            HideGlow();
-            if (type == CardType.Tierra)
-                foreach (var g in _glowTierra[player]) g.SetActive(true);
-            else if (type == CardType.Concepto)
-                _glowConcepto[player]?.SetActive(true);
-            else if (CardTypeNames.IsSer(type))
-                foreach (var g in _glowSer[player]) g.SetActive(true);
-        }
+        // El resaltado de zonas al arrastrar ahora se dibuja como AURA en OnGUI (DrawPlayAura),
+        // más suave que los quads sólidos. Mantener los quads ocultos.
+        private void ShowGlowFor(CardType type, int player) => HideGlow();
 
         private void HideGlow()
         {
@@ -773,12 +802,14 @@ namespace Game.Runtime.View
             GUILayout.Label(TimerStr(), timer);
             GUILayout.Space(4);
 
-            if (s.IsOver)
-                GUILayout.Label($"FIN: gana P{s.Winner} ({s.WinReason})", sub);
+            if (_gameOver)
+                GUILayout.Label($"FIN: gana P{_gameWinner} ({s.WinReason})", sub);
             else
             {
                 bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
-                GUI.enabled = humanTurn && !_aiRunning && !_busy;
+                // En el tutorial, SIGUIENTE FASE solo se habilita en el último paso guiado.
+                bool tutOk = !_tutorial || _guideStep >= GuideSteps.Length - 1;
+                GUI.enabled = humanTurn && !_aiRunning && !_busy && tutOk;
                 if (GUILayout.Button("SIGUIENTE FASE", GUILayout.Height(28)))
                     RunHumanCommand("Terminar turno", () => _engine.EndTurn());
                 GUI.enabled = true;
@@ -804,7 +835,7 @@ namespace Game.Runtime.View
                 GUILayout.Space(4);
                 GUILayout.EndArea();
             }
-            else if (_tutorial && _guideStep >= 0 && _guideStep < GuideSteps.Length && !s.IsOver)
+            else if (_tutorial && _guideStep >= 0 && _guideStep < GuideSteps.Length && !_gameOver)
             {
                 DrawTutHighlight(GuideSteps[_guideStep].hl); // ilumina la carta/panel del paso guiado
                 float gw = 700f, gh = 120f;
@@ -816,7 +847,9 @@ namespace Game.Runtime.View
                 GUILayout.EndArea();
             }
 
-            if (_tutorial && s.IsOver && s.Winner == 0) DrawTutorialWin();
+            if (_drag != null && _drag.Card != null) DrawPlayAura(_drag.Card.Type, s.ActivePlayer);
+
+            if (_tutorial && _gameOver && _gameWinner == 0) DrawTutorialWin();
 
             if (_decisions.Pending != null)
             {
@@ -835,15 +868,12 @@ namespace Game.Runtime.View
             else if (_placePending && _placeCard != null) DrawPlacement();
         }
 
-        // ---------------- resaltado del tutorial ----------------
+        // ---------------- resaltado del tutorial (aura suave) ----------------
 
-        /// <summary>Dibuja un marco dorado palpitante sobre la zona/carta que explica el paso actual.</summary>
+        /// <summary>Ilumina con aura dorada la zona/carta que explica el paso actual.</summary>
         private void DrawTutHighlight(TutHL hl)
         {
-            if (hl == TutHL.None) return;
-            var cam = Camera.main;
-            if (cam == null) return;
-            if (_hlTex == null) { _hlTex = new Texture2D(1, 1); _hlTex.SetPixel(0, 0, Color.white); _hlTex.Apply(); }
+            if (hl == TutHL.None || Camera.main == null) return;
 
             var rects = new List<Rect>();
             switch (hl)
@@ -851,35 +881,75 @@ namespace Game.Runtime.View
                 case TutHL.Tierra: for (int i = 0; i < 7; i++) rects.Add(ZoneRect(BoardLayout.Tierra(0, i))); break;
                 case TutHL.Ser: for (int i = 0; i < 3; i++) rects.Add(ZoneRect(BoardLayout.Ser(0, i))); break;
                 case TutHL.Concepto: rects.Add(ZoneRect(BoardLayout.Concepto(0))); break;
-                case TutHL.Dia: rects.Add(ZoneRect(BoardLayout.Dia(0))); break;
-                case TutHL.Historia: rects.Add(ZoneRect(BoardLayout.Historia(0))); break;
+                case TutHL.Dia: AddCardOrZoneRect(rects, BoardLayout.Dia(0), c => c.Type == CardType.Dia); break;
+                case TutHL.Historia: AddCardOrZoneRect(rects, BoardLayout.Historia(0), c => c.Type == CardType.Historia); break;
                 case TutHL.HandTierra: AddHandRect(rects, c => c.Type == CardType.Tierra); break;
                 case TutHL.HandSer: AddHandRect(rects, c => CardTypeNames.IsSer(c.Type)); break;
                 case TutHL.HandConcepto: AddHandRect(rects, c => c.Type == CardType.Concepto); break;
                 case TutHL.Phase: rects.Add(_phaseRect); break;
+                case TutHL.Fd: rects.Add(FdRect()); break;
             }
 
-            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 4f);
-            var col = new Color(1f, 0.85f, 0.3f);
-            foreach (var r in rects) DrawGlowRect(r, col, pulse);
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 3.2f);
+            var gold = new Color(1f, 0.82f, 0.32f);
+            foreach (var r in rects) DrawAura(r, gold, pulse);
         }
 
         private Rect ZoneRect(Vector3 center) => WorldRect(center, 0.85f, 1.15f);
 
-        /// <summary>Resalta la primera carta de la mano del jugador que cumpla el filtro (o su zona si no hay).</summary>
+        private Rect FdRect()
+        {
+            var mz = BoardLayout.Mazo(0);
+            var fd = new Vector3(Mathf.Sign(-mz.x) * 9f, 0f, mz.z); // igual que BuildHudLabels
+            return WorldRect(fd, 1.1f, 0.9f);
+        }
+
+        /// <summary>Si hay una carta que cumple el filtro (en campo/mano de P0), usa su rect real; si no, la zona.</summary>
+        private void AddCardOrZoneRect(List<Rect> rects, Vector3 zone, System.Func<CardInstance, bool> match)
+        {
+            var v = FindView(match);
+            rects.Add(v != null ? ViewRect(v) : ZoneRect(zone));
+        }
+
+        /// <summary>Resalta la carta real de la mano (rect ajustado a la carta) que cumpla el filtro.</summary>
         private void AddHandRect(List<Rect> rects, System.Func<CardInstance, bool> match)
         {
-            var mano = _engine.State.Players[0].Mano;
+            var mano = _engine.State.Players[0].Mano.Cards;
+            var v = FindView(c => match(c) && mano.Contains(c));
+            if (v != null) { rects.Add(ViewRect(v)); return; }
+            // Respaldo: proyectar la posición teórica del abanico.
             int n = mano.Count;
             for (int i = 0; i < n; i++)
+                if (match(mano[i])) { var (pos, _) = BoardLayout.HandFan(0, i, n); rects.Add(WorldRect(pos, 0.8f, 1.1f)); return; }
+        }
+
+        private CardView? FindView(System.Func<CardInstance, bool> match)
+            => _spawned.FirstOrDefault(v => v != null && v.Card != null && v.OwnerId == 0 && match(v.Card));
+
+        /// <summary>Rect en GUI ajustado a los límites reales (Renderer) de la carta mostrada.</summary>
+        private Rect ViewRect(CardView v)
+        {
+            var rends = v.GetComponentsInChildren<Renderer>();
+            if (rends.Length == 0) return WorldRect(v.transform.position, 0.8f, 1.1f);
+            var b = rends[0].bounds;
+            for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+            return ProjectBounds(b);
+        }
+
+        private Rect ProjectBounds(Bounds b)
+        {
+            var cam = Camera.main!;
+            Vector3 c = b.center, e = b.extents;
+            float minx = float.MaxValue, miny = float.MaxValue, maxx = float.MinValue, maxy = float.MinValue;
+            for (int i = 0; i < 8; i++)
             {
-                if (match(mano.Cards[i]))
-                {
-                    var (pos, _) = BoardLayout.HandFan(0, i, n);
-                    rects.Add(WorldRect(pos, 0.8f, 1.1f));
-                    return;
-                }
+                var corner = c + new Vector3((i & 1) == 0 ? -e.x : e.x, (i & 2) == 0 ? -e.y : e.y, (i & 4) == 0 ? -e.z : e.z);
+                var sp = cam.WorldToScreenPoint(corner);
+                float gx = sp.x, gy = Screen.height - sp.y;
+                minx = Mathf.Min(minx, gx); maxx = Mathf.Max(maxx, gx);
+                miny = Mathf.Min(miny, gy); maxy = Mathf.Max(maxy, gy);
             }
+            return Rect.MinMaxRect(minx, miny, maxx, maxy);
         }
 
         /// <summary>Proyecta un rectángulo del plano XZ del tablero a un Rect en coordenadas de GUI.</summary>
@@ -904,18 +974,66 @@ namespace Game.Runtime.View
             return Rect.MinMaxRect(minx, miny, maxx, maxy);
         }
 
-        private void DrawGlowRect(Rect r, Color col, float pulse)
+        /// <summary>Aura luminosa suave y redondeada alrededor del rect (reemplaza el marco duro).</summary>
+        private void DrawAura(Rect r, Color col, float pulse)
         {
-            r = new Rect(r.x - 6f, r.y - 6f, r.width + 12f, r.height + 12f);
-            GUI.color = new Color(col.r, col.g, col.b, 0.10f + 0.10f * pulse);
-            GUI.DrawTexture(r, _hlTex);
-            float th = 3f + 2f * pulse;
-            GUI.color = new Color(col.r, col.g, col.b, 0.6f + 0.4f * pulse);
-            GUI.DrawTexture(new Rect(r.x, r.y, r.width, th), _hlTex);
-            GUI.DrawTexture(new Rect(r.x, r.yMax - th, r.width, th), _hlTex);
-            GUI.DrawTexture(new Rect(r.x, r.y, th, r.height), _hlTex);
-            GUI.DrawTexture(new Rect(r.xMax - th, r.y, th, r.height), _hlTex);
-            GUI.color = Color.white;
+            EnsureAuraTex();
+            float pad = 20f + 6f * pulse; // el halo "respira"
+            var outer = new Rect(r.x - pad, r.y - pad, r.width + 2f * pad, r.height + 2f * pad);
+            var prev = GUI.color;
+            GUI.color = new Color(col.r, col.g, col.b, 0.45f + 0.4f * pulse);
+            GUI.DrawTexture(outer, _auraTex, ScaleMode.StretchToFill, true);
+            GUI.color = prev;
+        }
+
+        /// <summary>Aura suave con esquinas redondeadas: blanco con alfa por SDF de rect redondeado
+        /// (anillo brillante en el borde + interior tenue). Se tiñe con GUI.color.</summary>
+        private void EnsureAuraTex()
+        {
+            if (_auraTex != null) return;
+            const int N = 128;
+            _auraTex = new Texture2D(N, N, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color[N * N];
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    var p = new Vector2((x + 0.5f) / N * 2f - 1f, (y + 0.5f) / N * 2f - 1f);
+                    float d = SdRoundBox(p, new Vector2(0.60f, 0.60f), 0.34f); // <0 dentro, 0 borde
+                    float ring = Mathf.Exp(-(d * d) / (2f * 0.17f * 0.17f));    // halo gaussiano en el borde
+                    float inside = d < 0f ? 0.16f * Mathf.Clamp01(1f + d / 0.6f) : 0f;
+                    float a = Mathf.Clamp01(ring * 0.95f + inside);
+                    px[y * N + x] = new Color(1f, 1f, 1f, a);
+                }
+            _auraTex.SetPixels(px);
+            _auraTex.Apply();
+        }
+
+        private static float SdRoundBox(Vector2 p, Vector2 b, float r)
+        {
+            var q = new Vector2(Mathf.Abs(p.x) - b.x + r, Mathf.Abs(p.y) - b.y + r);
+            return Mathf.Min(Mathf.Max(q.x, q.y), 0f)
+                   + new Vector2(Mathf.Max(q.x, 0f), Mathf.Max(q.y, 0f)).magnitude - r;
+        }
+
+        /// <summary>Auras de las zonas válidas al arrastrar una carta (sustituye a los quads sólidos).</summary>
+        private void DrawPlayAura(CardType type, int player)
+        {
+            if (Camera.main == null) return;
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 3.2f);
+            if (type == CardType.Tierra)
+            {
+                var col = new Color(0.45f, 1f, 0.55f);
+                for (int i = 0; i < 7; i++) DrawAura(ZoneRect(BoardLayout.Tierra(player, i)), col, pulse);
+            }
+            else if (type == CardType.Concepto)
+            {
+                DrawAura(ZoneRect(BoardLayout.Concepto(player)), new Color(0.82f, 0.55f, 1f), pulse);
+            }
+            else if (CardTypeNames.IsSer(type))
+            {
+                var col = new Color(0.5f, 0.75f, 1f);
+                for (int i = 0; i < 3; i++) DrawAura(ZoneRect(BoardLayout.Ser(player, i)), col, pulse);
+            }
         }
 
         // ---------------- Fase B: partida guiada y victoria garantizada ----------------
