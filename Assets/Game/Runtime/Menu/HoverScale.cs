@@ -9,12 +9,15 @@ namespace Game.Runtime.Menu
     {
         public float hoverScale = 1.08f;
         public float speed = 10f;
+        public Transform target; // si se asigna, agranda ESTE en vez de sí mismo (p. ej. solo el libro del botón)
 
         private Vector3 _base = Vector3.one;
         private float _t;        // 0 = normal, 1 = hover
         private float _target;
 
-        private void Awake() => _base = transform.localScale;
+        private Transform Node => target != null ? target : transform;
+
+        private void Awake() => _base = Node.localScale;
 
         public void OnPointerEnter(PointerEventData _) => _target = 1f;
         public void OnPointerExit(PointerEventData _) => _target = 0f;
@@ -24,7 +27,7 @@ namespace Game.Runtime.Menu
             if (Mathf.Approximately(_t, _target)) return;
             _t = Mathf.MoveTowards(_t, _target, speed * Time.unscaledDeltaTime);
             float k = Mathf.SmoothStep(1f, hoverScale, _t);
-            transform.localScale = _base * k;
+            Node.localScale = _base * k;
         }
     }
 }

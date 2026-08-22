@@ -320,6 +320,13 @@ namespace Game.Runtime.Menu
             // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
             MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-296f, -247f), new Vector2(-104f, 17f));
+            // libro 3D al frente cubriendo el tomo del botón; SOLO este crece al pasar el cursor
+            var tomoBook = MenuTheme.Picture(tomos.transform, "TomoBook", MenuAssets.Sprite("diseno_tomo"), preserveAspect: true);
+            tomoBook.raycastTarget = false;
+            var tbr = (RectTransform)tomoBook.transform;
+            tbr.anchorMin = tbr.anchorMax = new Vector2(0.5f, 0.5f); tbr.pivot = new Vector2(0.5f, 0.5f);
+            tbr.sizeDelta = new Vector2(138f, 184f); tbr.anchoredPosition = Vector2.zero;
+            tomos.gameObject.AddComponent<HoverScale>().target = tomoBook.transform; // hover en el botón agranda el libro
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;
