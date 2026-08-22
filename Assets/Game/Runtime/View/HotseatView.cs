@@ -63,6 +63,8 @@ namespace Game.Runtime.View
         // --- Fase B: jugadas guiadas hasta la victoria garantizada ---
         private int _guideStep = -1;      // -1 = aún en la fase de explicación
         private bool _rewardGiven;
+        private CardInstance? _playInfoCard; // carta recién jugada cuyo efecto se está explicando
+        private bool _awaitInfoAck;          // esperando "Entendido" tras jugar una pieza
         public static bool ReturnRequested; // el menú (MenuShell) lo detecta para volver al MainMenu
 
         private static readonly (string msg, TutHL hl)[] GuideSteps =
@@ -148,6 +150,7 @@ namespace Game.Runtime.View
             {
                 PlayerPrefs.SetInt("tutorial_match", 0); PlayerPrefs.Save();
                 _tutIdx = 0; _guideStep = -1; _rewardGiven = false; ReturnRequested = false;
+                _awaitInfoAck = false; _playInfoCard = null;
                 SetupTutorialField(_engine.State.Players[0]); // mano fija + piezas preparadas para ganar
             }
 
@@ -224,7 +227,15 @@ namespace Game.Runtime.View
             if (_tutorial && _tutIdx >= TutSteps.Length)
             {
                 if (_guideStep < 0) _guideStep = 0;
-                else if (_guideStep < GuideSteps.Length && GuideDone(_guideStep)) _guideStep++;
+                else if (_guideStep < GuideSteps.Length && !_awaitInfoAck && !_busy
+                         && _decisions.Pending == null && GuideDone(_guideStep))
+                {
+                    // Al jugar una pieza (SER), pausar para explicar su efecto antes de seguir.
+                    bool serStep = _guideStep >= 1 && _guideStep <= 3;
+                    var just = serStep ? _engine.State.Players[0].Seres.Cards.FirstOrDefault(c => c.Nombre == ExpectedGuideCard()) : null;
+                    if (just != null) { _playInfoCard = just; _awaitInfoAck = true; }
+                    else _guideStep++;
+                }
             }
 
             SnapshotLog(); // congelar el log una vez por frame (la IA lo escribe en otro hilo)
@@ -840,7 +851,7 @@ namespace Game.Runtime.View
                 GUILayout.Space(4);
                 GUILayout.EndArea();
             }
-            else if (_tutorial && _guideStep >= 0 && _guideStep < GuideSteps.Length && !_gameOver)
+            else if (_tutorial && _guideStep >= 0 && _guideStep < GuideSteps.Length && !_gameOver && !_awaitInfoAck)
             {
                 DrawTutHighlight(GuideSteps[_guideStep].hl); // ilumina la carta/panel del paso guiado
                 float gw = 700f, gh = 120f;
@@ -853,6 +864,8 @@ namespace Game.Runtime.View
             }
 
             if (_drag != null && _drag.Card != null) DrawPlayAura(_drag.Card.Type, s.ActivePlayer);
+
+            if (_tutorial && _awaitInfoAck && _playInfoCard != null && !_gameOver) DrawPlayInfo();
 
             if (_tutorial && _gameOver && _gameWinner == 0) DrawTutorialWin();
 
@@ -1105,6 +1118,53 @@ namespace Game.Runtime.View
             PlayerPrefs.SetInt("logro_primeros_pasos", 1);
             PlayerPrefs.SetInt("tutorial1_done", 1);
             PlayerPrefs.Save();
+        }
+
+        /// <summary>Texto legible con los efectos de una carta (para explicarla al jugarla).</summary>
+        private static string CardEffectText(CardDefinition d)
+        {
+            var sb = new System.Text.StringBuilder();
+            if (d.Coste.HasValue) sb.Append($"Coste: {d.Coste} FD   ");
+            if (d.Fd.HasValue) sb.Append($"Genera: {d.Fd} FD   ");
+            if (d.Dur.HasValue) sb.Append($"Duración: {d.Dur} turnos");
+            if (sb.Length > 0) sb.Append("\n\n");
+
+            void Add(string label, string? v) { if (!string.IsNullOrEmpty(v)) sb.Append(label).Append(v).Append("\n\n"); }
+            Add("Al entrar: ", d.AlEntrar);
+            Add("Activado (clic sobre la carta en campo para usarlo): ", d.Activado);
+            Add("Al salir: ", d.AlSalir);
+            Add("Efecto: ", d.Efecto);
+            Add("Condición: ", d.Condicion);
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>Explica el efecto de la pieza recién jugada; "Entendido" continúa el tutorial.</summary>
+        private void DrawPlayInfo()
+        {
+            var d = _playInfoCard!.Def;
+            const float w = 580f, h = 320f;
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            var tt = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            GUILayout.Space(6);
+            GUILayout.Label($"Jugaste: {d.Nombre}", tt);
+            GUILayout.Space(4);
+
+            var body = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true };
+            GUILayout.BeginHorizontal();
+            var art = _art.Front(d.Nombre);
+            if (art != null) GUILayout.Label(art, GUILayout.Width(150), GUILayout.Height(214));
+            GUILayout.Label(CardEffectText(d), body, GUILayout.ExpandHeight(true));
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Entendido", GUILayout.Height(32), GUILayout.Width(160)))
+                _deferredResolve = () => { _awaitInfoAck = false; _playInfoCard = null; _guideStep++; };
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Space(6);
+            GUILayout.EndArea();
         }
 
         private void DrawTutorialWin()
