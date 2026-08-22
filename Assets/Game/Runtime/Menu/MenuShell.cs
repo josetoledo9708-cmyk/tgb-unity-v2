@@ -294,7 +294,7 @@ namespace Game.Runtime.Menu
             var coinLbl = MenuTheme.Label(screen, PlayerData.Monedas.ToString(), 24, MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
             MenuTheme.GoldMetalText(coinLbl); // mismo oro metálico que los botones
             MenuTheme.Anchor((RectTransform)coinLbl.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-256f, -56f), new Vector2(-150f, -18f));
-            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, LaunchGame, 110f, 38f, thicken: false);
+            var tut = MenuTheme.TextButton(screen, "TUTORIAL", 14, () => { PlayerPrefs.DeleteKey("tut_intro_done"); _tutStep = 0; ShowTutorialStep(); }, 110f, 38f, thicken: false); // TESTING: relanza el tutorial
             MenuTheme.Anchor((RectTransform)tut.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-146f, -56f), new Vector2(-52f, -18f));
 
             // Engranaje = icono cog dorado procedural, SIN caja detrás.
