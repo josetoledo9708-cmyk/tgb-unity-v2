@@ -317,9 +317,9 @@ namespace Game.Runtime.Menu
             var tienda = FloatingIcon(screen, "buttons/btn_tienda", "TIENDA", () => Push(Screen.Tienda));
             MenuTheme.Anchor((RectTransform)tienda.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(34f, -120f), new Vector2(150f, 120f));
 
-            // --- Tomos = libro ornamentado a la derecha-centro ---
+            // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
-            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-200f, -110f), new Vector2(-40f, 110f));
+            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-236f, -247f), new Vector2(-44f, 17f));
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;
