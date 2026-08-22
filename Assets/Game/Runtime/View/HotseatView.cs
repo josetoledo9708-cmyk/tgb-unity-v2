@@ -236,7 +236,7 @@ namespace Game.Runtime.View
             _aiRunning = true;
             _status = "IA pensando...";
             _engine.Decisions = _auto; // la IA decide sin UI
-            yield return new WaitForSeconds(0.6f);
+            yield return new WaitForSeconds(_tutorial2 ? 1.0f : 0.6f);
 
             if (_tutorial2)
             {
@@ -1326,14 +1326,19 @@ namespace Game.Runtime.View
             if (tierra == null) tierra = p.Mano.Cards.FirstOrDefault(c => c.Type == CardType.Tierra);
             if (tierra != null && !p.TierraPlayedThisTurn && !p.Tierras.IsFull)
             {
+                yield return new WaitForSeconds(0.9f); // "piensa" antes de jugar
                 bool hadEffect = HasEnterEffect(tierra);
-                AiDo(() => _engine.PlayTierra(tierra)); Rebuild(); yield return new WaitForSeconds(0.5f);
+                AiDo(() => _engine.PlayTierra(tierra)); Rebuild(); yield return new WaitForSeconds(1.1f);
                 if (hadEffect && !_t2Explained.Contains("enter")) yield return T2Say("enter", T2Enter);
             }
 
-            // B) Tapear TIERRAs para generar FD.
-            foreach (var t in p.Tierras.Cards.Where(t => !t.Tapped).ToList()) AiDo(() => _engine.TapTierra(t));
-            Rebuild(); yield return new WaitForSeconds(0.3f);
+            // B) Tapear TIERRAs para generar FD (una a una, con pausa).
+            foreach (var t in p.Tierras.Cards.Where(t => !t.Tapped).ToList())
+            {
+                AiDo(() => _engine.TapTierra(t)); Rebuild();
+                yield return new WaitForSeconds(0.5f);
+            }
+            yield return new WaitForSeconds(0.4f);
 
             // C) Activar el DÍA una vez (demostración + aviso). Solo una vez para no acercarlo al DÍA 7.
             if (!_t2Explained.Contains("dia"))
@@ -1342,7 +1347,8 @@ namespace Game.Runtime.View
                 int coste = dia?.Def.Coste ?? 99;
                 if (dia != null && DiaConditions.Met(p, p.DiaActual) && p.Fd >= coste)
                 {
-                    AiDo(() => _engine.ActivateDia(false)); Rebuild(); yield return new WaitForSeconds(0.4f);
+                    yield return new WaitForSeconds(0.8f);
+                    AiDo(() => _engine.ActivateDia(false)); Rebuild(); yield return new WaitForSeconds(1.0f);
                     yield return T2Say("dia", T2Dia);
                 }
             }
@@ -1354,9 +1360,10 @@ namespace Game.Runtime.View
                     && !string.IsNullOrEmpty(c.Def.Activado) && !p.Seres.IsFull && p.Fd >= (c.Def.Coste ?? 0));
                 if (ser != null)
                 {
-                    AiDo(() => _engine.PlaySer(ser)); Rebuild(); yield return new WaitForSeconds(0.4f);
+                    yield return new WaitForSeconds(0.8f);
+                    AiDo(() => _engine.PlaySer(ser)); Rebuild(); yield return new WaitForSeconds(1.1f);
                     if (!p.SeresActivatedThisTurn.Contains(ser.InstanceId) && p.Fd >= (ser.Def.ActCost ?? 0))
-                    { AiDo(() => _engine.ActivateSerEffect(ser)); Rebuild(); yield return new WaitForSeconds(0.4f); }
+                    { AiDo(() => _engine.ActivateSerEffect(ser)); Rebuild(); yield return new WaitForSeconds(1.0f); }
                     yield return T2Say("ser_act", T2Ser);
                 }
             }
@@ -1367,13 +1374,14 @@ namespace Game.Runtime.View
                 var trap = p.Mano.Cards.FirstOrDefault(c => c.Type == CardType.Concepto && _engine.Effects.IsResponse(c.Def.Id));
                 if (trap != null)
                 {
-                    AiDo(() => _engine.PlayConcepto(trap, faceDown: true)); Rebuild(); yield return new WaitForSeconds(0.4f);
+                    yield return new WaitForSeconds(0.8f);
+                    AiDo(() => _engine.PlayConcepto(trap, faceDown: true)); Rebuild(); yield return new WaitForSeconds(1.0f);
                     yield return T2Say("trap", T2Trap);
                 }
             }
 
             // F) Terminar el turno (pasa al jugador). En hilo para no bloquear si algún efecto pide respuesta.
-            yield return new WaitForSeconds(0.3f);
+            yield return new WaitForSeconds(0.9f);
             _t2AiActing = false;
             if (!_engine.State.IsOver)
             {
@@ -1434,7 +1442,12 @@ namespace Game.Runtime.View
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
             GUILayout.Space(8);
             GUILayout.Label("¡VICTORIA!", tt);
-            GUILayout.Label("El rival se quedó sin cartas en el mazo (deck-out) y perdió. ¡Ya dominas lo esencial!\nDesbloqueaste el MULTIJUGADOR y el logro «El Inicio de la Historia»: reclámalo (+1000) en Misiones y Logros.",
+            var reason = _engine.State.WinReason;
+            string how = reason == VictoryId.III ? "Completaste tu Historia «La Caída del Edén» reuniendo sus 5 piezas en el campo."
+                : reason == VictoryId.II ? "El rival se quedó sin cartas en el mazo (deck-out) y perdió."
+                : reason == VictoryId.I ? "Ganaste completando el ciclo de los 7 DÍAs."
+                : "¡Ganaste la partida!";
+            GUILayout.Label(how + " ¡Ya dominas lo esencial!\nDesbloqueaste el MULTIJUGADOR y el logro «El Inicio de la Historia»: reclámalo (+1000) en Misiones y Logros.",
                 body, GUILayout.ExpandHeight(true));
             GUILayout.Space(6);
             if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))
