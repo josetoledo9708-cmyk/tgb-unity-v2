@@ -319,7 +319,7 @@ namespace Game.Runtime.Menu
 
             // --- Tomos = libro ornamentado a la derecha, a la altura media de los botones (+20%) ---
             var tomos = FloatingIcon(screen, "Tomes", "TOMOS", () => Push(Screen.Tomos));
-            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-236f, -247f), new Vector2(-44f, 17f));
+            MenuTheme.Anchor((RectTransform)tomos.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-296f, -247f), new Vector2(-104f, 17f));
 
             _onShow[Screen.MainMenu] = () => coinLbl.text = PlayerData.Monedas.ToString(); // refrescar monedas al reusar del caché
             return screen;
