@@ -126,10 +126,9 @@ namespace Game.Editor
             PlayerSettings.SetIl2CppCompilerConfiguration(NamedBuildTarget.Android, Il2CppCompilerConfiguration.Master); // binario más optimizado/chico
             PlayerSettings.stripEngineCode = true;                 // quita módulos del motor no usados
             PlayerSettings.Android.optimizedFramePacing = true;    // frame pacing suave en móvil
-            PlayerSettings.Android.useAPKExpansionFiles = false;    // un solo APK
+            PlayerSettings.Android.splitApplicationBinary = false; // un solo APK (no partir el binario)
             EditorUserBuildSettings.buildAppBundle = false;        // APK (no AAB) para instalar directo
             PlayerSettings.gcIncremental = true;                   // GC incremental (menos hitches)
-            PlayerSettings.Android.splitApplicationBinary = false; // no partir el binario
         }
     }
 }
