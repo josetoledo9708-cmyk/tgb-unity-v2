@@ -72,23 +72,13 @@ namespace Game.Editor
                 Debug.LogError("No se encontró el VideoClip: " + path);
                 return;
             }
-            void Apply(BuildTargetGroup g)
-            {
-                var s = vi.GetTargetSettings(g) ?? vi.defaultTargetSettings;
-                s.enableTranscoding = true;
-                s.codec = VideoCodec.H264;                 // compatible con Android/iOS
-                s.resizeMode = VideoResizeMode.OriginalSize;
-                s.spatialQuality = VideoSpatialQuality.LowSpatialQuality; // menor peso
-                s.bitrateMode = VideoBitrateMode.Low;
-                vi.SetTargetSettings(g, s);
-            }
-            var def = vi.defaultTargetSettings; def.enableTranscoding = true; def.codec = VideoCodec.H264;
-            def.spatialQuality = VideoSpatialQuality.LowSpatialQuality; def.bitrateMode = VideoBitrateMode.Low;
-            vi.defaultTargetSettings = def;
-            Apply(BuildTargetGroup.Android);
-            Apply(BuildTargetGroup.Standalone);
+            var s = vi.defaultTargetSettings;
+            s.enableTranscoding = true;      // re-encoda a formato compatible (Android no reproduce el mp4 original)
+            s.codec = VideoCodec.H264;
+            vi.defaultTargetSettings = s;
+            vi.SetTargetSettings(BuildTargetGroup.Android, s);
             vi.SaveAndReimport();
-            Debug.Log("Video del menú transcodificado (H264) para Android/Standalone.");
+            Debug.Log("Video del menú transcodificado (H264).");
         }
 
         [MenuItem("The Great Book/Reimportar marcos UI")]
