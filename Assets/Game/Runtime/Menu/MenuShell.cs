@@ -336,8 +336,8 @@ namespace Game.Runtime.Menu
             MenuTheme.Anchor((RectTransform)logo.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-234f, -281.5f), new Vector2(234f, -8.5f));
 
             // --- 4 botones DISEÑADOS con uGUI (marco dorado + interior oscuro) ---
-            var list = MenuTheme.VBox(screen, 8f, 0, TextAnchor.MiddleCenter); // mas juntos
-            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -300f), new Vector2(240f, 80f));
+            var list = MenuTheme.VBox(screen, 6f, 0, TextAnchor.MiddleCenter); // mas juntos
+            MenuTheme.Anchor((RectTransform)list.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-240f, -280f), new Vector2(240f, 50f));
             var histBtn = DesignedMenuButton(list.transform, "HISTORIAS", () => Push(Screen.Historias));
             _histBtn = (RectTransform)histBtn.transform;
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () =>
@@ -656,7 +656,7 @@ namespace Game.Runtime.Menu
         }
 
         private Selectable DesignedMenuButton(Transform parent, string label, System.Action onClick,
-                                        float width = 410f, float height = 92f, // más alto: el marco Botones.png no se estira
+                                        float width = 410f, float height = 70f, // largo reducido, sin icono
                                         System.Func<Transform, RectTransform> icon = null)
         {
             var b = MenuTheme.DesignedButton(parent, label, onClick, width, height, icon);

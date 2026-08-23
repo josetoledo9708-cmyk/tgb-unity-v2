@@ -52,13 +52,8 @@ namespace Game.Editor
             }
 
             // --- spriteBorder para 9-slice ---
-            // Botones: el marco es ancho y bajo; el border debe ser menor a la mitad de la altura del
-            // botón (~92px) para que el 9-slice deje un centro plano (recuadro), no una cápsula/óvalo.
             if (name == "Botones")
-            {
-                ti.maxTextureSize = 1024;                        // más nitidez para el marco
-                ti.spriteBorder = new Vector4(120f, 30f, 120f, 30f); // x,z (puntas) grandes; y,w (arriba/abajo) chicos (<< mitad de la altura del botón)
-            }
+                ti.spriteBorder = new Vector4(90f, 90f, 90f, 90f);
             else if (name is "BtnGold" or "BtnRojo" or "BtnVerde")
                 ti.spriteBorder = new Vector4(20f, 20f, 20f, 20f);
             else if (name == "Mazo")
