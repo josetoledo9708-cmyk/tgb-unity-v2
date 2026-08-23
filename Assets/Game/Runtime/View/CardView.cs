@@ -71,6 +71,10 @@ namespace Game.Runtime.View
             FaceDown = faceDown;
 
             var mat = _renderer.material; // instancia propia para no pisar el shared
+            // Shader universal incluido en el build (evita magenta en Android; el shader por defecto
+            // del primitivo no se empaqueta). Sprites/Default soporta textura (_MainTex) + color (_Color).
+            var s = SafeShader();
+            if (s != null) mat.shader = s;
             // Ajustes de material para TODAS las cartas y el dorso (según Inspector aprobado).
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.716f);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.31f); // URP Lit
@@ -159,6 +163,19 @@ namespace Game.Runtime.View
             _visual.localPosition = new Vector3(0f, lift, 0f);
             _visual.localScale = Vector3.one * (_hovered ? 1.1f : 1f);
             _visual.localRotation = Quaternion.Euler(0f, _tapAngle, 0f); // giro de tap (horizontal)
+        }
+
+        private static Shader _safe;
+        /// <summary>Shader garantizado en el build (Always Included Shaders). Evita magenta en builds
+        /// (Android/Standalone). En el editor devuelve null: conserva el material/lit por defecto.</summary>
+        public static Shader SafeShader()
+        {
+#if UNITY_EDITOR
+            return null;
+#else
+            return _safe != null ? _safe
+                : (_safe = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Texture") ?? Shader.Find("Legacy Shaders/Diffuse"));
+#endif
         }
 
         private static string Short(CardInstance c)

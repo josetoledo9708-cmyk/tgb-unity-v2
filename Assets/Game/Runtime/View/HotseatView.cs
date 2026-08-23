@@ -811,6 +811,7 @@ namespace Game.Runtime.View
             go.transform.localScale = new Vector3(30f, 0.02f, 16.85f); // ~16:9
             Destroy(go.GetComponent<Collider>());
             var m = go.GetComponent<MeshRenderer>().material;
+            var sh = CardView.SafeShader(); if (sh != null) m.shader = sh; // evita magenta en Android
             m.color = Color.white;
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", Color.white);
             // Mismos ajustes que las cartas (Inspector aprobado).
@@ -895,6 +896,7 @@ namespace Game.Runtime.View
             go.transform.localScale = scale;
             Destroy(go.GetComponent<Collider>()); // no bloquear el raycast de cartas
             var m = go.GetComponent<MeshRenderer>().material;
+            var sh = CardView.SafeShader(); if (sh != null) m.shader = sh; // evita magenta en Android
             m.color = color;
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", color);
             return go;
