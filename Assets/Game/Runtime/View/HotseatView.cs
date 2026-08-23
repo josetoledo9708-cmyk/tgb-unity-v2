@@ -137,9 +137,15 @@ namespace Game.Runtime.View
         private readonly List<GameObject>[] _glowSer = { new(), new() };
         private readonly GameObject?[] _glowConcepto = new GameObject?[2];
 
-        // El campo se enciende/apaga con `enabled` desde el menú; Start solo corre una vez, así que
-        // reinicializamos en CADA activación (OnEnable) para empezar una partida nueva y limpia.
-        private void OnEnable()
+        private bool _needInit;
+
+        // El campo se enciende/apaga con `enabled` desde el menú; Start solo corre una vez. En vez de
+        // inicializar dentro de OnEnable (que corre SINCRÓNICO al poner enabled=true y puede leer los
+        // flags de tutorial ANTES de que el menú los escriba), diferimos el arranque al siguiente Update:
+        // así todas las escrituras de flags del mismo frame ya están listas.
+        private void OnEnable() => _needInit = true;
+
+        private void InitMatch()
         {
             CleanupPreviousMatch();
 
@@ -290,6 +296,7 @@ namespace Game.Runtime.View
 
         private void Update()
         {
+            if (_needInit) { _needInit = false; InitMatch(); } // arranque diferido (flags de tutorial ya escritos)
             if (_engine == null) return;
 
             // Resolver decisión (Aceptar) fuera del ciclo OnGUI para no romper el GUILayout.

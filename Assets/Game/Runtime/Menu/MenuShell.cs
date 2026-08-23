@@ -530,13 +530,13 @@ namespace Game.Runtime.Menu
             panel.transform.SetAsLastSibling();
             _tut = panel.gameObject; // ClearTutorial lo destruye
 
-            var txt = MenuTheme.Label(panel.transform, text, 17, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
+            var txt = MenuTheme.Label(panel.transform, text, Fs(17), new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
             txt.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(22f, mainLabel != null ? 52f : 16f), new Vector2(-22f, -16f));
 
             if (mainLabel != null)
             {
-                var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, 16, mainAction, 180f, 40f);
+                var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, Fs(16), mainAction, 180f, 40f);
                 MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-90f, 10f), new Vector2(90f, 50f));
             }
         }
@@ -609,13 +609,13 @@ namespace Game.Runtime.Menu
             prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0f); prt.pivot = new Vector2(0.5f, 0f);
             prt.sizeDelta = new Vector2(680f, 180f); prt.anchoredPosition = new Vector2(0f, 40f);
 
-            var txt = MenuTheme.Label(panel.transform, text, 18, new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
+            var txt = MenuTheme.Label(panel.transform, text, Fs(18), new Color(0.95f, 0.93f, 0.85f), TextAnchor.UpperLeft);
             txt.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)txt.transform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(24f, 56f), new Vector2(-24f, -18f));
 
             if (mainLabel != null)
             {
-                var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, 16, mainAction, 180f, 40f);
+                var mainBtn = MenuTheme.TextButton(panel.transform, mainLabel, Fs(16), mainAction, 180f, 40f);
                 MenuTheme.Anchor((RectTransform)mainBtn.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-198f, 12f), new Vector2(-18f, 52f));
             }
 
@@ -991,6 +991,9 @@ namespace Game.Runtime.Menu
 
             return screen;
         }
+
+        /// <summary>Tamaño de fuente escalado +30% en Android (pantallas pequeñas de alta densidad).</summary>
+        private static int Fs(int size) => Application.platform == RuntimePlatform.Android ? Mathf.RoundToInt(size * 1.3f) : size;
 
         private static void AddLE(GameObject go, float w, float h)
         {
