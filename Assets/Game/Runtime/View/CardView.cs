@@ -174,7 +174,7 @@ namespace Game.Runtime.View
             return null;
 #else
             return _safe != null ? _safe
-                : (_safe = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Texture") ?? Shader.Find("Legacy Shaders/Diffuse"));
+                : (_safe = Shader.Find("TGB/CardUnlit") ?? Shader.Find("Unlit/Texture") ?? Shader.Find("Sprites/Default"));
 #endif
         }
 
