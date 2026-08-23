@@ -17,7 +17,8 @@ namespace Game.Runtime.View
     public sealed class CardArtLibrary
     {
         private readonly string _folder;
-        private readonly Dictionary<string, string> _files = new();   // normFull -> path
+        private readonly Dictionary<string, string> _files = new();   // normFull -> path (disco: editor/PC)
+        private readonly Dictionary<string, Texture2D> _res = new();  // normFull -> tex (Resources/CardArt: builds/Android)
         private readonly Dictionary<string, Texture2D?> _cache = new(); // cardKey -> tex
 
         // Alias para nombres que no coinciden con el archivo.
@@ -35,9 +36,10 @@ namespace Game.Runtime.View
         {
             _folder = folder;
             Index();
+            if (_files.Count == 0) IndexResources(); // sin carpeta de disco (Android/build) -> Resources/CardArt
         }
 
-        public bool Available => _files.Count > 0;
+        public bool Available => _files.Count > 0 || _res.Count > 0;
 
         private void Index()
         {
@@ -50,6 +52,15 @@ namespace Game.Runtime.View
                 }
         }
 
+        private void IndexResources()
+        {
+            foreach (var t in Resources.LoadAll<Texture2D>("CardArt"))
+            {
+                var key = Norm(t.name);
+                if (!_res.ContainsKey(key)) _res[key] = t;
+            }
+        }
+
         public Texture2D? Front(string cardName)
         {
             var key = Norm(cardName);
@@ -57,25 +68,33 @@ namespace Game.Runtime.View
             if (_cache.TryGetValue(key, out var cached)) return cached;
 
             // Empareja por prefijo común más largo (tolera nombres más largos/cortos que el archivo).
-            string? best = null;
-            int bestScore = 0;
-            int bestLen = int.MaxValue;
-            int threshold = Mathf.Min(key.Length, 6);
-            foreach (var kv in _files)
+            Texture2D? tex;
+            if (_files.Count > 0)
             {
-                int cp = CommonPrefix(key, kv.Key);
-                if (cp < threshold) continue;
-                if (cp > bestScore || (cp == bestScore && kv.Key.Length < bestLen))
-                {
-                    bestScore = cp;
-                    bestLen = kv.Key.Length;
-                    best = kv.Value;
-                }
+                var bk = BestKey(key, _files.Keys);
+                tex = bk != null ? Load(_files[bk]) : null;
             }
-
-            var tex = best != null ? Load(best) : null;
+            else
+            {
+                var bk = BestKey(key, _res.Keys);
+                tex = bk != null ? _res[bk] : null;
+            }
             _cache[key] = tex;
             return tex;
+        }
+
+        private static string? BestKey(string key, IEnumerable<string> keys)
+        {
+            string? best = null;
+            int bestScore = 0, bestLen = int.MaxValue;
+            int threshold = Mathf.Min(key.Length, 6);
+            foreach (var k in keys)
+            {
+                int cp = CommonPrefix(key, k);
+                if (cp < threshold) continue;
+                if (cp > bestScore || (cp == bestScore && k.Length < bestLen)) { bestScore = cp; bestLen = k.Length; best = k; }
+            }
+            return best;
         }
 
         private static int CommonPrefix(string a, string b)
@@ -89,8 +108,16 @@ namespace Game.Runtime.View
         {
             if (_backTried) return _back;
             _backTried = true;
-            foreach (var kv in _files)
-                if (kv.Key.Contains("dorso")) { _back = Load(kv.Value); break; }
+            if (_files.Count > 0)
+            {
+                foreach (var kv in _files)
+                    if (kv.Key.Contains("dorso")) { _back = Load(kv.Value); break; }
+            }
+            else
+            {
+                foreach (var kv in _res)
+                    if (kv.Key.Contains("dorso")) { _back = kv.Value; break; }
+            }
             return _back;
         }
 
