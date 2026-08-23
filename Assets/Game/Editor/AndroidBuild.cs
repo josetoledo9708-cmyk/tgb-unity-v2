@@ -116,9 +116,20 @@ namespace Game.Editor
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24; // Android 7+
             PlayerSettings.Android.forceInternetPermission = true; // LAN/Netcode requiere permiso de red
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft; // el juego es horizontal
-            // IL2CPP + ARM64 (requerido por Play; para pruebas locales también vale)
+
+            // IL2CPP + ARM64 (requerido por Play; una sola arquitectura = APK más chico)
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+
+            // --- Optimización de tamaño de descarga ---
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.High); // recorta código no usado
+            PlayerSettings.SetIl2CppCompilerConfiguration(NamedBuildTarget.Android, Il2CppCompilerConfiguration.Master); // binario más optimizado/chico
+            PlayerSettings.stripEngineCode = true;                 // quita módulos del motor no usados
+            PlayerSettings.Android.optimizedFramePacing = true;    // frame pacing suave en móvil
+            PlayerSettings.Android.useAPKExpansionFiles = false;    // un solo APK
+            EditorUserBuildSettings.buildAppBundle = false;        // APK (no AAB) para instalar directo
+            PlayerSettings.gcIncremental = true;                   // GC incremental (menos hitches)
+            PlayerSettings.Android.splitApplicationBinary = false; // no partir el binario
         }
     }
 }

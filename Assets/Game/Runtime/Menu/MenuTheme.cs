@@ -84,7 +84,7 @@ namespace Game.Runtime.Menu
             if (frameSprite != null)
             {
                 img.sprite = frameSprite;
-                img.type = Image.Type.Sliced;
+                img.type = Image.Type.Simple; // Botones.png se dibuja completo (Sliced deforma el marco en óvalo)
                 img.color = Color.white;
             }
             else img.color = Color.black;
@@ -146,7 +146,7 @@ namespace Game.Runtime.Menu
             if (botonesSprite != null)
             {
                 frame.sprite = botonesSprite;
-                frame.type = Image.Type.Sliced;
+                frame.type = Image.Type.Simple; // dibujar el marco completo (Sliced lo deforma en óvalo)
                 frame.color = Color.white; // asset ya trae el color/brillo baked
             }
             else
