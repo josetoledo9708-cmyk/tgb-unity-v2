@@ -55,11 +55,7 @@ namespace Game.Runtime.Menu
         private void EnsureCatalog()
         {
             if (_catalog != null) return;
-            try
-            {
-                var path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
-                if (File.Exists(path)) _catalog = UnityCatalogLoader.FromJson(File.ReadAllText(path));
-            }
+            try { _catalog = UnityCatalogLoader.LoadDefault(); } // Resources (Android) o StreamingAssets (editor)
             catch (System.Exception e) { Debug.LogWarning("Menú: no se pudo cargar el catálogo: " + e.Message); }
             _cardArt = new CardArtLibrary(@"C:\Users\Rinco\Downloads"); // misma carpeta que HotseatView.artFolder
         }

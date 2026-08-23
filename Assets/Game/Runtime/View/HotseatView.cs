@@ -145,9 +145,8 @@ namespace Game.Runtime.View
 
             EnsureSceneRig();
 
-            string path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
-            if (!File.Exists(path)) { Debug.LogError($"Falta catálogo en {path}"); return; }
-            var catalog = UnityCatalogLoader.FromJson(File.ReadAllText(path));
+            var catalog = UnityCatalogLoader.LoadDefault();
+            if (catalog == null) { Debug.LogError("Falta catálogo (Resources/catalogo_v3 o StreamingAssets)."); return; }
 
             _art = new CardArtLibrary(artFolder);
             if (!_art.Available)

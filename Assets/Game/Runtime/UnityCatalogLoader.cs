@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 using Game.Core.Model;
 
 namespace Game.Runtime
@@ -14,6 +15,23 @@ namespace Game.Runtime
         {
             "DIA", "TIERRA", "SER_DIVINO", "SER_HUMANO", "SER_ANIMAL", "CONCEPTO"
         };
+
+        /// <summary>Texto del catálogo, multiplataforma: Resources (funciona en Android) y, si no,
+        /// StreamingAssets por archivo (editor/standalone).</summary>
+        public static string? DefaultJson()
+        {
+            var ta = Resources.Load<TextAsset>("catalogo_v3");
+            if (ta != null) return ta.text;
+            var path = System.IO.Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
+            return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
+        }
+
+        /// <summary>Carga el catálogo por defecto (o null si no se encuentra).</summary>
+        public static CardCatalog? LoadDefault()
+        {
+            var json = DefaultJson();
+            return json != null ? FromJson(json) : null;
+        }
 
         public static CardCatalog FromJson(string json)
         {

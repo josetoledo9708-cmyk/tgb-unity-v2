@@ -23,14 +23,13 @@ namespace Game.Runtime
 
         private void Start()
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "catalogo.v3.json");
-            if (!File.Exists(path))
+            var catalog = UnityCatalogLoader.LoadDefault();
+            if (catalog == null)
             {
-                Debug.LogError($"No se encontró el catálogo en {path}");
+                Debug.LogError("No se encontró el catálogo (Resources/catalogo_v3 o StreamingAssets).");
                 return;
             }
 
-            var catalog = UnityCatalogLoader.FromJson(File.ReadAllText(path));
             Engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver() };
             Engine.StartGame(
                 SampleDeckBuilder.Build(catalog, historiaP0, 40),

@@ -1,0 +1,273 @@
+{
+  "documento": "Catálogo de cartas — The Great Book",
+  "version": "3.0-rev1",
+  "fecha": "2026-06-27",
+  "proposito": "Catálogo de 119 cartas (v3.0 con erratas aplicadas).",
+  "_overrides_aprobados": {
+    "nota": "Decisiones que prevalecen sobre el cuerpo original del JSON v3.0.",
+    "economia_fd": "FD se resetea a 0 en el PRELUDIO propio (al destapear). El FD sin gastar PERSISTE durante el turno del rival y es el único combustible de los CONCEPTO boca abajo (RESPUESTA). Se descarta el modelo de 'tapear tierras durante el turno rival'.",
+    "tierras_maximas": 7,
+    "retirados_igual_descarte": true,
+    "primer_jugador_no_roba_turno_1": true,
+    "dia7_condicion": "DÍAs 1-6 activados + 3 TIERRAs + 2 SER en campo: uno de coste <=2 y otro de coste >=3.",
+    "dia_modelo_activacion": "Modelo A: 1 activación base por turno pagando el coste FD del DÍA (avanza 1 día, en orden). Las cartas de diaFreeUsed dan 1 activación EXTRA por turno SIN pagar coste, pero la condición del DÍA siempre se exige. diaFreeUsed limita las gratis a 1/turno.",
+    "diaFreeUsed_correccion": "Quitar 'Canaán' (no activa DÍA). Añadir 'La Alianza del Fuego' (c10).",
+    "trampas_boca_abajo": "Máximo 1 CONCEPTO boca abajo a la vez (1 zona CONCEPTO).",
+    "tamano_mazo": "40 a 50 cartas (rango). Debe incluir las 5 piezas de la HISTORIA declarada. Máximo 3 copias por carta.",
+    "erratas_datos": ["Eliminada TIERRA t21 'Peniel' (duplicado vacío de t15).", "dia7 corregido.", "Conteo TIERRA 21->20, TOTAL 120->119."]
+  },
+  "reglas_basicas": {
+    "recurso": {
+      "nombre": "Favor Divino (FD)",
+      "descripcion": "Recurso principal. Se genera tapeando TIERRAs. Se resetea a 0 en el PRELUDIO propio. El FD sin gastar persiste durante el turno del rival para pagar CONCEPTO de RESPUESTA."
+    },
+    "fases_del_turno": [
+      {
+        "numero": 1,
+        "nombre": "PRELUDIO",
+        "acciones": [
+          "FD del jugador activo se resetea a 0",
+          "Todas las TIERRAs propias se destapean",
+          "Cada SER pierde 1 turno de duración",
+          "SER con duración 0 van a Retirados y disparan AL_SALIR",
+          "TIERRAs con turns_left (Sodoma, Gomorra) decrementan; si llegan a 0 se destruyen y disparan AL_SER_DESTRUIDA",
+          "Se resetean flags: diaFreeUsed=false, sacrificioUsed=false, diluvioUsed=false, tierraProtected=false"
+        ]
+      },
+      {
+        "numero": 2,
+        "nombre": "GENESIS",
+        "acciones": [
+          "Roba 1 carta (excepción: el primer jugador no roba en su turno 1)",
+          "Si mazo vacío el rival gana (Victoria II)"
+        ]
+      },
+      {
+        "numero": 3,
+        "nombre": "PREPARACION",
+        "acciones": [
+          "Tapear TIERRAs para generar FD",
+          "Jugar 1 TIERRA nueva por turno (gratis); máx 7 en campo",
+          "Jugar SER pagando coste FD (máx 3 en campo)",
+          "Jugar CONCEPTO pagando coste FD",
+          "Activar EFECTO de SER pagando coste_activacion (1 vez por SER por turno)",
+          "Activar DÍA cumpliendo condición y pagando coste (1 gratuito por turno)"
+        ]
+      },
+      {
+        "numero": 4,
+        "nombre": "ENTREGA",
+        "acciones": [
+          "Verificar Victoria III: si 5 piezas de Historia en campo simultaneamente",
+          "Descartar hasta límite de 7 cartas en mano"
+        ]
+      }
+    ],
+    "limites_campo": {
+      "SER_simultaneos": 3,
+      "TIERRAs_maximas": 7,
+      "CONCEPTO_boca_abajo": 1,
+      "cartas_en_mano_fin_entrega": 7
+    },
+    "construccion_mazo": {
+      "min": 40,
+      "max": 50,
+      "copias_por_carta": "máximo 3 por carta",
+      "obligatorio": "Debe incluir las 5 piezas de la HISTORIA declarada (al menos 1 de cada)",
+      "fuera_del_mazo": ["7 DIA", "1 HISTORIA elegida"],
+      "composicion_sugerida": {
+        "TIERRA": "~10-12",
+        "SER": "~15-18",
+        "CONCEPTO": "~8-10",
+        "nota": "Curva orientativa para un mazo de 40. Las 5 piezas se cuentan DENTRO de sus tipos."
+      }
+    }
+  },
+  "victorias": [
+    { "id": "VICTORIA_I", "nombre": "Los 7 Días", "condicion": "Activar el DÍA 7 durante PREPARACION", "notas": "Los DÍA deben activarse en orden 1-7" },
+    { "id": "VICTORIA_II", "nombre": "Fin del Mazo", "condicion": "El rival no puede robar en GENESIS por mazo vacío" },
+    { "id": "VICTORIA_III", "nombre": "La Historia", "condicion": "Las 5 piezas de la Historia declarada en campo al final de ENTREGA (modo_victoria=field_at_entrega). Excepción h5: se verifica al jugar la 5ª pieza (modo_victoria=on_piece_play)." }
+  ],
+  "tipos_de_efecto": [
+    { "id": "AL_ENTRAR", "cuando": "Al llegar la carta al campo desde cualquier origen" },
+    { "id": "AL_ENTRAR_CONDICIONAL", "cuando": "Al entrar, solo activa bonus si otra carta específica ya está en campo" },
+    { "id": "AL_SALIR", "cuando": "Al abandonar el campo por cualquier razón" },
+    { "id": "AL_TAPEARSE", "cuando": "Al girar la TIERRA para generar FD. Solo TIERRAs especiales" },
+    { "id": "AL_SER_DESTRUIDA", "cuando": "Solo si un efecto de carta la elimina activamente" },
+    { "id": "EFECTO_ACTIVADO", "cuando": "Pagar FD, 1 vez por turno, SER en campo" },
+    { "id": "EFECTO_PASIVO_CONTINUO", "cuando": "Permanentemente mientras la carta esté en campo" },
+    { "id": "PENALIZACION", "cuando": "Coste al usar efecto extra de TIERRA especial" },
+    { "id": "USO_UNICO", "cuando": "CONCEPTO: efecto inmediato, va a Retirados" },
+    { "id": "RESPUESTA", "cuando": "Durante turno rival, pagado con FD reservado del turno propio" },
+    { "id": "EFECTO_DIFERIDO", "cuando": "Se activa al jugarse pero se consume en acción futura" },
+    { "id": "EFECTO_DE_AREA", "cuando": "Afecta múltiples cartas propias simultáneamente" },
+    { "id": "EFECTO_GLOBAL", "cuando": "Afecta campo completo de ambos jugadores" },
+    { "id": "AL_ACTIVAR_EL_DIA", "cuando": "Recompensa única al activar ese DÍA" },
+    { "id": "AL_FINAL_DE_LA_ENTREGA", "cuando": "Verificación automática de Victoria III" }
+  ],
+  "reglas_de_balance": [
+    { "id": "diaFreeUsed", "regla": "Solo 1 efecto que active DÍA sin coste por turno", "afecta": ["Abraham", "Melquisedec", "Henoc", "Isaac", "Ángel del Señor", "Los Tres Mensajeros", "La Alianza del Fuego"] },
+    { "id": "sacrificioUsed", "regla": "El Sacrificio de Isaac no puede usarse el mismo turno que otra carta de sacrificio. Set de sacrificio TBD." },
+    { "id": "diluvioUsed", "regla": "La Rama de Olivo no puede jugarse el mismo turno que El Diluvio" },
+    { "id": "henoc_condicion", "regla": "Henoc puede activar DÍA sin pagar FD pero la condición narrativa sigue siendo requerida" },
+    { "id": "expulsion_limite", "regla": "La Expulsión del Edén devuelve máximo 2 SER del rival" },
+    { "id": "tierraProtected", "regla": "Lot activa tierraProtected=true al entrar. Ningún efecto puede destruir TIERRAs mientras esté activo. Se resetea en Preludio" }
+  ],
+  "dias": [
+    { "numero": 1, "nombre": "La Luz", "coste": 1, "condicion": "1 TIERRA en campo", "efecto": "Sin recompensa" },
+    { "numero": 2, "nombre": "El Firmamento", "coste": 1, "condicion": "2 TIERRAs en campo", "efecto": "Juega 1 TIERRA extra este turno" },
+    { "numero": 3, "nombre": "La Tierra y los Mares", "coste": 2, "condicion": "3 TIERRAs + CONCEPTO en mano o Retirados", "efecto": "Añade a tu mano o juega al campo (desde tu mazo o Retirados) 1 carta TIERRA." },
+    { "numero": 4, "nombre": "Los Astros", "coste": 2, "condicion": "3 TIERRAs + 1 SER coste>=3 en campo", "efecto": "Mira las 3 cartas superiores de tu mazo. Añade 1 a tu mano y pon el resto al fondo en cualquier orden. Gana +1 FD." },
+    { "numero": 5, "nombre": "Los Seres del Agua", "coste": 3, "condicion": "2 SER + 2 TIERRAs sin tapear", "efecto": "Regresa 1 SER de Retirados a la mano" },
+    { "numero": 6, "nombre": "Los Animales y el Hombre", "coste": 3, "condicion": "2 SER + 4 TIERRAs + CONCEPTO", "efecto": "Busca 1 SER en el mazo" },
+    { "numero": 7, "nombre": "El Descanso", "coste": 4, "condicion": "DÍAs 1-6 activados + 3 TIERRAs + 2 SER en campo (uno coste<=2 y otro coste>=3)", "efecto": "VICTORIA_I inmediata" }
+  ],
+  "historias": [
+    { "id": "h1", "nombre": "La Caída del Edén", "genesis": "Génesis 3", "modo_victoria": "field_at_entrega", "piezas": ["El Jardín del Edén", "El Árbol del Fruto Prohibido", "Adán", "Eva", "La Serpiente"] },
+    { "id": "h2", "nombre": "El Diluvio Universal", "genesis": "Génesis 6-9", "modo_victoria": "field_at_entrega", "piezas": ["El Monte Ararat", "Egipto", "Noé", "Sem", "Jafet"] },
+    { "id": "h3", "nombre": "La Alianza con Abraham", "genesis": "Génesis 12-18", "modo_victoria": "field_at_entrega", "piezas": ["Hebrón/Mambré", "Canaán", "Abraham", "Sara", "Melquisedec"] },
+    { "id": "h4", "nombre": "El Destino de Sodoma y Gomorra", "genesis": "Génesis 18-19", "modo_victoria": "field_at_entrega", "piezas": ["Sodoma", "Gomorra", "Abraham", "Lot", "Los Ángeles de Sodoma"] },
+    { "id": "h5", "nombre": "El Primer Fratricidio", "genesis": "Génesis 4", "modo_victoria": "on_piece_play", "piezas": ["El Jardín del Edén", "La Tierra de Nod", "Caín", "Abel", "La Maldición de la Tierra"], "nota": "La Maldición de la Tierra es un CONCEPTO que actúa como quinta pieza. Debe jugarse de última. La Victoria III se verifica AL JUGAR esa carta (con las otras 4 piezas en campo), antes de que su efecto se resuelva." },
+    { "id": "h6", "nombre": "La Escalera al Cielo", "genesis": "Génesis 25-33", "modo_victoria": "field_at_entrega", "piezas": ["Betel", "Canaán", "Jacob/Israel", "Esaú", "Los Ángeles de la Escalera"] },
+    { "id": "h7", "nombre": "José, el Salvador de Egipto", "genesis": "Génesis 37-45", "modo_victoria": "field_at_entrega", "piezas": ["Egipto", "La Tierra de Gosén", "José", "El Faraón", "Benjamín"] }
+  ],
+  "catalogo_cartas": {
+    "DIA": [
+      { "id": "dia1", "nombre": "La Luz", "coste": 1, "condicion": "1 TIERRA", "efecto": "Sin recompensa" },
+      { "id": "dia2", "nombre": "El Firmamento", "coste": 1, "condicion": "2 TIERRAs", "efecto": "Juega 1 TIERRA extra" },
+      { "id": "dia3", "nombre": "La Tierra y los Mares", "coste": 2, "condicion": "3 TIERRAs + CONCEPTO", "efecto": "Añade a mano o juega al campo 1 TIERRA (desde mazo o Retirados)" },
+      { "id": "dia4", "nombre": "Los Astros", "coste": 2, "condicion": "3 TIERRAs + SER coste>=3", "efecto": "Mira top 3, añade 1 a mano, resto al fondo, +1 FD" },
+      { "id": "dia5", "nombre": "Los Seres del Agua", "coste": 3, "condicion": "2 SER + 2 TIERRAs sin tapear", "efecto": "Regresa 1 SER de Retirados" },
+      { "id": "dia6", "nombre": "Los Animales y el Hombre", "coste": 3, "condicion": "2 SER + 4 TIERRAs + CONCEPTO", "efecto": "Busca 1 SER en mazo" },
+      { "id": "dia7", "nombre": "El Descanso", "coste": 4, "condicion": "DÍAs 1-6 + 3 TIERRAs + 2 SER (uno coste<=2 y otro coste>=3)", "efecto": "VICTORIA_I" }
+    ],
+    "TIERRA": [
+      { "id": "t01", "nombre": "El Jardín del Edén", "fd": 1, "especial": true, "efecto": "PASIVO: tus SER ganan +1 turno al entrar. PENALIZACIÓN: si hay un SER enemigo en campo, el rival roba 1 carta." },
+      { "id": "t02", "nombre": "El Árbol del Fruto Prohibido", "fd": 1, "especial": true, "efecto": "AL TAPEARSE: busca en tu mazo el CONCEPTO 'La Expulsión del Edén' o 'El Fruto Prohibido' y añádelo a tu mano. Si no lo haces, busca cualquier CONCEPTO pero descarta 2 cartas." },
+      { "id": "t03", "nombre": "El Monte Ararat", "fd": 1, "especial": false, "efecto": "Solo genera 1 FD." },
+      { "id": "t04", "nombre": "Babel", "fd": 1, "especial": true, "efecto": "AL TAPEARSE: retrasa 1 DÍA del rival 1 turno. PENALIZACIÓN: descarta 1 carta." },
+      { "id": "t05", "nombre": "Canaán", "fd": 1, "especial": true, "efecto": "AL ENTRAR: puedes poner en juego 1 TIERRA 'Hebrón' o 'Salem' desde tu mano o mazo (una vez por partida)." },
+      { "id": "t06", "nombre": "Hebrón/Mambré", "fd": 1, "especial": false, "efecto": "Solo genera 1 FD." },
+      { "id": "t07", "nombre": "Salem", "fd": 1, "especial": false, "efecto": "Solo genera 1 FD." },
+      { "id": "t08", "nombre": "Sodoma", "fd": 2, "especial": true, "turns_left": 3, "efecto": "Genera 2 FD. PASIVO: se destruye después de 3 turnos. AL SER DESTRUIDA: el rival roba 2 cartas. Mientras Lot esté en campo, esta TIERRA no se destruye automáticamente." },
+      { "id": "t09", "nombre": "Gomorra", "fd": 3, "especial": true, "turns_left": 2, "efecto": "Genera 3 FD. PASIVO: se destruye después de 2 turnos. AL SER DESTRUIDA: el rival roba 3 cartas. Mientras Lot esté en campo, esta TIERRA no se destruye automáticamente." },
+      { "id": "t10", "nombre": "Betel", "fd": 1, "especial": true, "efecto": "AL TAPEARSE: mira las 2 cartas superiores del mazo y reordénalas." },
+      { "id": "t11", "nombre": "La Cueva de Macpelá", "fd": 1, "especial": true, "efecto": "AL TAPEARSE: regresa 1 SER de Retirados a la mano. PENALIZACIÓN: descarta 1 carta." },
+      { "id": "t12", "nombre": "Egipto", "fd": 2, "especial": true, "efecto": "AL ENTRAR: si El Monte Ararat está en campo, genera 2 FD adicionales este turno." },
+      { "id": "t13", "nombre": "La Tierra de Gosén", "fd": 1, "especial": true, "efecto": "AL ENTRAR: todos tus SER en campo quedan protegidos de destrucción hasta tu siguiente turno." },
+      { "id": "t14", "nombre": "La Tierra de Nod", "fd": 1, "especial": true, "efecto": "AL ENTRAR: si Caín está en campo, roba 1 carta y Caín gana +1 turno de duración. PASIVO: mientras Caín esté en campo, los SER del rival entran con -1 turno de duración. AL SALIR de Caín (si esta carta sigue en campo), La Tierra de Nod es enviada a Retirados." },
+      { "id": "t15", "nombre": "Peniel", "fd": 1, "especial": true, "efecto": "AL ENTRAR: si Jacob/Israel está en campo, roba 1 carta." },
+      { "id": "t16", "nombre": "Dotán", "fd": 1, "especial": true, "efecto": "AL ENTRAR: busca 1 SER 'José' en tu mazo y añádelo a tu mano (una vez por partida)." },
+      { "id": "t17", "nombre": "Río Pisón", "fd": 1, "especial": true, "efecto": "AL TAPEARSE: ganas +1 FD adicional. PASIVO: si El Jardín del Edén está en campo, esta TIERRA genera 2 FD en lugar de 1." },
+      { "id": "t18", "nombre": "Río Gehón", "fd": 1, "especial": true, "efecto": "AL TAPEARSE: mira 1 carta del fondo de tu mazo." },
+      { "id": "t19", "nombre": "Río Tigris", "fd": 1, "especial": true, "efecto": "AL ENTRAR: puedes descartar 1 carta para robar 1." },
+      { "id": "t20", "nombre": "Río Éufrates", "fd": 1, "especial": true, "efecto": "AL ENTRAR: si tienes 3 o más TIERRAs, ganas +1 FD." }
+    ],
+    "SER_DIVINO": [
+      { "id": "sd1", "nombre": "Los Querubines", "coste": 5, "dur": 4, "actCost": 3, "al_entrar": "Bloquea todos los efectos del rival durante 1 turno.", "activado": "Protege 1 SER propio de destrucción hasta tu próximo turno." },
+      { "id": "sd2", "nombre": "Los Ángeles de la Escalera", "coste": 3, "dur": 2, "actCost": 0, "al_entrar": "Roba 1 carta. El rival descarta 1 carta.", "activado": "Genera +1 FD." },
+      { "id": "sd3", "nombre": "Los Ángeles de Sodoma", "coste": 5, "dur": 2, "actCost": 2, "al_entrar": "Destruye 2 TIERRAs en cualquier lado del campo.", "activado": "Ambos jugadores añaden 1 SER del mazo a su mano." },
+      { "id": "sd4", "nombre": "El Ángel del Sacrificio", "coste": 3, "dur": 3, "actCost": 2, "al_entrar": "Cancela efecto que destruya 1 SER propio.", "activado": "Regresa 1 SER de Retirados a la mano." },
+      { "id": "sd5", "nombre": "El Ángel del Señor", "coste": 4, "dur": 2, "actCost": 2, "al_entrar": "Roba 2 cartas.", "activado": "Activa 1 DÍA sin coste (condición requerida)." },
+      { "id": "sd6", "nombre": "El Ser que Luchó con Jacob", "coste": 5, "dur": 2, "actCost": 3, "al_entrar": "Todos los SER del rival vuelven a su mano.", "activado": "Niega el próximo efecto activado del rival." },
+      { "id": "sd7", "nombre": "Los Tres Mensajeros", "coste": 4, "dur": 2, "actCost": 2, "al_entrar": "Roba 2 cartas.", "activado": "Activa 1 DÍA sin coste (condición requerida)." },
+      { "id": "sd8", "nombre": "El Ángel de Agar", "coste": 2, "dur": 2, "actCost": 1, "al_entrar": "Busca el CONCEPTO 'La Promesa a Agar' y añádelo a tu mano.", "activado": "Genera +1 FD." },
+      { "id": "sd9", "nombre": "El Ángel de la Torre", "coste": 3, "dur": 2, "actCost": 2, "al_entrar": "El rival no puede jugar CONCEPTOS este turno.", "activado": "Cancela el efecto de 1 TIERRA especial rival." }
+    ],
+    "SER_HUMANO": [
+      { "id": "sh01", "nombre": "Adán", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Si Eva está en campo roba 1 carta; si no, búscala en el mazo y añádela a tu mano.", "activado": "Mira las 2 cartas superiores del mazo y acomódalas en el orden que prefieras." },
+      { "id": "sh02", "nombre": "Eva", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Si Adán está en campo roba 1 carta; si no, búscalo en el mazo y añádelo a tu mano.", "activado": "El rival revela su mano completa, pero tú debes descartar 1 carta." },
+      { "id": "sh03", "nombre": "Caín", "coste": 2, "dur": 3, "actCost": 2, "al_entrar": "Envía 1 TIERRA del campo a Retirados.", "activado": "Añade 2 cartas CONCEPTO del mazo a tu mano, luego descarta 1 de las 2." },
+      { "id": "sh04", "nombre": "Abel", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "Añade La Ofrenda de Abel a tu mano desde el mazo.", "activado": "Genera +2 FD." },
+      { "id": "sh05", "nombre": "Noé", "coste": 5, "dur": 5, "actCost": 3, "al_entrar": "Añade La Paloma a tu mano desde el mazo.", "activado": "Roba 2 cartas." },
+      { "id": "sh06", "nombre": "Sem", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "Si Noé está en campo, Noé gana +1 turno de duración.", "activado": "Genera +2 FD." },
+      { "id": "sh06b", "nombre": "Jafet", "coste": 1, "dur": 2, "actCost": 1, "al_entrar": "Si Noé o Sem están en campo, roba 1 carta.", "activado": "Roba 1 carta." },
+      { "id": "sh07", "nombre": "Abraham", "coste": 5, "dur": 5, "actCost": 2, "al_entrar": "Busca 1 SER en el mazo y añádelo a tu mano. Si eliges a Lot, puedes ponerlo directamente en campo (pagando su coste o no, según reglas).", "activado": "Activa 1 DÍA sin coste (condición requerida)." },
+      { "id": "sh08", "nombre": "Sara", "coste": 3, "dur": 4, "actCost": 4, "al_entrar": "Si Abraham está en campo, roba 2 cartas.", "activado": "Ambos jugadores descartan 1 carta." },
+      { "id": "sh09", "nombre": "Lot", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Anula cualquier efecto que destruya una TIERRA hasta tu próximo turno. Si Abraham está en campo, esta protección dura 2 turnos.", "activado": "Ambos jugadores roban 1 carta. Si Abraham está en campo, ganas +1 FD adicional." },
+      { "id": "sh10", "nombre": "Ismael", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Genera +1 FD.", "activado": "Roba 1 carta." },
+      { "id": "sh11", "nombre": "Henoc", "coste": 3, "dur": 3, "actCost": 2, "al_entrar": "Activa 1 DÍA sin pagar FD (condición requerida).", "activado": "Roba 1 carta.", "nota": "Solo exime el coste FD, la condición del DÍA sigue siendo requerida." },
+      { "id": "sh12", "nombre": "Isaac", "coste": 4, "dur": 4, "actCost": 2, "al_entrar": "Roba 2 cartas.", "activado": "Activa 1 DÍA sin coste (condición requerida). Si Rebeca está en campo, puedes activar cualquier DÍA cuya condición cumpla, ignorando el orden numérico." },
+      { "id": "sh12b", "nombre": "Esaú", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Si Jacob/Israel está en campo, roba 1 carta.", "activado": "Destruye 1 SER rival de coste <=2." },
+      { "id": "sh13", "nombre": "Jacob/Israel", "coste": 5, "dur": 5, "actCost": 2, "al_entrar": "Añade 'La Lucha de Jacob con Dios' a tu mano desde el mazo.", "activado": "Elige 1 SER humano rival. Durante 1 turno, ese SER se considera bajo tu control (no puede atacar ni activar efectos, solo bloquea)." },
+      { "id": "sh14", "nombre": "Rebeca", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Roba 1 carta. Si Isaac está en campo, roba 2 cartas en su lugar e Isaac gana +1 turno de duración (si está en campo).", "activado": "Busca 1 SER en el mazo." },
+      { "id": "sh15", "nombre": "Raquel", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Si Jacob está en campo, roba 2 cartas. Si Lea no está en campo, puedes buscarla en el mazo y añadirla a tu mano.", "activado": "Genera +1 FD." },
+      { "id": "sh16", "nombre": "José", "coste": 5, "dur": 5, "actCost": 2, "al_entrar": "Si El Faraón y Egipto están en campo, ambas cartas no podrán ser destruidas por ningún efecto por el resto de la partida.", "activado": "Mira las 5 cartas superiores del mazo rival. Si Benjamín está en campo, puedes devolver 1 SER de Retirados a tu mano." },
+      { "id": "sh17", "nombre": "Benjamín", "coste": 3, "dur": 1, "actCost": 1, "al_entrar": "Roba 1 carta.", "activado": "Cuando esta carta termina su turno en campo, regresa al mazo en lugar de ir a Retirados. Si José está en campo, roba 1 carta adicional al regresar al mazo." },
+      { "id": "sh18", "nombre": "El Faraón", "coste": 5, "dur": 4, "actCost": 4, "al_entrar": "Roba 2 cartas.", "activado": "Genera FD igual a la mitad de tus TIERRAs en campo (máx 4 FD)." },
+      { "id": "sh19", "nombre": "Melquisedec", "coste": 4, "dur": 3, "actCost": 2, "al_entrar": "Activa 1 DÍA sin coste (condición requerida).", "activado": "Genera +3 FD." },
+      { "id": "sh20", "nombre": "Putifar", "coste": 3, "dur": 3, "actCost": 2, "al_entrar": "Roba 1 carta.", "activado": "Bloquea el efecto activado de 1 SER rival este turno." },
+      { "id": "sh21", "nombre": "Lea", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Si Jacob está en campo, ambos jugadores descartan 1 carta y tú ganas +1 FD. Si Raquel está en campo, Lea pierde 1 turno de duración.", "activado": "El rival revela su mano. Tú eliges 1 carta y la pones en el fondo de su mazo." },
+      { "id": "sh22", "nombre": "Set", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "Si Abel está en Retirados, regresa 1 SER de Retirados a tu mano.", "activado": "Roba 1 carta." },
+      { "id": "sh23", "nombre": "Matusalén", "coste": 4, "dur": 6, "actCost": 2, "al_entrar": "Todos tus SER ganan +1 turno de duración.", "activado": "Gana +2 FD." },
+      { "id": "sh24", "nombre": "Judá", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Si Tamar está en campo, roba 2 cartas.", "activado": "Destruye 1 SER rival de coste <=2." },
+      { "id": "sh25", "nombre": "Rubén", "coste": 3, "dur": 4, "actCost": 2, "al_entrar": "Protege a 1 SER propio de destrucción este turno.", "activado": "Ambos jugadores roban 1 carta." },
+      { "id": "sh26", "nombre": "Dina", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "El rival descarta 1 carta al azar.", "activado": "Mira la mano del rival." },
+      { "id": "sh27", "nombre": "Tamar", "coste": 3, "dur": 3, "actCost": 2, "al_entrar": "Si Judá está en campo, roba 1 carta y él gana +1 turno.", "activado": "El rival revela su mano, tú descartas 1 de ellas." },
+      { "id": "sh28", "nombre": "Agar", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "Si Abraham o Sara están en campo, ganas +2 FD.", "activado": "Busca 1 TIERRA en el mazo." },
+      { "id": "sh29", "nombre": "La Esposa de Putifar", "coste": 3, "dur": 2, "actCost": 2, "al_entrar": "Elige 1 SER rival. Ese SER no puede activar efectos este turno.", "activado": "Si José está en campo, él pierde 1 turno de duración." }
+    ],
+    "SER_ANIMAL": [
+      { "id": "sa1", "nombre": "La Serpiente", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "El rival descarta 1 carta aleatoria.", "activado": "Niega el efecto activado de 1 SER rival." },
+      { "id": "sa2", "nombre": "El Cuervo", "coste": 1, "dur": 2, "actCost": 1, "al_entrar": "Mira la carta superior del mazo rival.", "activado": "Roba 1 carta." },
+      { "id": "sa3", "nombre": "La Paloma", "coste": 1, "dur": 2, "actCost": 1, "al_salir": "Roba 1 carta.", "activado": "Genera +1 FD." },
+      { "id": "sa4", "nombre": "El Carnero del Zarzal", "coste": 2, "dur": 3, "actCost": 1, "al_entrar": "Cancela el próximo efecto que destruya 1 SER propio.", "activado": "Genera +1 FD." },
+      { "id": "sa5", "nombre": "Criaturas Marinas", "coste": 1, "dur": 2, "actCost": 0, "al_entrar": "Si el DÍA 5 ha sido activado esta partida, roba 1 carta.", "activado": "Una vez por turno, puedes devolver esta carta a tu mano en lugar de enviarla a Retirados al final de su duración." }
+    ],
+    "CONCEPTO": [
+      { "id": "c01", "nombre": "El Soplo de Vida", "coste": 3, "tipo": "Uso único", "efecto": "Regresa 1 SER de Retirados al campo." },
+      { "id": "c02", "nombre": "La Expulsión del Edén", "coste": 3, "tipo": "Uso único", "efecto": "Devuelve hasta 2 SER del rival a su mano. El rival elige cuáles. Si entre los devueltos hay algún Adán o Eva, el rival además descarta 1 carta." },
+      { "id": "c03", "nombre": "La Espada de Fuego Giratoria", "coste": 2, "tipo": "RESPUESTA", "efecto": "Cancela efecto que permita activar DÍA o recuperar TIERRA." },
+      { "id": "c04", "nombre": "La Ofrenda de Abel", "coste": 1, "tipo": "Uso único", "efecto": "Genera +2 FD." },
+      { "id": "c05", "nombre": "La Maldición de la Tierra", "coste": 2, "tipo": "Uso único", "efecto": "Las TIERRAs del rival generan 0 FD durante 1 turno. Si Caín está en campo, la duración aumenta a 2 turnos." },
+      { "id": "c06", "nombre": "El Arca de Noé", "coste": 3, "tipo": "Uso único", "efecto": "Todos tus SER en campo quedan protegidos de destrucción este turno." },
+      { "id": "c07", "nombre": "El Diluvio", "coste": 5, "tipo": "Uso único", "efecto": "Destruye todos los SER de ambos jugadores. No puede jugarse el mismo turno que La Rama de Olivo." },
+      { "id": "c08", "nombre": "La Rama de Olivo", "coste": 2, "tipo": "Uso único", "efecto": "Coloca 1 TIERRA directamente en campo desde tu mano, mazo o Retirados. No puedes jugar TIERRAs el siguiente turno. No puede jugarse el mismo turno que El Diluvio." },
+      { "id": "c09", "nombre": "La Llamada de Abram", "coste": 2, "tipo": "Uso único", "efecto": "Busca 1 TIERRA en el mazo y añádela a tu mano." },
+      { "id": "c10", "nombre": "La Alianza del Fuego", "coste": 3, "tipo": "Uso único", "efecto": "Activa 1 DÍA sin coste (condición requerida). Roba 1 carta." },
+      { "id": "c11", "nombre": "La Destrucción de Sodoma", "coste": 3, "tipo": "Uso único", "efecto": "Destruye 1 TIERRA del rival. Si es Sodoma o Gomorra, sus efectos AL SER DESTRUIDA se disparan." },
+      { "id": "c12", "nombre": "El Arco Iris / La Alianza de Noé", "coste": 2, "tipo": "RESPUESTA", "efecto": "Cancela efecto que destruya TIERRAs o envíe SER a Retirados. Roba 1 carta." },
+      { "id": "c13", "nombre": "La Confusión de Lenguas", "coste": 4, "tipo": "Uso único", "efecto": "Todos los SER de ambos jugadores pierden sus efectos activados hasta el próximo Preludio." },
+      { "id": "c14", "nombre": "La Dispersión de los Pueblos", "coste": 3, "tipo": "Uso único", "efecto": "El rival descarta 2 cartas." },
+      { "id": "c15", "nombre": "El Sacrificio de Isaac", "coste": 2, "tipo": "Uso único", "efecto": "Envía 1 SER propio a Retirados. Roba 3 cartas. No puede usarse el mismo turno que otra carta de sacrificio." },
+      { "id": "c16", "nombre": "El Sueño de la Escalera", "coste": 2, "tipo": "Uso único", "efecto": "Mira las 3 cartas superiores del mazo y reordénalas. Roba 1." },
+      { "id": "c17", "nombre": "La Túnica de Colores", "coste": 1, "tipo": "Uso único", "efecto": "El próximo SER que juegues este turno entra con +2 turnos de duración." },
+      { "id": "c18", "nombre": "El Pozo de José", "coste": 2, "tipo": "Uso único", "efecto": "Envía 1 SER rival al fondo de su mazo en lugar de a Retirados." },
+      { "id": "c19", "nombre": "La Lucha de Jacob con Dios", "coste": 3, "tipo": "RESPUESTA", "efecto": "Niega cualquier efecto rival. Tu SER de mayor duración pierde 1 turno." },
+      { "id": "c20", "nombre": "La Bendición de Jacob", "coste": 2, "tipo": "Uso único", "efecto": "Todos tus SER en campo recuperan 1 turno de duración." },
+      { "id": "c21", "nombre": "El Perdón de José", "coste": 2, "tipo": "RESPUESTA", "efecto": "Cancela destrucción o envío de SER a Retirados. Roba 1 carta." },
+      { "id": "c22", "nombre": "José se da a Conocer", "coste": 3, "tipo": "Uso único", "efecto": "Regresa 1 SER de Retirados a la mano. Roba 1 carta." },
+      { "id": "c23", "nombre": "El Robo de la Bendición", "coste": 2, "tipo": "Uso único", "efecto": "Copia el último efecto AL ENTRAR del rival." },
+      { "id": "c24", "nombre": "La Promesa de la Tierra", "coste": 2, "tipo": "Uso único", "efecto": "Busca 1 TIERRA en el mazo y ponla directamente en campo." },
+      { "id": "c25", "nombre": "El Juramento de las Estrellas", "coste": 3, "tipo": "Uso único", "efecto": "Todos tus SER en campo ganan +2 turnos de duración." },
+      { "id": "c26", "nombre": "El Sueño del Faraón", "coste": 2, "tipo": "Uso único", "efecto": "Mira las 5 cartas superiores del mazo rival. Descarta 1 de ellas." },
+      { "id": "c27", "nombre": "La Copa de Benjamín", "coste": 2, "tipo": "Uso único", "efecto": "Roba 2 cartas. El rival roba 1 carta." },
+      { "id": "c28", "nombre": "El Fruto Prohibido", "coste": 2, "tipo": "Uso único", "efecto": "Mira las 3 cartas superiores de tu mazo. Añade 1 a tu mano y envía el resto a Retirados." },
+      { "id": "c29", "nombre": "El Velo de la Noche", "coste": 1, "tipo": "RESPUESTA", "efecto": "Cancela la activación de un DÍA por parte del rival. Roba 1 carta." },
+      { "id": "c30", "nombre": "El Sueño de los Haces", "coste": 2, "tipo": "Uso único", "efecto": "Mira las 5 cartas superiores de tu mazo. Puedes poner 1 SER de ellas en tu mano y devolver el resto en cualquier orden al fondo de tu mazo. Si ese SER es José, además roba 1 carta." },
+      { "id": "c31", "nombre": "La Marca de Caín", "coste": 1, "tipo": "Uso único", "efecto": "Protege a 1 SER propio de ser destruido o enviado a Retirados este turno." },
+      { "id": "c32", "nombre": "La Promesa del Arco Iris", "coste": 2, "tipo": "RESPUESTA", "efecto": "Cancela cualquier efecto que destruya TIERRAs. Roba 1 carta." },
+      { "id": "c33", "nombre": "El Sueño del Copero", "coste": 1, "tipo": "Uso único", "efecto": "Mira las 3 cartas superiores del mazo rival. Pon 1 de ellas en el fondo." },
+      { "id": "c34", "nombre": "El Sueño del Panadero", "coste": 1, "tipo": "Uso único", "efecto": "El rival descarta 1 carta al azar. Tú robas 1 carta." },
+      { "id": "c35", "nombre": "La Promesa a Agar", "coste": 2, "tipo": "Uso único", "efecto": "Busca 1 SER en el mazo y añádelo a tu mano. Si es Ismael, gana +1 FD." },
+      { "id": "c36", "nombre": "El Pozo de Agar", "coste": 2, "tipo": "Uso único", "efecto": "Regresa 1 SER de Retirados a tu mano. Si es Agar o Ismael, roba 1 carta extra." },
+      { "id": "c37", "nombre": "La Prueba de Abraham", "coste": 2, "tipo": "Uso único", "efecto": "Sacrifica 1 SER propio. Busca 1 CONCEPTO en el mazo y añádelo a tu mano." },
+      { "id": "c38", "nombre": "El Nacimiento de Isaac", "coste": 2, "tipo": "Uso único", "efecto": "Roba 2 cartas. Si Abraham o Sara están en campo, roba 1 adicional." },
+      { "id": "c39", "nombre": "El Viaje del Siervo", "coste": 2, "tipo": "Uso único", "efecto": "Busca 1 TIERRA en el mazo y añádela a tu mano. Luego puedes jugarla gratis este turno." },
+      { "id": "c40", "nombre": "La Piedra de Jacob", "coste": 1, "tipo": "Uso único", "efecto": "Coloca 1 TIERRA de tu mano directamente en campo (no consume tu jugada de TIERRA)." },
+      { "id": "c41", "nombre": "Los Sueños de José", "coste": 2, "tipo": "Uso único", "efecto": "Mira las 5 cartas superiores de tu mazo. Puedes poner 1 SER en tu mano y el resto al fondo en cualquier orden." },
+      { "id": "c42", "nombre": "El Censo de Jacob", "coste": 3, "tipo": "Uso único", "efecto": "Todos tus SER en campo recuperan 2 turnos de duración. Roba 1 carta." }
+    ]
+  },
+  "conteo_final": {
+    "DIA": 7,
+    "TIERRA": 20,
+    "SER_DIVINO": 9,
+    "SER_HUMANO": 31,
+    "SER_ANIMAL": 5,
+    "CONCEPTO": 42,
+    "HISTORIA": 7,
+    "TOTAL": 121,
+    "_nota_conteo": "SER_HUMANO incluye sh06b (Jafet) y sh12b (Esaú). El v3.0 original decía 29/TOTAL 120 por contar de menos SER_HUMANO y de más la TIERRA t21 (eliminada)."
+  }
+}
