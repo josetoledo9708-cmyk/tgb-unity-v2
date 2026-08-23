@@ -63,6 +63,34 @@ namespace Game.Editor
         private static readonly string[] UiFrameKeywords =
         { "boton", "marco", "glow", "recuadro", "cuadro", "banner", "sel_", "btn", "diseno" };
 
+        [MenuItem("The Great Book/Android/Transcodificar video del menú")]
+        public static void TranscodeMenuVideo()
+        {
+            const string path = "Assets/Game/Resources/Menu/tomos/fondo_tomos.mp4";
+            if (AssetImporter.GetAtPath(path) is not VideoClipImporter vi)
+            {
+                Debug.LogError("No se encontró el VideoClip: " + path);
+                return;
+            }
+            void Apply(BuildTargetGroup g)
+            {
+                var s = vi.GetTargetSettings(g) ?? vi.defaultTargetSettings;
+                s.enableTranscoding = true;
+                s.codec = VideoCodec.H264;                 // compatible con Android/iOS
+                s.resizeMode = VideoResizeMode.OriginalSize;
+                s.spatialQuality = VideoSpatialQuality.LowSpatialQuality; // menor peso
+                s.bitrateMode = VideoBitrateMode.Low;
+                vi.SetTargetSettings(g, s);
+            }
+            var def = vi.defaultTargetSettings; def.enableTranscoding = true; def.codec = VideoCodec.H264;
+            def.spatialQuality = VideoSpatialQuality.LowSpatialQuality; def.bitrateMode = VideoBitrateMode.Low;
+            vi.defaultTargetSettings = def;
+            Apply(BuildTargetGroup.Android);
+            Apply(BuildTargetGroup.Standalone);
+            vi.SaveAndReimport();
+            Debug.Log("Video del menú transcodificado (H264) para Android/Standalone.");
+        }
+
         [MenuItem("The Great Book/Reimportar marcos UI")]
         public static void ReimportUiFrames()
         {
