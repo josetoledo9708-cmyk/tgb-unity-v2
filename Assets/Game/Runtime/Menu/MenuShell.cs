@@ -1040,7 +1040,7 @@ namespace Game.Runtime.Menu
         private void LaunchNetGame()
         {
             _canvas.gameObject.SetActive(false);
-            if (_board != null) { _board.enabled = true; _inMatch = true; }
+            if (_board != null) { _board.NewMatch(); _board.enabled = true; _inMatch = true; }
         }
 
         private RectTransform BuildContraIA()
@@ -3341,7 +3341,8 @@ namespace Game.Runtime.Menu
             if (_board != null)
             {
                 _canvas.gameObject.SetActive(false);
-                _board.enabled = true; // dispara su Start → construye la partida
+                _board.NewMatch();     // pide partida NUEVA (no reanudar)
+                _board.enabled = true;
                 _inMatch = true;
                 return;
             }

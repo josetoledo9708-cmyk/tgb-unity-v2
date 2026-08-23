@@ -139,11 +139,22 @@ namespace Game.Runtime.View
 
         private bool _needInit;
 
-        // El campo se enciende/apaga con `enabled` desde el menú; Start solo corre una vez. En vez de
-        // inicializar dentro de OnEnable (que corre SINCRÓNICO al poner enabled=true y puede leer los
-        // flags de tutorial ANTES de que el menú los escriba), diferimos el arranque al siguiente Update:
-        // así todas las escrituras de flags del mismo frame ya están listas.
-        private void OnEnable() => _needInit = true;
+        /// <summary>El menú llama a esto para arrancar una PARTIDA NUEVA (no al reanudar tras pausa).</summary>
+        public void NewMatch() => _needInit = true;
+
+        // El campo se enciende/apaga con `enabled` desde el menú. Solo se re-inicializa cuando el menú
+        // pidió una partida nueva (NewMatch). Al REANUDAR (cerrar Opciones) se conserva la partida; si
+        // era turno de la IA, se reanuda su turno.
+        private void OnEnable()
+        {
+            if (!_needInit && _engine != null) MaybeRunAI(); // reanudar: recuperar turno de IA si aplica
+        }
+
+        private void OnDisable()
+        {
+            StopAllCoroutines();   // pausa: corta turnos de IA en curso
+            _aiRunning = false;    // permite reanudar el turno de IA al volver
+        }
 
         private void InitMatch()
         {
@@ -197,8 +208,6 @@ namespace Game.Runtime.View
             Rebuild();
             MaybeRunAI();
         }
-
-        private void OnDisable() => StopAllCoroutines(); // al ocultar el campo, corta turnos de IA en curso
 
         /// <summary>Limpia por completo la partida anterior antes de montar una nueva (el board se
         /// re-enciende con `enabled`, pero Start no vuelve a correr).</summary>
