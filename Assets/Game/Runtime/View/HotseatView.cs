@@ -924,10 +924,18 @@ namespace Game.Runtime.View
 
         // ---------------- HUD (IMGUI, sin paquetes) ----------------
 
+        // Escala del HUD IMGUI (más grande en móvil: pantallas pequeñas de alta densidad).
+        private static float GuiScale => Application.platform == RuntimePlatform.Android ? 1.3f : 1f;
+        private float _gs = 1f, _gw, _gh; // escala + ancho/alto "lógicos" (Screen / escala)
+
         private void OnGUI()
         {
             if (_engine == null) return;
             var s = _engine.State;
+
+            _gs = GuiScale;
+            GUI.matrix = _gs == 1f ? Matrix4x4.identity : Matrix4x4.Scale(new Vector3(_gs, _gs, 1f));
+            _gw = Screen.width / _gs; _gh = Screen.height / _gs; // todo el HUD trabaja en coords lógicas
 
             var center = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
             var title = new GUIStyle(center) { fontSize = 13 };
@@ -937,7 +945,7 @@ namespace Game.Runtime.View
             timer.normal.textColor = new Color(0.45f, 0.6f, 1f);
 
             float pw = 200f, ph = 200f;
-            _phaseRect = new Rect(Screen.width - pw - 14f, (Screen.height - ph) * 0.5f, pw, ph);
+            _phaseRect = new Rect(_gw - pw - 14f, (_gh - ph) * 0.5f, pw, ph);
             GUILayout.BeginArea(_phaseRect, GUI.skin.box);
             GUILayout.Space(6);
             GUILayout.Label("FASE ACTUAL", title);
@@ -969,7 +977,7 @@ namespace Game.Runtime.View
                 DrawTutHighlight(TutSteps[_tutIdx].hl); // ilumina la zona/carta mencionada
 
                 float tw = 700f, th = 150f;
-                GUILayout.BeginArea(new Rect((Screen.width - tw) * 0.5f, 18f, tw, th), GUI.skin.box); // arriba: no tapa mano/zonas
+                GUILayout.BeginArea(new Rect((_gw - tw) * 0.5f, 18f, tw, th), GUI.skin.box); // arriba: no tapa mano/zonas
                 GUILayout.Space(4);
                 GUILayout.Label($"TUTORIAL   ({_tutIdx + 1}/{TutSteps.Length})", title);
                 var wrap = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
@@ -986,7 +994,7 @@ namespace Game.Runtime.View
             {
                 DrawTutHighlight(GuideSteps[_guideStep].hl); // ilumina la carta/panel del paso guiado
                 float gw = 700f, gh = 120f;
-                GUILayout.BeginArea(new Rect((Screen.width - gw) * 0.5f, 18f, gw, gh), GUI.skin.box);
+                GUILayout.BeginArea(new Rect((_gw - gw) * 0.5f, 18f, gw, gh), GUI.skin.box);
                 GUILayout.Space(4);
                 GUILayout.Label($"TUTORIAL — Paso {_guideStep + 1}/{GuideSteps.Length}", title);
                 var gwrap = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
@@ -1105,7 +1113,7 @@ namespace Game.Runtime.View
             {
                 var corner = c + new Vector3((i & 1) == 0 ? -e.x : e.x, (i & 2) == 0 ? -e.y : e.y, (i & 4) == 0 ? -e.z : e.z);
                 var sp = cam.WorldToScreenPoint(corner);
-                float gx = sp.x, gy = Screen.height - sp.y;
+                float gx = sp.x / _gs, gy = (Screen.height - sp.y) / _gs; // a coords lógicas (aura alineada bajo la GUI escalada)
                 minx = Mathf.Min(minx, gx); maxx = Mathf.Max(maxx, gx);
                 miny = Mathf.Min(miny, gy); maxy = Mathf.Max(maxy, gy);
             }
@@ -1127,7 +1135,7 @@ namespace Game.Runtime.View
             foreach (var w in corners)
             {
                 var sp = cam.WorldToScreenPoint(w);
-                float gx = sp.x, gy = Screen.height - sp.y; // GUI: y hacia abajo
+                float gx = sp.x / _gs, gy = (Screen.height - sp.y) / _gs; // GUI: y hacia abajo (coords lógicas)
                 minx = Mathf.Min(minx, gx); maxx = Mathf.Max(maxx, gx);
                 miny = Mathf.Min(miny, gy); maxy = Mathf.Max(maxy, gy);
             }
@@ -1279,7 +1287,7 @@ namespace Game.Runtime.View
         {
             var d = _playInfoCard!.Def;
             const float w = 580f, h = 320f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             var tt = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             GUILayout.Space(6);
             GUILayout.Label($"Jugaste: {d.Nombre}", tt);
@@ -1307,7 +1315,7 @@ namespace Game.Runtime.View
         {
             GrantTutorialReward();
             const float w = 460f, h = 210f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
             GUILayout.Space(8);
@@ -1326,7 +1334,7 @@ namespace Game.Runtime.View
         {
             bool win = _gameWinner == 0;
             const float w = 460f, h = 200f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
             var reason = _engine.State.WinReason;
@@ -1496,7 +1504,7 @@ namespace Game.Runtime.View
         private void DrawT2Info()
         {
             const float w = 580f, h = 290f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             var tt = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
             GUILayout.Space(6);
@@ -1527,7 +1535,7 @@ namespace Game.Runtime.View
         {
             GrantTutorial2Reward();
             const float w = 470f, h = 230f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
             GUILayout.Space(8);
@@ -1586,7 +1594,7 @@ namespace Game.Runtime.View
         private void DrawPlacement()
         {
             const float w = 320f, h = 130f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             GUILayout.Label($"{_placeCard!.Nombre} — carta de respuesta",
                 new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter });
             GUILayout.Space(6);
@@ -1606,7 +1614,7 @@ namespace Game.Runtime.View
         private void DrawResponsePrompt()
         {
             const float w = 380f, h = 120f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
             GUILayout.Label(_respPrompt,
                 new GUIStyle(GUI.skin.label) { wordWrap = true, alignment = TextAnchor.MiddleCenter });
             GUILayout.Space(6);
@@ -1650,13 +1658,13 @@ namespace Game.Runtime.View
             if (!_showLog)
             {
                 const float bw = 150f, bh = 42f;
-                if (GUI.Button(new Rect(14f, (Screen.height - bh) * 0.5f, bw, bh), "HISTORIAL"))
+                if (GUI.Button(new Rect(14f, (_gh - bh) * 0.5f, bw, bh), "HISTORIAL"))
                     _showLog = true;
                 return;
             }
 
             const float w = 380f, h = 300f;
-            GUILayout.BeginArea(new Rect(14f, (Screen.height - h) * 0.5f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(14f, (_gh - h) * 0.5f, w, h), GUI.skin.box);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("HISTORIAL", new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold });
@@ -1682,7 +1690,7 @@ namespace Game.Runtime.View
             int visible = Mathf.Clamp(req.Options.Count, 1, 7);
             float w = visible * (thumbW + gap) + gap + 20f;
             float h = 30f + (thumbH + 40f) + 46f;
-            GUILayout.BeginArea(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
 
             var hdr = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             GUILayout.Label(req.Prompt, hdr);
@@ -1809,7 +1817,7 @@ namespace Game.Runtime.View
         private void DrawCardDetailFor(CardInstance card, int owner)
         {
             _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
-            GUILayout.BeginArea(new Rect(Screen.width - 550f, 10f, 540f, 320f), GUI.skin.box); // arriba a la derecha
+            GUILayout.BeginArea(new Rect(_gw - 550f, 10f, 540f, 320f), GUI.skin.box); // arriba a la derecha
             DrawDetailBody(card, owner);
             GUILayout.EndArea();
         }
