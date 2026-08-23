@@ -76,7 +76,7 @@ namespace Game.Editor
             s.enableTranscoding = true;      // re-encoda a formato compatible (Android no reproduce el mp4 original)
             s.codec = VideoCodec.H264;
             vi.defaultTargetSettings = s;
-            vi.SetTargetSettings(BuildTargetGroup.Android, s);
+            vi.SetTargetSettings("Android", s);
             vi.SaveAndReimport();
             Debug.Log("Video del menú transcodificado (H264).");
         }
