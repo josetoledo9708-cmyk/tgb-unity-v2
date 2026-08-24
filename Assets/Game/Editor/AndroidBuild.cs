@@ -63,22 +63,29 @@ namespace Game.Editor
         private static readonly string[] UiFrameKeywords =
         { "boton", "marco", "glow", "recuadro", "cuadro", "banner", "sel_", "btn", "diseno" };
 
-        [MenuItem("The Great Book/Android/Transcodificar video del menú")]
+        [MenuItem("The Great Book/Android/Transcodificar videos del menú")]
         public static void TranscodeMenuVideo()
         {
-            const string path = "Assets/Game/Resources/Menu/tomos/fondo_tomos.mp4";
-            if (AssetImporter.GetAtPath(path) is not VideoClipImporter vi)
+            // MM.ogv (Ogg Theora) NO lo reproduce Android; fondo_tomos.mp4 tampoco (perfil no compatible).
+            // Transcodificar a H264 los deja reproducibles en el teléfono.
+            var paths = new[]
             {
-                Debug.LogError("No se encontró el VideoClip: " + path);
-                return;
+                "Assets/Game/Resources/Menu/MM.ogv",
+                "Assets/Game/Resources/Menu/tomos/fondo_tomos.mp4",
+            };
+            int done = 0;
+            foreach (var path in paths)
+            {
+                if (AssetImporter.GetAtPath(path) is not VideoClipImporter vi) { Debug.LogWarning("No es VideoClip: " + path); continue; }
+                var s = vi.defaultTargetSettings;
+                s.enableTranscoding = true;
+                s.codec = VideoCodec.H264;
+                vi.defaultTargetSettings = s;
+                vi.SetTargetSettings("Android", s);
+                vi.SaveAndReimport();
+                done++;
             }
-            var s = vi.defaultTargetSettings;
-            s.enableTranscoding = true;      // re-encoda a formato compatible (Android no reproduce el mp4 original)
-            s.codec = VideoCodec.H264;
-            vi.defaultTargetSettings = s;
-            vi.SetTargetSettings("Android", s);
-            vi.SaveAndReimport();
-            Debug.Log("Video del menú transcodificado (H264).");
+            Debug.Log($"Videos del menú transcodificados (H264): {done}.");
         }
 
         [MenuItem("The Great Book/Reimportar marcos UI")]
