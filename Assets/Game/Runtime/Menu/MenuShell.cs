@@ -21,6 +21,7 @@ namespace Game.Runtime.Menu
         public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, SelectDeck, ChooseHistoria, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
 
         private Canvas _canvas;
+        private const bool MpGateOn = false; // TESTING: false = Multijugador siempre accesible (true en la versión final = exige Tutorial 2)
         private RectTransform _root;      // contenedor de la pantalla activa
         private GameObject _current;
         private Screen _currentScreen = (Screen)(-1);
@@ -338,9 +339,11 @@ namespace Game.Runtime.Menu
             _histBtn = (RectTransform)histBtn.transform;
             DesignedMenuButton(list.transform, "MULTIJUGADOR", () =>
             {
-                if (PlayerPrefs.GetInt("mp_unlocked", 0) == 1) Push(Screen.Multijugador);
-                else ShowTutHint("El Multijugador se desbloquea al completar el Tutorial 2: juega «La Caída del Edén» desde Historias.",
-                    "Entendido", () => ClearTutorial());
+                // TESTING: gate desactivado (siempre accesible). Poner MpGateOn=true para exigir el Tutorial 2 en la versión final.
+                if (MpGateOn && PlayerPrefs.GetInt("mp_unlocked", 0) != 1)
+                    ShowTutHint("El Multijugador se desbloquea al completar el Tutorial 2: juega «La Caída del Edén» desde Historias.",
+                        "Entendido", () => ClearTutorial());
+                else Push(Screen.Multijugador);
             });
             DesignedMenuButton(list.transform, "CONSTRUCTOR DE HISTORIAS", () => Push(Screen.MisMazos));
             var misBtn = DesignedMenuButton(list.transform, "MISIONES Y LOGROS", () => Push(Screen.Misiones));
