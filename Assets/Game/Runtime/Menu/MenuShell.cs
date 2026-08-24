@@ -2611,7 +2611,7 @@ namespace Game.Runtime.Menu
             var tabL = MenuTheme.TextButton(screen, "LOGROS", 15, () => { _misionesTab = false; RebuildMisiones(); }, 240f, 44f, thicken: false);
             MenuTheme.Anchor((RectTransform)tabL.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(6f, -120f), new Vector2(252f, -76f));
 
-            _misionesHeader = MenuTheme.Label(screen, "", 17, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _misionesHeader = MenuTheme.Label(screen, "", Fs(17), MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             _misionesHeader.raycastTarget = false;
             MenuTheme.Anchor((RectTransform)_misionesHeader.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-380f, -158f), new Vector2(380f, -130f));
 
@@ -2672,9 +2672,9 @@ namespace Game.Runtime.Menu
             bool claimed = PlayerPrefs.GetInt("mis_claim_" + id, 0) == 1;
             var panel = MisRowPanel(92f, done ? MenuTheme.Gold : new Color(0.4f, 0.55f, 0.8f, 0.9f));
 
-            var nm = MenuTheme.Label(panel.transform, nombre, 20, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
+            var nm = MenuTheme.Label(panel.transform, nombre, Fs(20), Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
             nm.raycastTarget = false; MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 1f), new Vector2(0.7f, 1f), new Vector2(28f, -30f), new Vector2(0f, -6f));
-            var ds = MenuTheme.Label(panel.transform, desc, 14, new Color(0.72f, 0.74f, 0.82f), TextAnchor.UpperLeft);
+            var ds = MenuTheme.Label(panel.transform, desc, Fs(14), new Color(0.72f, 0.74f, 0.82f), TextAnchor.UpperLeft);
             ds.raycastTarget = false; MenuTheme.Anchor((RectTransform)ds.transform, new Vector2(0f, 1f), new Vector2(0.7f, 1f), new Vector2(28f, -52f), new Vector2(0f, -30f));
 
             // barra de progreso
@@ -2688,13 +2688,13 @@ namespace Game.Runtime.Menu
             var bf = (RectTransform)barFill.transform; bf.anchorMin = new Vector2(0f, 0f); bf.anchorMax = new Vector2(Mathf.Clamp01((float)prog / obj), 1f);
             bf.offsetMin = Vector2.zero; bf.offsetMax = Vector2.zero;
 
-            var pl = MenuTheme.Label(panel.transform, $"{prog} / {obj}", 15, new Color(0.85f, 0.85f, 0.9f), TextAnchor.MiddleRight, FontStyle.Bold);
+            var pl = MenuTheme.Label(panel.transform, $"{prog} / {obj}", Fs(15), new Color(0.85f, 0.85f, 0.9f), TextAnchor.MiddleRight, FontStyle.Bold);
             pl.raycastTarget = false; MenuTheme.Anchor((RectTransform)pl.transform, new Vector2(0.72f, 0.5f), new Vector2(0.86f, 1f), new Vector2(0f, -6f), new Vector2(0f, -2f));
 
             // recompensa (moneda + monto) o botón reclamar
             if (done && !claimed)
             {
-                var claim = MenuTheme.TextButton(panel.transform, "Reclamar +" + reward, 14, () =>
+                var claim = MenuTheme.TextButton(panel.transform, "Reclamar +" + reward, Fs(14), () =>
                 {
                     PlayerData.Monedas += reward;
                     PlayerPrefs.SetInt("mis_claim_" + id, 1); PlayerPrefs.Save();
@@ -2706,7 +2706,7 @@ namespace Game.Runtime.Menu
             {
                 var ci = MenuTheme.Picture(panel.transform, "coin", MenuAssets.Sprite("Moneda"));
                 ci.raycastTarget = false; MenuTheme.Anchor((RectTransform)ci.transform, new Vector2(0.88f, 0.5f), new Vector2(0.88f, 0.5f), new Vector2(-4f, -12f), new Vector2(20f, 12f));
-                var rw = MenuTheme.Label(panel.transform, reward.ToString(), 17, claimed ? new Color(0.5f, 0.55f, 0.5f) : MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
+                var rw = MenuTheme.Label(panel.transform, reward.ToString(), Fs(17), claimed ? new Color(0.5f, 0.55f, 0.5f) : MenuTheme.Gold, TextAnchor.MiddleLeft, FontStyle.Bold);
                 rw.raycastTarget = false; MenuTheme.Anchor((RectTransform)rw.transform, new Vector2(0.9f, 0.5f), new Vector2(1f, 0.5f), new Vector2(4f, -14f), new Vector2(-6f, 14f));
             }
         }
@@ -2721,15 +2721,15 @@ namespace Game.Runtime.Menu
             var ic = MenuTheme.Label(panel.transform, ok ? icon : "🔒", 26, ok ? Color.white : new Color(0.6f, 0.55f, 0.4f), TextAnchor.MiddleCenter);
             ic.raycastTarget = false; MenuTheme.Anchor((RectTransform)ic.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(18f, 0f), new Vector2(66f, 0f));
 
-            var nm = MenuTheme.Label(panel.transform, ok ? nombre : "???", 19, ok ? MenuTheme.Gold : new Color(0.6f, 0.58f, 0.5f), TextAnchor.UpperLeft, FontStyle.Bold);
+            var nm = MenuTheme.Label(panel.transform, ok ? nombre : "???", Fs(19), ok ? MenuTheme.Gold : new Color(0.6f, 0.58f, 0.5f), TextAnchor.UpperLeft, FontStyle.Bold);
             nm.raycastTarget = false; MenuTheme.Anchor((RectTransform)nm.transform, new Vector2(0f, 1f), new Vector2(0.8f, 1f), new Vector2(74f, -30f), new Vector2(0f, -8f));
-            var ds = MenuTheme.Label(panel.transform, desc, 14, new Color(0.72f, 0.74f, 0.78f), TextAnchor.UpperLeft);
+            var ds = MenuTheme.Label(panel.transform, desc, Fs(14), new Color(0.72f, 0.74f, 0.78f), TextAnchor.UpperLeft);
             ds.raycastTarget = false; MenuTheme.Anchor((RectTransform)ds.transform, new Vector2(0f, 1f), new Vector2(0.8f, 1f), new Vector2(74f, -54f), new Vector2(0f, -32f));
 
             // Logro con recompensa desbloqueado y sin reclamar -> botón Reclamar. Si no, estado/monto.
             if (ok && reward > 0 && !claimed)
             {
-                var claim = MenuTheme.TextButton(panel.transform, "Reclamar +" + reward, 14, () =>
+                var claim = MenuTheme.TextButton(panel.transform, "Reclamar +" + reward, Fs(14), () =>
                 {
                     PlayerData.Monedas += reward;
                     PlayerPrefs.SetInt("log_claim_" + id, 1); PlayerPrefs.Save();
@@ -2741,7 +2741,7 @@ namespace Game.Runtime.Menu
             {
                 string stTxt = !ok ? "BLOQUEADO" : (reward > 0 && claimed ? "RECLAMADO" : "DESBLOQUEADO");
                 var stCol = !ok ? new Color(0.55f, 0.52f, 0.45f) : (claimed ? new Color(0.5f, 0.55f, 0.5f) : MenuTheme.Gold);
-                var st = MenuTheme.Label(panel.transform, stTxt, 15, stCol, TextAnchor.MiddleRight, FontStyle.Bold);
+                var st = MenuTheme.Label(panel.transform, stTxt, Fs(15), stCol, TextAnchor.MiddleRight, FontStyle.Bold);
                 st.raycastTarget = false; MenuTheme.Anchor((RectTransform)st.transform, new Vector2(0.78f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(-18f, 0f));
             }
         }

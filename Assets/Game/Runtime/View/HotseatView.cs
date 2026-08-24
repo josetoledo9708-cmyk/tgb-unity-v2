@@ -747,6 +747,12 @@ namespace Game.Runtime.View
             else cam.fieldOfView = camFov;
             cam.transform.position = camPos;
             cam.transform.rotation = Quaternion.Euler(camRotation); // pose exacta
+            if (NetPlay.Active && NetPlay.MyPlayer == 1)
+            {
+                // Cliente = P1: gira la vista 180° alrededor del centro del tablero para ver SU lado abajo.
+                cam.transform.position = new Vector3(-camPos.x, camPos.y, -camPos.z);
+                cam.transform.rotation = Quaternion.Euler(camRotation.x, camRotation.y + 180f, camRotation.z);
+            }
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
@@ -941,7 +947,7 @@ namespace Game.Runtime.View
         // ---------------- HUD (IMGUI, sin paquetes) ----------------
 
         // Escala del HUD IMGUI (más grande en móvil: pantallas pequeñas de alta densidad).
-        private static float GuiScale => Application.platform == RuntimePlatform.Android ? 1.3f : 1f;
+        private static float GuiScale => Application.platform == RuntimePlatform.Android ? 1.7f : 1f;
         private float _gs = 1f, _gw, _gh; // escala + ancho/alto "lógicos" (Screen / escala)
 
         private void OnGUI()
