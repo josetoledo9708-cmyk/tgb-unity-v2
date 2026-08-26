@@ -49,9 +49,17 @@ namespace Game.Runtime.Net
             return NetworkManager.Singleton.GetComponent<UnityTransport>();
         }
 
+        // Cierra una sesión previa (evita "Cannot start Host while an instance is already running").
+        private static void StopIfRunning()
+        {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.Shutdown();
+        }
+
         public static void StartHost(ushort port = DefaultPort)
         {
             var utp = Ensure();
+            StopIfRunning();
             utp.SetConnectionData("0.0.0.0", port, "0.0.0.0");
             NetworkManager.Singleton.StartHost();
             Status = $"Host en puerto {port} (esperando rival)";
@@ -60,6 +68,7 @@ namespace Game.Runtime.Net
         public static void StartClient(string ip, ushort port = DefaultPort)
         {
             var utp = Ensure();
+            StopIfRunning();
             utp.SetConnectionData(string.IsNullOrWhiteSpace(ip) ? "127.0.0.1" : ip.Trim(), port);
             NetworkManager.Singleton.StartClient();
             Status = $"Conectando a {ip}:{port}…";

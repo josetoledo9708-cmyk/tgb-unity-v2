@@ -962,35 +962,36 @@ namespace Game.Runtime.Menu
             BackButton(screen);
             Game.Runtime.Net.NetPlay.Launch = LaunchNetGame; // la red pedirá encender el campo al empezar
 
-            var col = MenuTheme.VBox(screen, 14f, 0, TextAnchor.MiddleCenter);
-            MenuTheme.Anchor((RectTransform)col.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-260f, -230f), new Vector2(260f, 210f));
+            var col = MenuTheme.VBox(screen, 8f, 0, TextAnchor.UpperCenter);
+            MenuTheme.Anchor((RectTransform)col.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-280f, -560f), new Vector2(280f, -110f));
 
-            var hint = MenuTheme.Label(col.transform, "Partida LAN 1v1. Un jugador CREA la sala; el otro se UNE con la IP del host (misma red).", 15, new Color(0.85f, 0.83f, 0.75f), TextAnchor.MiddleCenter);
-            hint.raycastTarget = false; AddLE(hint.gameObject, 500f, 54f);
+            var hint = MenuTheme.Label(col.transform, "Partida LAN 1v1. Un CREA la sala; el otro se UNE con la IP del host (misma red/Wi-Fi).", 15, new Color(0.85f, 0.83f, 0.75f), TextAnchor.MiddleCenter);
+            hint.raycastTarget = false; AddLE(hint.gameObject, 520f, 44f);
 
-            // IP local del host (para compartir)
-            string localIp = LocalIPv4();
-            var ipInfo = MenuTheme.Label(col.transform, "Tu IP (host): " + localIp, 15, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
-            ipInfo.raycastTarget = false; AddLE(ipInfo.gameObject, 500f, 26f);
+            // IP local del host (para compartir): la de tu red LAN, no la de VPN.
+            var ipInfo = MenuTheme.Label(col.transform, "Tu IP (host): " + LocalIPv4(), 17, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            ipInfo.raycastTarget = false; AddLE(ipInfo.gameObject, 520f, 26f);
+            var ipAll = MenuTheme.Label(col.transform, "IPs disponibles: " + AllIPv4(), 12, new Color(0.7f, 0.7f, 0.65f), TextAnchor.MiddleCenter);
+            ipAll.raycastTarget = false; AddLE(ipAll.gameObject, 520f, 20f);
 
-            var host = MenuTheme.TextButton(col.transform, "CREAR SALA (HOST)", 18, () => Game.Runtime.Net.NetworkBootstrap.StartHost(), 360f, 52f);
-            AddLE(host.gameObject, 360f, 52f);
+            var host = MenuTheme.TextButton(col.transform, "CREAR SALA (HOST)", 18, () => Game.Runtime.Net.NetworkBootstrap.StartHost(), 340f, 48f);
+            AddLE(host.gameObject, 340f, 48f);
 
             _mpIp = MakeInput(col.transform, "IP del host (ej. 192.168.1.20)");
-            AddLE(_mpIp.gameObject, 360f, 46f);
+            AddLE(_mpIp.gameObject, 340f, 42f);
 
-            var join = MenuTheme.TextButton(col.transform, "UNIRSE", 18, () => Game.Runtime.Net.NetworkBootstrap.StartClient(_mpIp != null ? _mpIp.text : ""), 360f, 52f);
-            AddLE(join.gameObject, 360f, 52f);
+            var join = MenuTheme.TextButton(col.transform, "UNIRSE", 18, () => Game.Runtime.Net.NetworkBootstrap.StartClient(_mpIp != null ? _mpIp.text : ""), 340f, 48f);
+            AddLE(join.gameObject, 340f, 48f);
 
             _mpStatus = MenuTheme.Label(col.transform, Game.Runtime.Net.NetworkBootstrap.Status, 16, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _mpStatus.raycastTarget = false; AddLE(_mpStatus.gameObject, 500f, 28f);
+            _mpStatus.raycastTarget = false; AddLE(_mpStatus.gameObject, 520f, 26f);
 
-            _mpStart = MenuTheme.TextButton(col.transform, "EMPEZAR PARTIDA", 18, () => Game.Runtime.Net.NetRelay.HostStart(), 360f, 52f).GetComponent<Button>();
-            AddLE(_mpStart.gameObject, 360f, 52f);
+            _mpStart = MenuTheme.TextButton(col.transform, "EMPEZAR PARTIDA", 18, () => Game.Runtime.Net.NetRelay.HostStart(), 340f, 48f).GetComponent<Button>();
+            AddLE(_mpStart.gameObject, 340f, 48f);
             _mpStart.interactable = false;
 
-            var disc = MenuTheme.TextButton(col.transform, "Desconectar", 14, () => { Game.Runtime.Net.NetworkBootstrap.Shutdown(); }, 200f, 38f, thicken: false);
-            AddLE(disc.gameObject, 200f, 38f);
+            var disc = MenuTheme.TextButton(col.transform, "Desconectar", 14, () => { Game.Runtime.Net.NetworkBootstrap.Shutdown(); }, 200f, 34f, thicken: false);
+            AddLE(disc.gameObject, 200f, 34f);
 
             return screen;
         }
@@ -1008,11 +1009,39 @@ namespace Game.Runtime.Menu
         {
             try
             {
+                var ips = new List<string>();
                 foreach (var a in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
-                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) return a.ToString();
+                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        var s = a.ToString();
+                        if (!s.StartsWith("169.254") && !s.StartsWith("127.")) ips.Add(s);
+                    }
+                if (ips.Count == 0) return "127.0.0.1";
+                // Preferir LAN privada real (Wi-Fi/router) sobre adaptadores VPN (Radmin 26.x, Hamachi 25.x, etc.).
+                foreach (var s in ips) if (s.StartsWith("192.168.")) return s;
+                foreach (var s in ips) if (s.StartsWith("10.")) return s;
+                foreach (var s in ips) if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^172\.(1[6-9]|2\d|3[01])\.")) return s;
+                return ips[0];
             }
             catch { /* ignora */ }
             return "127.0.0.1";
+        }
+
+        /// <summary>Todas las IPv4 candidatas (para mostrarlas y que el usuario elija la de su red).</summary>
+        private static string AllIPv4()
+        {
+            try
+            {
+                var ips = new List<string>();
+                foreach (var a in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
+                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        var s = a.ToString();
+                        if (!s.StartsWith("169.254") && !s.StartsWith("127.")) ips.Add(s);
+                    }
+                return ips.Count > 0 ? string.Join("   ", ips) : "—";
+            }
+            catch { return "—"; }
         }
 
         private InputField MakeInput(Transform parent, string placeholder)
