@@ -11,6 +11,7 @@ namespace Game.Runtime.Net
         PlayConcepto, // jugar un CONCEPTO (Flag: 1 = boca abajo)
         ActivateDia,  // activar el DÍA actual
         ActivateSer,  // activar el efecto de un SER (InstanceId = carta)
+        ActivateTrap, // activar un CONCEPTO propio boca abajo (InstanceId = carta)
         EndTurn,      // terminar el turno
     }
 

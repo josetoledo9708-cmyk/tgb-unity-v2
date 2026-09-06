@@ -56,6 +56,7 @@ namespace Game.Core.Effects
             p.Mazo.Remove(card);
             p.Mano.Add(card);
             eng.State.Emit($"P{p.Id} busca a mano ({card.Nombre})");
+            eng.CardRevealed?.Invoke(p.Id, card, "buscada en el mazo"); // pública: la ve el rival
             return true;
         }
 
@@ -207,6 +208,7 @@ namespace Game.Core.Effects
                 p.Mazo.Remove(pick);
                 p.Mano.Add(pick);
                 eng.State.Emit($"P{p.Id} toma del tope ({pick.Nombre})");
+                eng.CardRevealed?.Invoke(p.Id, pick, "tomada del tope del mazo");
             }
             // El resto mirado se queda; (simplificación: no se reordena al fondo).
             return pick != null;
@@ -255,6 +257,151 @@ namespace Game.Core.Effects
                 m++;
             }
             return m;
+        }
+
+        /// <summary>Mira las top n, deja tomar 1 que cumpla `pred` (opcional para el jugador) y
+        /// devuelve el RESTO al tope del mazo en el orden que elija. Es el patrón de "Los Sueños de
+        /// José": revelar varias, quedarse con una y recolocar las demás.</summary>
+        public static bool LookTopTakeOneThenReorder(GameEngine eng, PlayerState p, int n,
+                                                     Func<CardDefinition, bool>? pred = null)
+        {
+            var top = p.Mazo.Cards.Take(n).ToList();
+            if (top.Count == 0) return false;
+            foreach (var c in top) p.Mazo.Remove(c);
+            RevealMany(eng, top, $"P{p.Id} revela las {top.Count} superiores");
+
+            var elegibles = top.Where(c => pred == null || pred(c.Def)).ToList();
+            CardInstance? pick = null;
+            if (elegibles.Count > 0)
+            {
+                pick = eng.Decisions.ChooseCard(eng.State, elegibles, "Añade 1 carta a tu mano", optional: true);
+                if (pick != null)
+                {
+                    top.Remove(pick);
+                    p.Mano.Add(pick);
+                    eng.State.Emit($"P{p.Id} añade a la mano ({pick.Nombre})");
+                    eng.CardRevealed?.Invoke(p.Id, pick, "tomada del tope del mazo");
+                }
+            }
+
+            // El resto vuelve AL TOPE en el orden que decida el jugador (1 = arriba).
+            if (top.Count > 0)
+            {
+                var ordered = eng.Decisions.ChooseOrder(eng.State, top,
+                    $"Devuelve {top.Count} carta(s) al tope del mazo (1 = arriba)");
+                for (int i = ordered.Count - 1; i >= 0; i--) p.Mazo.Cards.Insert(0, ordered[i]);
+                eng.State.Emit($"P{p.Id} devuelve {ordered.Count} carta(s) al tope");
+            }
+            return pick != null;
+        }
+
+        /// <summary>Canaán (t05). BENDECIDO: pone en campo 1 TIERRA "Hebrón" o "Salem" desde la MANO.
+        /// Si no tiene ninguna de las dos en mano, AMBOS jugadores la buscan en su mazo y la colocan
+        /// directamente en campo TAPEADA. Una sola vez por partida (lo controla quien llama).</summary>
+        public static bool CanaanPutHebronOrSalem(GameEngine eng, PlayerState p)
+        {
+            bool EsHebronOSalem(CardDefinition d) => d.Id == "t06" || d.Id == "t07";
+
+            // 1) Desde la mano (sin tapear: entra como una TIERRA jugada normal).
+            var enMano = p.Mano.Cards.Where(c => EsHebronOSalem(c.Def)).ToList();
+            if (enMano.Count > 0 && !p.Tierras.IsFull)
+            {
+                var pick = eng.Decisions.ChooseCard(eng.State, enMano, "Pon en campo Hebrón o Salem", optional: true);
+                if (pick != null)
+                {
+                    p.Mano.Remove(pick);
+                    pick.Tapped = false;
+                    pick.TurnsLeftRemaining = pick.Def.TurnsLeft ?? 0;
+                    p.Tierras.Add(pick);
+                    eng.State.Emit($"P{p.Id} pone TIERRA desde la mano ({pick.Nombre})");
+                    eng.Fire(pick, EffectTrigger.AlEntrar);
+                    return true;
+                }
+            }
+
+            // 2) Sin ninguna en mano: AMBOS jugadores la buscan en su mazo y la ponen TAPEADA.
+            bool any = false;
+            foreach (var jugador in eng.State.Players)
+                if (SearchTierraToFieldTapped(eng, jugador, EsHebronOSalem)) any = true;
+            return any;
+        }
+
+        /// <summary>Busca una TIERRA en el mazo y la coloca en campo YA TAPEADA (no genera FD este turno).</summary>
+        public static bool SearchTierraToFieldTapped(GameEngine eng, PlayerState p,
+                                                     Func<CardDefinition, bool> pred)
+        {
+            if (p.Tierras.IsFull) return false;
+            var candidates = p.Mazo.Cards.Where(c => c.Type == CardType.Tierra && pred(c.Def)).ToList();
+            if (candidates.Count == 0) return false;
+            var card = eng.Decisions.ChooseCard(eng.State, candidates, "Elige la TIERRA a colocar (tapeada)", optional: false)
+                       ?? candidates[0];
+            p.Mazo.Remove(card);
+            ShuffleDeck(eng, p);
+            card.Tapped = true;   // entra tapeada: no produce FD hasta tu próximo Preludio
+            card.TurnsLeftRemaining = card.Def.TurnsLeft ?? 0;
+            p.Tierras.Add(card);
+            eng.State.Emit($"P{p.Id} coloca TIERRA tapeada desde el mazo ({card.Nombre})");
+            eng.Fire(card, EffectTrigger.AlEntrar);
+            return true;
+        }
+
+        /// <summary>Mira las top n, se queda 1 en la MANO y manda EL RESTO a Retirados
+        /// (El Fruto Prohibido). El jugador ve las n antes de elegir.</summary>
+        public static bool LookTopTakeOneRestToRetirados(GameEngine eng, PlayerState p, int n,
+                                                         Func<CardDefinition, bool>? pred = null)
+        {
+            var top = p.Mazo.Cards.Take(n).ToList();
+            if (top.Count == 0) return false;
+            foreach (var c in top) p.Mazo.Remove(c);
+            RevealMany(eng, top, $"P{p.Id} revela las {top.Count} superiores");
+
+            var elegibles = top.Where(c => pred == null || pred(c.Def)).ToList();
+            CardInstance? pick = null;
+            if (elegibles.Count > 0)
+            {
+                pick = eng.Decisions.ChooseCard(eng.State, elegibles, "Añade 1 carta a tu mano", optional: false)
+                       ?? elegibles[0];
+                top.Remove(pick);
+                p.Mano.Add(pick);
+                eng.State.Emit($"P{p.Id} añade a la mano ({pick.Nombre})");
+                eng.CardRevealed?.Invoke(p.Id, pick, "tomada del tope del mazo");
+            }
+
+            // El resto NO vuelve al mazo: se va a Retirados.
+            foreach (var c in top) p.Retirados.Add(c);
+            if (top.Count > 0) eng.State.Emit($"P{p.Id} envía {top.Count} carta(s) a Retirados");
+            return pick != null;
+        }
+
+        /// <summary>Revela al jugador la carta del FONDO del mazo (no la mueve).</summary>
+        public static bool RevealBottom(GameEngine eng, PlayerState p)
+        {
+            if (p.Mazo.Count == 0) return false;
+            var bottom = p.Mazo.Cards[p.Mazo.Count - 1];
+            Reveal(eng, bottom, $"P{p.Id} mira el fondo de su mazo");
+            return true;
+        }
+
+        /// <summary>OPCIONAL: descartar 1 carta elegida de la mano para robar 1 (Río Tigris).</summary>
+        public static bool OptionalDiscardToDraw(GameEngine eng, PlayerState p)
+        {
+            if (p.Mano.Count == 0) return false;
+            if (!eng.Decisions.ChooseYesNo(eng.State, "¿Descartar 1 carta para robar 1?")) return false;
+            var pick = eng.Decisions.ChooseCard(eng.State, p.Mano.Cards.ToList(), "Descarta 1 carta", optional: true);
+            if (pick == null) return false;
+            p.Mano.Remove(pick);
+            p.Retirados.Add(pick);
+            eng.State.Emit($"P{p.Id} descarta ({pick.Nombre}) para robar");
+            Draw(eng, p, 1);
+            return true;
+        }
+
+        /// <summary>Baraja el mazo del jugador (tras efectos de búsqueda, para no dejarlo ordenado).</summary>
+        public static void ShuffleDeck(GameEngine eng, PlayerState p)
+        {
+            if (p.Mazo.Count <= 1) return;
+            eng.Rng.Shuffle(p.Mazo.Cards);
+            eng.State.Emit($"P{p.Id} baraja su mazo");
         }
 
         public static bool HasTierraInField(PlayerState p, string nombre)

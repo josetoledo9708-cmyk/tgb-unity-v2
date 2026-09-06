@@ -42,8 +42,19 @@ namespace Game.Runtime.Net
             {
                 var nm = NetworkManager.Singleton;
                 nm.OnServerStarted += () => { NetRelay.Register(); Refresh(); };
-                nm.OnClientConnectedCallback += _ => { NetRelay.Register(); Refresh(); };
-                nm.OnClientDisconnectCallback += _ => Refresh();
+                nm.OnClientConnectedCallback += id =>
+                {
+                    NetRelay.Register();
+                    Refresh();
+                    // avisa el nombre local al otro lado (host: solo al que acaba de entrar; cliente: al host)
+                    if (!nm.IsServer || id != NetworkManager.ServerClientId)
+                        NetRelay.SendHello(LanDiscovery.LocalDeviceName);
+                };
+                nm.OnClientDisconnectCallback += _ =>
+                {
+                    Refresh();
+                    if (NetPlay.Active) NetPlay.PeerDisconnected?.Invoke(); // rival se fue a media partida
+                };
                 _hooked = true;
             }
             return NetworkManager.Singleton.GetComponent<UnityTransport>();
@@ -80,6 +91,7 @@ namespace Game.Runtime.Net
                 NetworkManager.Singleton.Shutdown();
             NetRelay.Unregister();
             NetPlay.Reset();
+            LanDiscovery.StopAll();
             Status = "Desconectado";
         }
 

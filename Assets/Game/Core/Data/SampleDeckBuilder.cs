@@ -31,7 +31,7 @@ namespace Game.Core.Data
             "c09", "c04", "c01", "c38", "c16", "c27" // búsqueda TIERRA / robo simple
         };
 
-        public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40, int pieceCopies = 3)
+        public static DeckDefinition Build(CardCatalog cat, string historiaId, int size = 40, int pieceCopies = 3, int variant = 0)
         {
             var historia = cat.FindHistoria(historiaId)!;
             var ids = new List<string>();
@@ -68,6 +68,11 @@ namespace Game.Core.Data
                 var id = cat.Cards.Values.First(x => x.Nombre == pieza).Id;
                 for (int k = 0; k < pieceCopies; k++) Add(id);
             }
+
+            // 1b) Mazo CURADO de la historia (v0.01): cartas elegidas a mano por sus interacciones
+            // con las piezas. Entre las 7 historias cubren el catálogo completo, para poder probarlo.
+            var curado = StoryDecks.For(historiaId, variant);
+            if (curado != null) foreach (var id in curado) Add(id);
 
             // 2) Rampa de TIERRA: ~50% del espacio restante (FD suficiente, deja sitio a la cava).
             int landTarget = ids.Count + (size - ids.Count) * 5 / 10;

@@ -58,7 +58,7 @@ namespace Game.Core.Effects
                         EffectApi.DiscardRandom(c.Engine, c.Owner, 2);
             });
             r.On("t04", AlTapearse, c => { c.Opponent.DiaBlockedTurns += 1; EffectApi.DiscardRandom(c.Engine, c.Owner, 1); });
-            r.On("t05", AlEntrar, c => { if (EffectApi.OncePerGame(c.Owner, "t05")) EffectApi.SearchTierraToField(c.Engine, c.Owner, d => d.Id == "t06" || d.Id == "t07"); }); // Canaán
+            r.On("t05", AlEntrar, c => { if (EffectApi.OncePerGame(c.Owner, "t05")) EffectApi.CanaanPutHebronOrSalem(c.Engine, c.Owner); }); // Canaán
             r.On("t10", AlTapearse, c => EffectApi.LookTopReorder(c.Engine, c.Owner, 2)); // Betel
             r.On("t11", AlTapearse, c =>
             {
@@ -77,13 +77,10 @@ namespace Game.Core.Effects
             });
             r.On("t15", AlEntrar, c => { if (EffectApi.HasSerInField(c.Owner, "Jacob/Israel")) EffectApi.Draw(c.Engine, c.Owner, 1); });
             r.On("t16", AlEntrar, c => { if (EffectApi.OncePerGame(c.Owner, "t16")) EffectApi.SearchToHand(c.Engine, c.Owner, d => d.Nombre == "José"); });
-            r.On("t17", AlTapearse, c => { EffectApi.AddFd(c.Engine, c.Owner, 1); if (EffectApi.HasTierraInField(c.Owner, "El Jardín del Edén")) EffectApi.AddFd(c.Engine, c.Owner, 1); });
-            r.On("t18", AlTapearse, c => c.Engine.State.Emit("Gehón: mira 1 carta del fondo"));
-            r.On("t19", AlEntrar, c =>
-            {
-                if (c.Owner.Mano.Count > 0 && c.Decisions.ChooseYesNo(c.State, "¿Descartar 1 para robar 1?"))
-                { EffectApi.DiscardRandom(c.Engine, c.Owner, 1); EffectApi.Draw(c.Engine, c.Owner, 1); }
-            });
+            // Río Pisón: 1 FD base (del propio tapeo). El +1 es PASIVO CONDICIONAL: solo con El Jardín del Edén en campo (2 FD en total).
+            r.On("t17", AlTapearse, c => { if (EffectApi.HasTierraInField(c.Owner, "El Jardín del Edén")) EffectApi.AddFd(c.Engine, c.Owner, 1); });
+            r.On("t18", AlTapearse, c => EffectApi.RevealBottom(c.Engine, c.Owner)); // Río Gehón
+            r.On("t19", AlEntrar, c => EffectApi.OptionalDiscardToDraw(c.Engine, c.Owner)); // Río Tigris
             r.On("t20", AlEntrar, c => { if (c.Owner.Tierras.Count >= 3) EffectApi.AddFd(c.Engine, c.Owner, 1); });
 
             // Sodoma / Gomorra: al ser destruidas, el rival de su dueño roba.
@@ -258,7 +255,7 @@ namespace Game.Core.Effects
             r.On("c25", UsoUnico, c => EffectApi.ModifyDurAll(c.Engine, c.Owner, 2));                // El Juramento de las Estrellas
             r.On("c26", UsoUnico, c => { EffectApi.MillOpponentDeck(c.Engine, c.Opponent, 1); c.Engine.State.Emit("Sueño del Faraón: mira top 5 rival, descarta 1"); }); // El Sueño del Faraón
             r.On("c27", UsoUnico, c => { EffectApi.Draw(c.Engine, c.Owner, 2); EffectApi.Draw(c.Engine, c.Opponent, 1); }); // La Copa de Benjamín
-            r.On("c28", UsoUnico, c => EffectApi.LookTopTakeOne(c.Engine, c.Owner, 3));              // El Fruto Prohibido
+            r.On("c28", UsoUnico, c => EffectApi.LookTopTakeOneRestToRetirados(c.Engine, c.Owner, 3)); // El Fruto Prohibido
             r.On("c29", Respuesta, c => { Negate(c); EffectApi.Draw(c.Engine, c.Owner, 1); });       // El Velo de la Noche
             r.On("c30", UsoUnico, c => { bool got = EffectApi.LookTopTakeOne(c.Engine, c.Owner, 5, d => CardTypeNames.IsSer(d.Type)); if (got && c.Owner.Mano.Cards.Any(x => x.Nombre == "José")) EffectApi.Draw(c.Engine, c.Owner, 1); }); // El Sueño de los Haces
             r.On("c31", UsoUnico, c => EffectApi.ProtectOneSer(c.Engine, c.Owner, 0));               // La Marca de Caín
@@ -275,7 +272,7 @@ namespace Game.Core.Effects
                 var tierra = c.Decisions.ChooseCard(c.State, c.Owner.Mano.Cards.Where(x => x.Type == CardType.Tierra).ToList(), "Colocar TIERRA", true);
                 if (tierra != null) c.Engine.PlayTierraFree(tierra);
             });
-            r.On("c41", UsoUnico, c => EffectApi.LookTopTakeOne(c.Engine, c.Owner, 5, d => CardTypeNames.IsSer(d.Type))); // Los Sueños de José
+            r.On("c41", UsoUnico, c => EffectApi.LookTopTakeOneThenReorder(c.Engine, c.Owner, 5, d => CardTypeNames.IsSer(d.Type))); // Los Sueños de José
             r.On("c42", UsoUnico, c => { EffectApi.ModifyDurAll(c.Engine, c.Owner, 2); EffectApi.Draw(c.Engine, c.Owner, 1); }); // El Censo de Jacob
         }
 

@@ -146,6 +146,37 @@ namespace Game.Core.Engine
             return CommandResult.Success;
         }
 
+        /// <summary>Activa a mano un CONCEPTO propio que está BOCA ABAJO en la zona CONCEPTO.
+        /// Se paga su coste y se resuelve como un CONCEPTO normal (queda boca arriba y va a Retirados).
+        /// Las cartas de RESPUESTA también pueden dispararse solas en el turno rival (ResponseWindow).</summary>
+        public CommandResult ActivateTrap(CardInstance card)
+        {
+            var g = GuardPrep(); if (!g.Ok) return g;
+            var p = State.Active;
+            if (!p.Concepto.Cards.Contains(card)) return CommandResult.Fail("Esa carta no está en tu zona CONCEPTO.");
+            if (!card.FaceDown) return CommandResult.Fail("Esa carta ya está boca arriba.");
+
+            var block = ConceptoBlocked(p, card);
+            if (block != null) return CommandResult.Fail(block);
+
+            int coste = card.Def.Coste ?? 0;
+            if (p.Fd < coste) return CommandResult.Fail($"FD insuficiente ({p.Fd}/{coste}).");
+
+            p.Fd -= coste;
+            card.FaceDown = false;
+            p.Concepto.Remove(card);
+            MarkConceptoFlags(p, card);
+            State.Emit($"activa CONCEPTO oculto ({card.Nombre}) -{coste} FD");
+
+            CheckVictoryOnPiecePlay(p, card);
+            if (State.IsOver) return CommandResult.Success;
+
+            Fire(card, Effects.IsResponse(card.Def.Id) ? EffectTrigger.Respuesta : EffectTrigger.UsoUnico);
+            if (!p.Retirados.Cards.Contains(card) && !State.IsOver)
+                p.Retirados.Add(card);
+            return CommandResult.Success;
+        }
+
         public CommandResult ActivateSerEffect(CardInstance card)
         {
             var g = GuardPrep(); if (!g.Ok) return g;
@@ -153,6 +184,11 @@ namespace Game.Core.Engine
             if (!p.Seres.Cards.Contains(card)) return CommandResult.Fail("El SER no está en tu campo.");
             if (p.SeresActivatedThisTurn.Contains(card.InstanceId))
                 return CommandResult.Fail("Ese SER ya activó su efecto este turno.");
+            // Sin efecto ACTIVADO implementado no se cobra nada: si no, el jugador paga FD y
+            // gasta la activación del turno a cambio de nada (p. ej. Benjamín, cuyo texto
+            // "activado" describe en realidad un reemplazo automático que resuelve el motor).
+            if (!Effects.HasEffect(card.Def.Id, EffectTrigger.EfectoActivado))
+                return CommandResult.Fail($"{card.Nombre} no tiene un efecto activado que usar.");
             int cost = card.Def.ActCost ?? 0;
             if (p.Fd < cost) return CommandResult.Fail($"FD insuficiente ({p.Fd}/{cost}).");
 

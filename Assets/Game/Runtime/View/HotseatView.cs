@@ -24,12 +24,18 @@ namespace Game.Runtime.View
     {
         [SerializeField] private string historiaP0 = "h1";
         [SerializeField] private string historiaP1 = "h2";
-        [SerializeField] private ulong seed = 12345;
+        [SerializeField] private ulong seed = 0; // 0 = semilla aleatoria por partida (ver InitMatch)
         [SerializeField] private int aiPlayer = 1; // jugador controlado por IA (-1 = ninguno)
         [SerializeField] private float turnSeconds = 180f; // temporizador por turno
         private bool _aiRunning;
         private float _turnTimer;
+        private double _turnDeadline;   // hora (reloj real) en que se acaba el turno
         private int _timerTurn = -1;
+
+        /// <summary>Segundos de reloj REAL desde el arranque. Sigue avanzando con el juego pausado
+        /// o sin foco, a diferencia de Time.time / Time.deltaTime.</summary>
+        private static double RealTime => System.Diagnostics.Stopwatch.GetTimestamp()
+                                          / (double)System.Diagnostics.Stopwatch.Frequency;
 
         // --- Tutorial (partida-tutorial #1): IA pasiva + explicaciones paso a paso ---
         private bool _tutorial;
@@ -72,6 +78,11 @@ namespace Game.Runtime.View
         private int _netMyPlayer;   // 0 host, 1 cliente
         private int LocalPlayer => _net ? _netMyPlayer : 0; // lado propio (mano visible / input)
 
+        /// <summary>Rol VISUAL de un jugador de motor para BoardLayout: 0 = mi lado (cerca de cámara),
+        /// 1 = lado rival (lejos). Así, en red, el cliente (P1 de motor) también ve SU lado abajo,
+        /// sin tocar la cámara (que rotarla 180° voltea el fondo y el arte de las cartas).</summary>
+        private int Vis(int enginePlayer) => enginePlayer == LocalPlayer ? 0 : 1;
+
         // --- Tutorial #2: IA activa que pierde por deck-out; explica mecánicas al usarlas ---
         private bool _tutorial2;
         private bool _reward2Given;
@@ -92,6 +103,7 @@ namespace Game.Runtime.View
         private readonly RuntimeDecisionProvider _decisions = new();
         private AutoDecisionProvider _auto = new();
         private bool _busy;
+        private float _netBusySince = -1f; // red: momento en que se envió el comando (para soltar el bloqueo si se pierde)
         private System.Threading.Tasks.Task? _cmdTask;
         private CommandResult _cmdResult;
         private string _cmdName = "";
@@ -154,6 +166,14 @@ namespace Game.Runtime.View
         {
             StopAllCoroutines();   // pausa: corta turnos de IA en curso
             _aiRunning = false;    // permite reanudar el turno de IA al volver
+            NetPlay.PeerDisconnected -= OnPeerDisconnected;
+        }
+
+        /// <summary>El rival se desconectó a media partida (red): gano yo por abandono.</summary>
+        private void OnPeerDisconnected()
+        {
+            if (_engine == null || _engine.State.IsOver) return;
+            _engine.State.DeclareWinner(LocalPlayer, VictoryId.Abandono);
         }
 
         private void InitMatch()
@@ -172,16 +192,32 @@ namespace Game.Runtime.View
             _auto = new AutoDecisionProvider(catalog); // IA consciente de sus piezas al usar tutores
             _engine = new GameEngine(catalog) { Effects = CardEffects.BuildResolver(), Decisions = _auto };
             _engine.ResponseWindow = OnResponseWindow; // permite activar trampas en el turno rival
+            _engine.CardRevealed = OnCardRevealed;     // cartas públicas (buscadas del mazo): las ve el rival
 
             // Modo RED: misma semilla en ambos lados (motor determinista), sin IA.
             _net = NetPlay.Active;
             if (_net) { _netMyPlayer = NetPlay.MyPlayer; aiPlayer = -1; }
-            ulong matchSeed = _net ? NetPlay.Seed : seed;
+            // Semilla: en red la fija el host (ambos motores deben coincidir). En local, una semilla
+            // NUEVA por partida para que el mazo se baraje distinto cada vez; `seed` en el Inspector
+            // solo se respeta si se le pone un valor != 0 (útil para reproducir un bug concreto).
+            ulong matchSeed = _net ? NetPlay.Seed
+                                   : (seed != 0 ? seed : (ulong)System.DateTime.UtcNow.Ticks);
+            NetPlay.PeerDisconnected -= OnPeerDisconnected;
+            if (_net) NetPlay.PeerDisconnected += OnPeerDisconnected;
 
-            _engine.StartGame(
-                SampleDeckBuilder.Build(catalog, historiaP0, 40, pieceCopies: 3), // 3 copias de cada pieza
-                SampleDeckBuilder.Build(catalog, historiaP1, 40, pieceCopies: 3),
-                matchSeed, firstPlayer: 0);
+            // Mazo del jugador: el ELEGIDO en el menú si lo hay; si no, el mazo por defecto de la
+            // historia. (En red no se usa la selección local: ambos lados deben construir lo mismo.)
+            string hP0 = (!_net && !string.IsNullOrEmpty(Game.Runtime.Menu.PlayerData.SelectedHistoriaId))
+                ? Game.Runtime.Menu.PlayerData.SelectedHistoriaId : historiaP0;
+            var deckP0 = (!_net && Game.Runtime.Menu.PlayerData.SelectedDeck != null && Game.Runtime.Menu.PlayerData.SelectedDeck.Count > 0)
+                ? new DeckDefinition(Game.Runtime.Menu.PlayerData.SelectedDeck.ToList(), hP0)
+                : SampleDeckBuilder.Build(catalog, hP0, 40, pieceCopies: 3, variant: 0);
+
+            // Rival: la variante B de su historia, para que una misma partida enfrente dos
+            // conjuntos de cartas distintos y salgan a la luz más interacciones (v0.01, pruebas).
+            var deckP1 = SampleDeckBuilder.Build(catalog, historiaP1, 40, pieceCopies: 3, variant: 1);
+
+            _engine.StartGame(deckP0, deckP1, matchSeed, firstPlayer: 0);
 
             if (!_net) EnsureResponseInHand(_engine.State.Players[0]); // (determinismo en red: no alterar la mano)
 
@@ -202,6 +238,8 @@ namespace Game.Runtime.View
                 SetupTutorial2(_engine.State.Players[1]); // rival no puede completar su Historia + demuestra mecánicas
                 _t2Info = T2Intro; _t2Ack = true; // mensaje inicial de objetivo/aviso
             }
+
+            MatchSnapshot.Describe = DescribeBoard; // costura de pruebas (la consume quien quiera)
 
             _status = "Partida iniciada.";
             BuildBoard();
@@ -227,12 +265,13 @@ namespace Game.Runtime.View
                 _glowTierra[p].Clear(); _glowSer[p].Clear(); _glowConcepto[p] = null;
             }
 
-            _busy = false; _aiRunning = false; _cmdTask = null;
+            _busy = false; _netBusySince = -1f; _aiRunning = false; _cmdTask = null;
             _decView = null; _decReq = null; _decSelected = null; _decOrder.Clear();
             _deferredResolve = null;
             _placePending = false; _placeCard = null; _respShow = false; _respPending = false; _respTrap = null;
             _showLog = false; _lastLogCount = -1; _logView.Clear();
             _gameOver = false; _gameWinner = -1; _timerTurn = -1;
+            _retiradosOpen = -1; _revealCard = null;
 
             _net = false; aiPlayer = 1; // por defecto: partida local con IA en P1 (se re-decide abajo)
 
@@ -350,6 +389,13 @@ namespace Game.Runtime.View
                     Rebuild();
                     MaybeRunAI();
                 }
+                // Red: si el comando enviado no vuelve (paquete perdido/rechazado), soltar el bloqueo
+                // en vez de dejar el campo injugable para siempre.
+                else if (_netBusySince >= 0f && Time.unscaledTime - _netBusySince > 3f)
+                {
+                    _busy = false; _netBusySince = -1f;
+                    _status = "Sin respuesta del rival; intenta de nuevo.";
+                }
                 return; // sin input/hover mientras se procesa; la decisión se atiende en OnGUI
             }
 
@@ -366,13 +412,21 @@ namespace Game.Runtime.View
                 UpdateHandCount();
             }
 
-            if (!_engine.State.IsOver && Input.GetMouseButtonDown(0) && hit != null)
+            if (!_engine.State.IsOver && _retiradosOpen < 0 && Input.GetMouseButtonDown(0) && hit != null)
                 OnPointerDown(hit);
         }
 
         private void OnPointerDown(CardView cv)
         {
             var s = _engine.State;
+
+            // Zona RETIRADOS: no se juega, se consulta. Abre la lista completa de esa zona.
+            if (cv.Card != null && s.Players[cv.OwnerId].Retirados.Cards.Contains(cv.Card))
+            {
+                _retiradosOpen = cv.OwnerId;
+                return;
+            }
+
             if (_net && s.ActivePlayer != _netMyPlayer) return; // red: solo actúas en tu turno
             if (TutBlocksPlay(cv.Card)) { _status = TutBlockMsg(); return; } // tutorial: solo la carta guiada
 
@@ -488,7 +542,9 @@ namespace Game.Runtime.View
         {
             if (_net)
             {
+                if (_busy) return; // ya hay un comando en camino (ida y vuelta por red); evita jugar 2 a la vez
                 if (_engine.State.ActivePlayer != _netMyPlayer) return; // solo en tu turno
+                _busy = true; _netBusySince = Time.unscaledTime;
                 NetPlay.Submit?.Invoke(new NetCommand(cmd, card?.InstanceId ?? 0, flag));
                 return;
             }
@@ -501,6 +557,7 @@ namespace Game.Runtime.View
                 case NetCmd.PlayConcepto: RunHumanCommand(name, () => _engine.PlayConcepto(card, flag == 1)); break;
                 case NetCmd.ActivateDia: RunHumanCommand("DÍA", () => _engine.ActivateDia(false)); break;
                 case NetCmd.ActivateSer: RunHumanCommand(name, () => _engine.ActivateSerEffect(card)); break;
+                case NetCmd.ActivateTrap: RunHumanCommand(name, () => _engine.ActivateTrap(card)); break;
                 case NetCmd.EndTurn: RunHumanCommand("Terminar turno", () => _engine.EndTurn()); break;
             }
         }
@@ -520,10 +577,12 @@ namespace Game.Runtime.View
                     case NetCmd.PlayConcepto: if (card != null) _engine.PlayConcepto(card, c.Flag == 1); break;
                     case NetCmd.ActivateDia: _engine.ActivateDia(false); break;
                     case NetCmd.ActivateSer: if (card != null) _engine.ActivateSerEffect(card); break;
+                    case NetCmd.ActivateTrap: if (card != null) _engine.ActivateTrap(card); break;
                     case NetCmd.EndTurn: _engine.EndTurn(); break;
                 }
             }
             catch (System.Exception e) { Debug.LogError(e); }
+            _busy = false; _netBusySince = -1f; // desbloquea el envío de un nuevo comando (ver Act)
             Rebuild();
         }
 
@@ -591,7 +650,8 @@ namespace Game.Runtime.View
             var card = cv.Card;
 
             NetCmd? act = null;
-            if (p.Tierras.Cards.Contains(card) && !card.Tapped) act = NetCmd.TapTierra;      // tapear TIERRA -> FD
+            if (p.Concepto.Cards.Contains(card) && card.FaceDown) act = NetCmd.ActivateTrap; // trampa propia -> activarla
+            else if (p.Tierras.Cards.Contains(card) && !card.Tapped) act = NetCmd.TapTierra; // tapear TIERRA -> FD
             else if (p.Seres.Cards.Contains(card)) act = NetCmd.ActivateSer;                  // efecto ACTIVADO del SER
             else if (card.Type == CardType.Dia) act = NetCmd.ActivateDia;                     // activar el DÍA actual
             else if (p.Mano.Cards.Contains(card))                                             // mano no arrastrable -> jugar
@@ -631,18 +691,18 @@ namespace Game.Runtime.View
                     var card = ps.Mano.Cards[i];
                     curHandIds.Add(card.InstanceId);
                     bool playable = p == s.ActivePlayer && !s.IsOver && IsPlayable(ps, card);
-                    var (fpos, frot) = BoardLayout.HandFan(p, i, ps.Mano.Count);
+                    var (fpos, frot) = BoardLayout.HandFan(Vis(p), i, ps.Mano.Count);
                     // Mano rival gira 180° (espejo) -> no necesita flip de textura.
-                    var v = Spawn(card, p, fpos, hideHand, playable, frot, flipTexture: p == 0);
+                    var v = Spawn(card, p, fpos, hideHand, playable, frot, flipTexture: Vis(p) == 0);
                     // Carta recién robada/añadida: animarla desde el mazo.
                     if (!_prevHandIds.Contains(card.InstanceId))
-                        StartCoroutine(Deal(v.transform, BoardLayout.Mazo(p) + Vector3.up * 0.3f, fpos));
+                        StartCoroutine(Deal(v.transform, BoardLayout.Mazo(Vis(p)) + Vector3.up * 0.3f, fpos));
                 }
 
                 var tSlots = AssignSlots(_tierraSlot[p], ps.Tierras.Cards, 7);
                 foreach (var t in ps.Tierras.Cards)
                 {
-                    var tv = Spawn(t, p, BoardLayout.Tierra(p, tSlots[t.InstanceId]), false);
+                    var tv = Spawn(t, p, BoardLayout.Tierra(Vis(p), tSlots[t.InstanceId]), false);
                     tv.SetTapped(t.Tapped, animate: t.Tapped && !_wasTapped.Contains(t.InstanceId));
                 }
 
@@ -651,29 +711,29 @@ namespace Game.Runtime.View
                 {
                     int stack = Mathf.Clamp(ps.Mazo.Count, 1, 12);
                     for (int i = 0; i < stack; i++)
-                        Spawn(ps.Mazo.Top!, p, BoardLayout.Mazo(p) + Vector3.up * (i * 0.035f), faceDown: true);
+                        Spawn(ps.Mazo.Top!, p, BoardLayout.Mazo(Vis(p)) + Vector3.up * (i * 0.035f), faceDown: true);
                 }
 
                 // Retirados: la última carta que llegó, boca arriba.
                 if (ps.Retirados.Count > 0)
                 {
                     var top = ps.Retirados.Cards[ps.Retirados.Count - 1];
-                    Spawn(top, p, BoardLayout.Descarte(p) + Vector3.up * 0.02f, faceDown: false);
+                    Spawn(top, p, BoardLayout.Descarte(Vis(p)) + Vector3.up * 0.02f, faceDown: false);
                 }
 
                 var sSlots = AssignSlots(_serSlot[p], ps.Seres.Cards, 3);
                 foreach (var ser in ps.Seres.Cards)
-                    Spawn(ser, p, BoardLayout.Ser(p, sSlots[ser.InstanceId]), false);
+                    Spawn(ser, p, BoardLayout.Ser(Vis(p), sSlots[ser.InstanceId]), false);
 
                 if (ps.Concepto.Top != null)
-                    Spawn(ps.Concepto.Top, p, BoardLayout.Concepto(p), true);
+                    Spawn(ps.Concepto.Top, p, BoardLayout.Concepto(Vis(p)), ps.Concepto.Top.FaceDown);
 
                 if (ps.Historia != null) // HISTORIA se muestra en horizontal (girada 90°)
-                    Spawn(ps.Historia, p, BoardLayout.Historia(p), false, false, Quaternion.Euler(0f, 90f, 0f));
+                    Spawn(ps.Historia, p, BoardLayout.Historia(Vis(p)), false, false, Quaternion.Euler(0f, 90f, 0f));
 
                 var diaTop = ps.PilaDia.Cards.FirstOrDefault(d => PlayerState.DiaNumero(d) == ps.DiaActual);
                 if (diaTop != null)
-                    Spawn(diaTop, p, BoardLayout.Dia(p), false);
+                    Spawn(diaTop, p, BoardLayout.Dia(Vis(p)), false);
             }
 
             _prevHandIds.Clear();
@@ -746,13 +806,9 @@ namespace Game.Runtime.View
             if (orthographic) cam.orthographicSize = orthoSize; // sin perspectiva (tablero parejo)
             else cam.fieldOfView = camFov;
             cam.transform.position = camPos;
-            cam.transform.rotation = Quaternion.Euler(camRotation); // pose exacta
-            if (NetPlay.Active && NetPlay.MyPlayer == 1)
-            {
-                // Cliente = P1: gira la vista 180° alrededor del centro del tablero para ver SU lado abajo.
-                cam.transform.position = new Vector3(-camPos.x, camPos.y, -camPos.z);
-                cam.transform.rotation = Quaternion.Euler(camRotation.x, camRotation.y + 180f, camRotation.z);
-            }
+            cam.transform.rotation = Quaternion.Euler(camRotation); // pose exacta, SIEMPRE la misma
+            // Nota: el lado "mío abajo" del cliente en red se logra con Vis() (posiciones), no rotando
+            // la cámara — rotarla voltearía el fondo del tablero y el arte de las cartas (texto de cabeza).
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.12f, 0.14f);
 
@@ -797,31 +853,32 @@ namespace Game.Runtime.View
 
             for (int p = 0; p < 2; p++)
             {
-                for (int i = 0; i < 7; i++) Pad(BoardLayout.Tierra(p, i), pad);
-                ZoneLabel("TIERRAS", BoardLayout.Tierra(p, 3), 40, 0.11f, label);
+                int vp = Vis(p);
+                for (int i = 0; i < 7; i++) Pad(BoardLayout.Tierra(vp, i), pad);
+                ZoneLabel("TIERRAS", BoardLayout.Tierra(vp, 3), 40, 0.11f, label);
 
-                var mp = BoardLayout.Mazo(p);
+                var mp = BoardLayout.Mazo(vp);
                 Pad(mp, pad);
                 _mazoCount[p] = ZoneLabel("MAZO", mp + new Vector3(Mathf.Sign(mp.x) * 1.4f, 0f, 0f), 30, 0.08f, gold);
 
-                var dp = BoardLayout.Descarte(p);
+                var dp = BoardLayout.Descarte(vp);
                 Pad(dp, pad);
                 _retirCount[p] = ZoneLabel("RETIR.", dp + new Vector3(Mathf.Sign(dp.x) * 1.4f, 0f, 0f), 30, 0.08f, label);
 
-                Pad(BoardLayout.Concepto(p), pad);
-                ZoneLabel("CONC.", BoardLayout.Concepto(p), 32, 0.09f, label);
+                Pad(BoardLayout.Concepto(vp), pad);
+                ZoneLabel("CONC.", BoardLayout.Concepto(vp), 32, 0.09f, label);
 
                 for (int si = 0; si < 3; si++)
                 {
-                    Pad(BoardLayout.Ser(p, si), pad);
-                    ZoneLabel("SER", BoardLayout.Ser(p, si), 34, 0.10f, label);
+                    Pad(BoardLayout.Ser(vp, si), pad);
+                    ZoneLabel("SER", BoardLayout.Ser(vp, si), 34, 0.10f, label);
                 }
 
-                Pad(BoardLayout.Dia(p), pad);
-                ZoneLabel("DÍA", BoardLayout.Dia(p), 34, 0.10f, label);
+                Pad(BoardLayout.Dia(vp), pad);
+                ZoneLabel("DÍA", BoardLayout.Dia(vp), 34, 0.10f, label);
 
-                Pad(BoardLayout.Historia(p), pad);
-                ZoneLabel("HISTORIA", BoardLayout.Historia(p), 28, 0.075f, label);
+                Pad(BoardLayout.Historia(vp), pad);
+                ZoneLabel("HISTORIA", BoardLayout.Historia(vp), 28, 0.075f, label);
             }
         }
 
@@ -878,13 +935,14 @@ namespace Game.Runtime.View
             var gold = new Color(0.92f, 0.82f, 0.35f);
             for (int p = 0; p < 2; p++)
             {
-                var mz = BoardLayout.Mazo(p);
+                int vp = Vis(p);
+                var mz = BoardLayout.Mazo(vp);
                 // FD al flanco OPUESTO del mazo, misma fila.
                 var fdPos = new Vector3(Mathf.Sign(-mz.x) * 9f, 0f, mz.z);
                 _fdLabel[p] = ZoneLabel("FD", fdPos, 42, 0.13f, gold);
 
                 // Contador de mano al costado de la mano (oculto hasta hover).
-                float handZ = (p == 0 ? -1f : 1f) * BoardLayout.HandZ;
+                float handZ = (vp == 0 ? -1f : 1f) * BoardLayout.HandZ;
                 _handCount[p] = ZoneLabel("Mano", new Vector3(9f, 0f, handZ), 36, 0.10f, Color.white);
                 _handCount[p].gameObject.SetActive(false);
             }
@@ -897,9 +955,10 @@ namespace Game.Runtime.View
             var gC = new Color(0.75f, 0.5f, 1.0f);  // CONCEPTO morado
             for (int p = 0; p < 2; p++)
             {
-                for (int i = 0; i < 7; i++) _glowTierra[p].Add(Glow(BoardLayout.Tierra(p, i), gT));
-                for (int s = 0; s < 3; s++) _glowSer[p].Add(Glow(BoardLayout.Ser(p, s), gS));
-                _glowConcepto[p] = Glow(BoardLayout.Concepto(p), gC);
+                int vp = Vis(p);
+                for (int i = 0; i < 7; i++) _glowTierra[p].Add(Glow(BoardLayout.Tierra(vp, i), gT));
+                for (int s = 0; s < 3; s++) _glowSer[p].Add(Glow(BoardLayout.Ser(vp, s), gS));
+                _glowConcepto[p] = Glow(BoardLayout.Concepto(vp), gC);
             }
         }
 
@@ -1033,6 +1092,9 @@ namespace Game.Runtime.View
             if (_tutorial && _gameOver && _gameWinner == 0) DrawTutorialWin();
             if (_tutorial2 && _gameOver && _gameWinner == 0) DrawTutorial2Win();
             if (!_tutorial && !_tutorial2 && _gameOver) DrawMatchEnd(); // partida normal: cierre + volver
+
+            if (_retiradosOpen >= 0) DrawRetiradosList();   // lista vertical de la zona Retirados
+            DrawRevealBanner();                              // carta hecha pública (la ve el rival)
 
             if (_decView != null)
             {
@@ -1209,6 +1271,7 @@ namespace Game.Runtime.View
         private void DrawPlayAura(CardType type, int player)
         {
             if (Camera.main == null) return;
+            player = Vis(player);
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 3.2f);
             if (type == CardType.Tierra)
             {
@@ -1296,8 +1359,8 @@ namespace Game.Runtime.View
             if (sb.Length > 0) sb.Append("\n\n");
 
             void Add(string label, string? v) { if (!string.IsNullOrEmpty(v)) sb.Append(label).Append(v).Append("\n\n"); }
-            Add("Al entrar: ", d.AlEntrar);
-            Add("Activado (clic sobre la carta en campo para usarlo): ", d.Activado);
+            Add("Bendecido (al entrar): ", d.AlEntrar);
+            Add("Bendición (clic sobre la carta en campo para usarla): ", d.Activado);
             Add("Al salir: ", d.AlSalir);
             Add("Efecto: ", d.Efecto);
             Add("Condición: ", d.Condicion);
@@ -1354,23 +1417,24 @@ namespace Game.Runtime.View
         /// <summary>Cierre de una partida NORMAL (no tutorial): resultado + volver al menú.</summary>
         private void DrawMatchEnd()
         {
-            bool win = _gameWinner == 0;
-            const float w = 460f, h = 200f;
+            bool win = _gameWinner == LocalPlayer; // en red, "gana P0" no es "gano yo": compara contra MI lado
+            const float w = 620f, h = 260f;
             GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
-            var tt = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            var body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleCenter };
+            var tt = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var body = new GUIStyle(GUI.skin.label) { fontSize = 20, wordWrap = true, alignment = TextAnchor.MiddleCenter };
             var reason = _engine.State.WinReason;
             string how = reason == VictoryId.III ? "Se completó una Historia (5 piezas en el campo)."
                 : reason == VictoryId.II ? "Un jugador se quedó sin cartas en el mazo (deck-out)."
                 : reason == VictoryId.I ? "Se completó el ciclo de los 7 DÍAs."
+                : reason == VictoryId.Abandono ? "El rival abandonó la partida."
                 : "";
-            GUILayout.Space(10);
+            GUILayout.Space(14);
             GUILayout.Label(win ? "¡VICTORIA!" : "DERROTA", tt);
             GUILayout.Label((win ? "Ganaste la partida. " : "El rival ganó la partida. ") + how, body, GUILayout.ExpandHeight(true));
-            GUILayout.Space(6);
-            if (GUILayout.Button("Volver al menú", GUILayout.Height(34)))
+            GUILayout.Space(8);
+            if (GUILayout.Button("Volver al menú", GUILayout.Height(44), GUILayout.Width(260)))
                 _deferredResolve = () => { ReturnRequested = true; };
-            GUILayout.Space(10);
+            GUILayout.Space(12);
             GUILayout.EndArea();
         }
 
@@ -1378,9 +1442,9 @@ namespace Game.Runtime.View
 
         private bool _t2AiActing; // la IA scriptada actúa en el hilo principal (evita bloquear por respuestas del humano)
 
-        private const string T2Enter = "Muchas cartas tienen EFECTOS AL ENTRAR al campo: se disparan una sola vez, en cuanto la carta se juega. El rival acaba de activar uno.";
+        private const string T2Enter = "Muchas cartas tienen efectos BENDECIDO (al entrar al campo): se disparan una sola vez, en cuanto la carta se juega. El rival acaba de activar uno.";
         private const string T2Dia = "El rival activó una carta DÍA. Los DÍAs (1→7) otorgan recompensas al activarse.\n\n⚠ CUIDADO: si el rival activa su DÍA 7 completa su ciclo y GANA la partida, aunque no complete su Historia. Vigila su avance… y avanza también los tuyos.";
-        private const string T2Ser = "El rival jugó un SER y ACTIVÓ su efecto (se hace clic sobre el SER en campo, pagando su coste). Muchos efectos ACTIVADOS sirven para ROBAR o AÑADIR cartas y ganar ventaja. Tus SER también pueden activarse.";
+        private const string T2Ser = "El rival jugó un SER y usó su BENDICIÓN (se hace clic sobre el SER en campo, pagando su coste). Muchas BENDICIONES sirven para ROBAR o AÑADIR cartas y ganar ventaja. Tus SER también tienen la suya.";
         private const string T2Trap = "El rival colocó un CONCEPTO BOCA ABAJO: una TRAMPA. Podrá activarla en TU turno (si guardó el FD necesario) para responder a tus acciones. ¡Cuidado con lo que haces frente a cartas ocultas!";
         private const string T2Dur = "Los SER permanecen en el campo un número limitado de TURNOS (su duración). Cuando se agota, el SER se va a Retirados. Algunas cartas dan PROTECCIÓN para que no sean destruidos ni retirados. Un SER del rival acaba de agotar su duración.";
         private const string T2Intro = "Gana completando tu HISTORIA reuniendo sus 5 piezas en el campo.\n\nPero ahora te enfrentas a un rival que también intentará completar la suya para ganar. Juega con cuidado: coloca TIERRAs, genera FD, baja tus piezas y activa tus DÍAs. Te iré señalando las mecánicas nuevas conforme aparezcan.";
@@ -1704,9 +1768,35 @@ namespace Game.Runtime.View
             GUILayout.EndArea();
         }
 
+        /// <summary>Cuadro de sí/no para los efectos OPCIONALES (p. ej. Río Tigris).</summary>
+        private void DrawYesNoDecision(DecisionRequest req)
+        {
+            const float w = 420f, h = 150f;
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, (_gh - h) / 2f, w, h), GUI.skin.box);
+            GUILayout.Space(10);
+            GUILayout.Label(req.Prompt,
+                new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter },
+                GUILayout.ExpandHeight(true));
+            GUILayout.Space(8);
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Sí", GUILayout.Width(140f), GUILayout.Height(40f)))
+                _deferredResolve = () => _decisions.ResolveYesNo(req, true);
+            GUILayout.Space(16);
+            if (GUILayout.Button("No", GUILayout.Width(140f), GUILayout.Height(40f)))
+                _deferredResolve = () => _decisions.ResolveYesNo(req, false);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Space(10);
+            GUILayout.EndArea();
+        }
+
         private void DrawDecision(DecisionRequest req)
         {
             if (req != _decReq) { _decReq = req; _decSelected = null; _decOrder.Clear(); _decScroll = Vector2.zero; }
+
+            // Pregunta de SÍ/NO (efectos opcionales): sin cartas, solo dos botones.
+            if (req.IsYesNo) { DrawYesNoDecision(req); return; }
 
             const float thumbW = 84f, thumbH = 118f, gap = 8f;
             int visible = Mathf.Clamp(req.Options.Count, 1, 7);
@@ -1802,26 +1892,103 @@ namespace Game.Runtime.View
         private void TickTimer()
         {
             var s = _engine.State;
-            if (s.TurnNumber != _timerTurn) { _timerTurn = s.TurnNumber; _turnTimer = turnSeconds; }
-            if (_tutorial || _tutorial2) { _turnTimer = turnSeconds; return; } // el tutorial no consume tiempo (no reinicia FD)
+            // El reloj corre contra una HORA LÍMITE absoluta, no acumulando deltaTime: así no se
+            // congela al abrir Opciones (que apaga este componente) ni al perder el foco de la ventana.
+            if (s.TurnNumber != _timerTurn) { _timerTurn = s.TurnNumber; _turnDeadline = RealTime + turnSeconds; }
+            if (_tutorial || _tutorial2) { _turnDeadline = RealTime + turnSeconds; _turnTimer = turnSeconds; return; } // el tutorial no consume tiempo
             if (s.IsOver) return;
             bool humanTurn = aiPlayer < 0 || s.ActivePlayer != aiPlayer;
-            if (!humanTurn) return; // la IA no consume el reloj
-            _turnTimer -= Time.deltaTime;
+            if (!humanTurn) { _turnDeadline = RealTime + turnSeconds; _turnTimer = turnSeconds; return; } // la IA no consume el reloj
+            _turnTimer = (float)(_turnDeadline - RealTime);
             if (_turnTimer <= 0f && !_aiRunning && !_busy)
             {
                 _turnTimer = 0f;
-                RunHumanCommand("Tiempo agotado", () => _engine.EndTurn());
+                // En red el fin de turno DEBE viajar por el relay (lockstep) y solo lo manda el jugador
+                // activo: ejecutarlo local en ambos lados desincronizaría los motores.
+                if (_net)
+                {
+                    if (s.ActivePlayer == _netMyPlayer) Act(NetCmd.EndTurn, null);
+                }
+                else RunHumanCommand("Tiempo agotado", () => _engine.EndTurn());
             }
         }
 
         private GUIStyle? _wrap;
 
+        // --- Revelación pública (carta buscada del mazo: ambos jugadores deben verla) ---
+
+        private CardInstance? _revealCard;
+        private string _revealWho = "";
+        private double _revealUntil;
+
+        private void OnCardRevealed(int playerId, CardInstance card, string motivo)
+        {
+            _revealCard = card;
+            _revealWho = (playerId == LocalPlayer ? "Tú" : "El rival") + " — " + motivo;
+            _revealUntil = RealTime + 4.0; // visible unos segundos
+        }
+
+        private void DrawRevealBanner()
+        {
+            if (_revealCard == null) return;
+            if (RealTime > _revealUntil) { _revealCard = null; return; }
+
+            const float w = 380f, h = 150f;
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, 60f, w, h), GUI.skin.box);
+            GUILayout.Label("CARTA REVELADA",
+                new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label(_revealWho, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+            GUILayout.Space(4);
+            DrawDetailBody(_revealCard, _revealCard.OwnerId);
+            GUILayout.EndArea();
+        }
+
+        // --- Lista de la zona Retirados (clic sobre la zona) ---
+
+        private int _retiradosOpen = -1;   // id del jugador cuya zona se está viendo (-1 = cerrada)
+        private Vector2 _retiradosScroll;
+
+        private void DrawRetiradosList()
+        {
+            var p = _engine.State.Players[_retiradosOpen];
+            const float w = 380f;
+            float h = Mathf.Min(_gh - 80f, 460f);
+            GUILayout.BeginArea(new Rect((_gw - w) / 2f, 40f, w, h), GUI.skin.box);
+            GUILayout.Label($"RETIRADOS — {(_retiradosOpen == LocalPlayer ? "tuyos" : "del rival")} ({p.Retirados.Count})",
+                new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter });
+            GUILayout.Space(4);
+
+            _retiradosScroll = GUILayout.BeginScrollView(_retiradosScroll, GUILayout.ExpandHeight(true));
+            if (p.Retirados.Count == 0) GUILayout.Label("(vacía)");
+            else
+                foreach (var c in p.Retirados.Cards)
+                    GUILayout.Label($"{c.Nombre}  —  {c.Type}");
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(4);
+            if (GUILayout.Button("Cerrar", GUILayout.Height(32))) _retiradosOpen = -1;
+            GUILayout.EndArea();
+        }
+
         private void DrawCardDetail(CardView cv)
         {
             _wrap ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
 
-            if (cv.FaceDown)
+            // Pila del MAZO: en vez de la carta, cuántas cartas quedan.
+            var owner = _engine.State.Players[cv.OwnerId];
+            if (cv.FaceDown && owner.Mazo.Cards.Contains(cv.Card))
+            {
+                GUILayout.BeginArea(new Rect(10, 10, 330, 60), GUI.skin.box);
+                GUILayout.Label(cv.OwnerId == LocalPlayer ? "TU MAZO" : "MAZO DEL RIVAL",
+                    new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold });
+                GUILayout.Label($"Quedan {owner.Mazo.Count} cartas");
+                GUILayout.EndArea();
+                return;
+            }
+
+            // Boca abajo: solo se oculta al RIVAL. Tus propias trampas se leen con normalidad
+            // (necesitas saber qué guardaste para decidir si la activas).
+            if (cv.FaceDown && cv.OwnerId != LocalPlayer)
             {
                 GUILayout.BeginArea(new Rect(10, 10, 330, 60), GUI.skin.box);
                 GUILayout.Label("Carta oculta");
@@ -1842,6 +2009,41 @@ namespace Game.Runtime.View
             GUILayout.BeginArea(new Rect(_gw - 550f, 10f, 540f, 320f), GUI.skin.box); // arriba a la derecha
             DrawDetailBody(card, owner);
             GUILayout.EndArea();
+        }
+
+        /// <summary>Foto del campo en texto plano, para poder reproducir después lo que se vio.
+        /// Es la costura MatchSnapshot.Describe: la consume el sistema de pruebas, si está.</summary>
+        private string DescribeBoard()
+        {
+            if (_engine == null) return "(sin partida)";
+            var s = _engine.State;
+            var sb = new System.Text.StringBuilder();
+            sb.Append("Turno ").Append(s.TurnNumber)
+              .Append("  Fase ").Append(s.Phase)
+              .Append("  Activo P").Append(s.ActivePlayer);
+            if (s.IsOver) sb.Append("  [FIN: gana P").Append(s.Winner).Append(' ').Append(s.WinReason).Append(']');
+            sb.AppendLine();
+
+            for (int p = 0; p < 2; p++)
+            {
+                var ps = s.Players[p];
+                sb.Append(p == LocalPlayer ? "TU " : "RIVAL ").Append("(P").Append(p).Append(')')
+                  .Append("  FD ").Append(ps.Fd)
+                  .Append("  DIA ").Append(ps.DiaActual)
+                  .Append("  Mazo ").Append(ps.Mazo.Count)
+                  .Append("  Mano ").Append(ps.Mano.Count)
+                  .AppendLine();
+                sb.Append("   TIERRAS: ").AppendLine(Zona(ps.Tierras.Cards, t => t.Tapped ? " [tap]" : ""));
+                sb.Append("   SERES:   ").AppendLine(Zona(ps.Seres.Cards, c => $" (d{c.DurLeft})"));
+                sb.Append("   CONCEPTO:").AppendLine(Zona(ps.Concepto.Cards, c => c.FaceDown ? " [oculta]" : ""));
+                sb.Append("   HISTORIA:").AppendLine(ps.Historia != null ? " " + ps.Historia.Nombre : " -");
+                sb.Append("   MANO:    ").AppendLine(Zona(ps.Mano.Cards, _ => ""));
+                sb.Append("   RETIRADOS:").AppendLine(Zona(ps.Retirados.Cards, _ => ""));
+            }
+            return sb.ToString();
+
+            string Zona(System.Collections.Generic.List<CardInstance> cards, System.Func<CardInstance, string> sufijo)
+                => cards.Count == 0 ? " -" : " " + string.Join(", ", cards.Select(c => c.Nombre + sufijo(c)));
         }
 
         private void DrawDetailBody(CardInstance card, int owner)
@@ -1867,12 +2069,17 @@ namespace Game.Runtime.View
             if (!string.IsNullOrEmpty(d.TipoConcepto)) GUILayout.Label($"Concepto: {d.TipoConcepto}");
 
             if (!string.IsNullOrEmpty(d.Condicion)) GUILayout.Label($"Condición: {d.Condicion}", _wrap);
-            if (!string.IsNullOrEmpty(d.AlEntrar)) GUILayout.Label($"Al entrar: {d.AlEntrar}", _wrap);
-            if (!string.IsNullOrEmpty(d.Activado)) GUILayout.Label($"Activado: {d.Activado}", _wrap);
+            if (!string.IsNullOrEmpty(d.AlEntrar)) GUILayout.Label($"Bendecido: {d.AlEntrar}", _wrap);
+            if (!string.IsNullOrEmpty(d.Activado)) GUILayout.Label($"Bendición: {d.Activado}", _wrap);
             if (!string.IsNullOrEmpty(d.AlSalir)) GUILayout.Label($"Al salir: {d.AlSalir}", _wrap);
             if (!string.IsNullOrEmpty(d.Efecto)) GUILayout.Label($"Efecto: {d.Efecto}", _wrap);
 
             DrawHistoriaPieces(d, owner);
+
+            // Costura de pruebas: marcas de comprobación por efecto. Sin sistema de QA no hay nada.
+            var extra = MatchSnapshot.ExtraCardLine?.Invoke(d);
+            if (!string.IsNullOrEmpty(extra)) GUILayout.Label(extra, _wrap);
+
             GUILayout.EndVertical();
 
             GUILayout.EndHorizontal();

@@ -14,8 +14,13 @@ namespace Game.Runtime.Net
         private const string MsgStart = "tgb_start"; // servidor -> clientes: semilla
         private const string MsgCmd = "tgb_cmd";     // cliente -> servidor: comando
         private const string MsgApply = "tgb_apply"; // servidor -> clientes: comando ordenado
+        private const string MsgHello = "tgb_hello"; // ambos lados: nombre del dispositivo
 
         private static bool _registered;
+
+        /// <summary>Nombre del dispositivo rival, recibido al conectar (para mostrarlo en el menú).</summary>
+        public static string RemoteName { get; private set; }
+        public static event Action<string> OnRemoteName;
 
         public static void Register()
         {
@@ -26,9 +31,37 @@ namespace Game.Runtime.Net
             m.RegisterNamedMessageHandler(MsgStart, OnStart);
             m.RegisterNamedMessageHandler(MsgCmd, OnCmd);
             m.RegisterNamedMessageHandler(MsgApply, OnApply);
+            m.RegisterNamedMessageHandler(MsgHello, OnHello);
         }
 
-        public static void Unregister() => _registered = false;
+        public static void Unregister() { _registered = false; RemoteName = null; }
+
+        /// <summary>Anuncia el nombre local del dispositivo al otro lado de la conexión.</summary>
+        public static void SendHello(string name)
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null || nm.CustomMessagingManager == null) return;
+            if (name.Length > 63) name = name.Substring(0, 63);
+            using var w = new FastBufferWriter(FastBufferWriter.GetWriteSize(name), Allocator.Temp);
+            w.WriteValueSafe(name);
+            if (nm.IsServer)
+            {
+                foreach (var id in nm.ConnectedClientsIds)
+                    if (id != NetworkManager.ServerClientId)
+                        nm.CustomMessagingManager.SendNamedMessage(MsgHello, id, w);
+            }
+            else
+            {
+                nm.CustomMessagingManager.SendNamedMessage(MsgHello, NetworkManager.ServerClientId, w);
+            }
+        }
+
+        private static void OnHello(ulong sender, FastBufferReader r)
+        {
+            r.ReadValueSafe(out string name);
+            RemoteName = name;
+            OnRemoteName?.Invoke(RemoteName);
+        }
 
         /// <summary>El host arranca la partida (fija semilla, avisa a ambos lados).</summary>
         public static void HostStart()

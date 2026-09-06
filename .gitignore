@@ -13,3 +13,9 @@ obj/
 *.csproj.user
 .vs/
 Assets/_Recovery/
+
+# Temporales de herramientas de compilacion
+.utmp/
+
+# Salida de builds fuera de Build/ (EXE de Windows generado a mano)
+Windowsexe/

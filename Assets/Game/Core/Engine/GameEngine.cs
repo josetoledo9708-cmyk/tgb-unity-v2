@@ -39,6 +39,10 @@ namespace Game.Core.Engine
         /// </summary>
         public System.Func<int, CardInstance, EffectCategory, CardInstance?>? ResponseWindow;
 
+        /// <summary>Aviso a la vista de que una carta se ha hecho PÚBLICA (p. ej. buscada del mazo a
+        /// la mano): ambos jugadores deben verla. (jugadorQueLaTomó, carta, motivo).</summary>
+        public System.Action<int, CardInstance, string>? CardRevealed;
+
         private static readonly EffectTrigger[] _respondable =
         {
             EffectTrigger.AlEntrar, EffectTrigger.EfectoActivado,
@@ -57,7 +61,10 @@ namespace Game.Core.Engine
                 var trap = ResponseWindow(defender, card, cat);
                 if (trap != null) ActivateResponse(trap); // anula el próximo efecto del atacante
             }
+            bool tieneHandler = Effects.HasEffect(card.Def.Id, trigger);
             Effects.Resolve(new EffectContext(this, card, trigger));
+            // Costura de pruebas: sin suscriptores no hace nada (ver EffectLog).
+            EffectLog.Raise(card, trigger, tieneHandler, card.OwnerId);
         }
 
         public void StartGame(DeckDefinition deck0, DeckDefinition deck1,

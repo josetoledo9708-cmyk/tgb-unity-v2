@@ -48,7 +48,8 @@ namespace Game.Core.Model
     {
         I,
         II,
-        III
+        III,
+        Abandono
     }
 
     public static class CardTypeNames

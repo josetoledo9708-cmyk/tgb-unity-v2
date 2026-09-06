@@ -21,6 +21,14 @@ namespace Game.Runtime.Menu
         public enum Screen { MainMenu, Historias, ContraIA, Multijugador, MisMazos, SelectDeck, ChooseHistoria, DeckBuilder, Misiones, Tienda, Tomos, Opciones }
 
         private Canvas _canvas;
+
+        /// <summary>Versión del juego. Hoja de ruta: 0.01 efectos de cartas · 0.02 pantallas de carga ·
+        /// 0.03 navegación/botones · 0.04 sonidos de menú · 0.05 diseños de cartas · 0.06 animaciones al
+        /// jugar · 0.07 poder/rareza · 0.08 rareza en tomos · 0.09 cuentas y progreso en la nube ·
+        /// 0.10 servidores/matchmaking · 0.11 emparejamiento por victorias · 0.12 ranking ·
+        /// 0.13 modos extra · 0.14 seguridad antitrampas · 0.15 optimización · 0.16 beta cerrada.</summary>
+        public const string GameVersion = "0.01";
+
         private const bool MpGateOn = false; // TESTING: false = Multijugador siempre accesible (true en la versión final = exige Tutorial 2)
         private RectTransform _root;      // contenedor de la pantalla activa
         private GameObject _current;
@@ -423,6 +431,11 @@ namespace Game.Runtime.Menu
             tomoHover.glow = tomoGlow;
             tomoHover.glowAlpha = 1f;
             tomoHover.particles = tomoParticles; // hover: duplica las partículas
+
+            // Versión del juego (hoja de ruta 0.01 -> 0.16), discreta en la esquina inferior izquierda.
+            var ver = MenuTheme.Label(screen, "v" + GameVersion, 13, new Color(0.72f, 0.66f, 0.5f, 0.85f), TextAnchor.LowerLeft);
+            ver.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)ver.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(14f, 10f), new Vector2(260f, 34f));
 
             _onShow[Screen.MainMenu] = () =>
             {
@@ -950,9 +963,11 @@ namespace Game.Runtime.Menu
 
         // --- MULTIJUGADOR (LAN 1v1 vía Netcode) ---
 
-        private InputField _mpIp;
+        private InputField _mpCode;
         private Text _mpStatus;
         private Button _mpStart;
+        private bool _mpConnecting;
+        private const string MpDefaultCode = "EDEN";
 
         private RectTransform BuildMultijugador()
         {
@@ -961,39 +976,63 @@ namespace Game.Runtime.Menu
             Title(screen, "MULTIJUGADOR");
             BackButton(screen);
             Game.Runtime.Net.NetPlay.Launch = LaunchNetGame; // la red pedirá encender el campo al empezar
+            Game.Runtime.Net.LanDiscovery.StopAll(); // limpia búsqueda/emisión de una visita anterior
+            _mpConnecting = false;
 
-            var col = MenuTheme.VBox(screen, 8f, 0, TextAnchor.UpperCenter);
-            MenuTheme.Anchor((RectTransform)col.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-280f, -560f), new Vector2(280f, -110f));
+            var col = MenuTheme.VBox(screen, 4f, 0, TextAnchor.UpperCenter);
+            col.childControlWidth = true; col.childForceExpandWidth = false; // aplica el ancho de cada elemento (evita que el texto se parta)
+            col.childControlHeight = true; col.childForceExpandHeight = false; // aplica el alto de AddLE (si no, usa el rect por defecto ~100px y deja huecos)
+            MenuTheme.Anchor((RectTransform)col.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-290f, 8f), new Vector2(290f, -78f));
 
-            var hint = MenuTheme.Label(col.transform, "Partida LAN 1v1. Un CREA la sala; el otro se UNE con la IP del host (misma red/Wi-Fi).", 15, new Color(0.85f, 0.83f, 0.75f), TextAnchor.MiddleCenter);
-            hint.raycastTarget = false; AddLE(hint.gameObject, 520f, 44f);
+            var hint = MenuTheme.Label(col.transform, "Partida LAN 1v1. Ambos escriben el mismo CÓDIGO DE SALA y se encuentran solos en la misma red/Wi-Fi.", Fs(12), new Color(0.85f, 0.83f, 0.75f), TextAnchor.MiddleCenter);
+            hint.raycastTarget = false; AddLE(hint.gameObject, 560f, 32f);
 
-            // IP local del host (para compartir): la de tu red LAN, no la de VPN.
-            var ipInfo = MenuTheme.Label(col.transform, "Tu IP (host): " + LocalIPv4(), 17, MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
-            ipInfo.raycastTarget = false; AddLE(ipInfo.gameObject, 520f, 26f);
-            var ipAll = MenuTheme.Label(col.transform, "IPs disponibles: " + AllIPv4(), 12, new Color(0.7f, 0.7f, 0.65f), TextAnchor.MiddleCenter);
-            ipAll.raycastTarget = false; AddLE(ipAll.gameObject, 520f, 20f);
+            var devInfo = MenuTheme.Label(col.transform, "Tu dispositivo: " + Game.Runtime.Net.LanDiscovery.LocalDeviceName, Fs(11), new Color(0.7f, 0.7f, 0.65f), TextAnchor.MiddleCenter);
+            devInfo.raycastTarget = false; AddLE(devInfo.gameObject, 560f, 16f);
 
-            var host = MenuTheme.TextButton(col.transform, "CREAR SALA (HOST)", 18, () => Game.Runtime.Net.NetworkBootstrap.StartHost(), 340f, 48f);
-            AddLE(host.gameObject, 340f, 48f);
+            _mpCode = MakeInput(col.transform, "Código de sala (ej. " + MpDefaultCode + ")");
+            _mpCode.text = MpDefaultCode;
+            AddLE(_mpCode.gameObject, 320f, 34f);
 
-            _mpIp = MakeInput(col.transform, "IP del host (ej. 192.168.1.20)");
-            AddLE(_mpIp.gameObject, 340f, 42f);
+            var host = MenuTheme.TextButton(col.transform, "CREAR SALA (HOST)", Fs(15), () =>
+            {
+                Game.Runtime.Net.NetworkBootstrap.StartHost();
+                Game.Runtime.Net.LanDiscovery.StartHostBroadcast(MpCode());
+            }, 320f, 38f);
+            AddLE(host.gameObject, 320f, 38f);
 
-            var join = MenuTheme.TextButton(col.transform, "UNIRSE", 18, () => Game.Runtime.Net.NetworkBootstrap.StartClient(_mpIp != null ? _mpIp.text : ""), 340f, 48f);
-            AddLE(join.gameObject, 340f, 48f);
+            var join = MenuTheme.TextButton(col.transform, "UNIRSE (BUSCAR SALA)", Fs(15), () =>
+            {
+                _mpConnecting = false;
+                Game.Runtime.Net.LanDiscovery.StartClientSearch(MpCode());
+            }, 320f, 38f);
+            AddLE(join.gameObject, 320f, 38f);
 
-            _mpStatus = MenuTheme.Label(col.transform, Game.Runtime.Net.NetworkBootstrap.Status, 16, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _mpStatus.raycastTarget = false; AddLE(_mpStatus.gameObject, 520f, 26f);
+            _mpStatus = MenuTheme.Label(col.transform, Game.Runtime.Net.NetworkBootstrap.Status, Fs(13), Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _mpStatus.raycastTarget = false;
+            _mpStatus.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _mpStatus.verticalOverflow = VerticalWrapMode.Overflow;
+            AddLE(_mpStatus.gameObject, 560f, 40f);
 
-            _mpStart = MenuTheme.TextButton(col.transform, "EMPEZAR PARTIDA", 18, () => Game.Runtime.Net.NetRelay.HostStart(), 340f, 48f).GetComponent<Button>();
-            AddLE(_mpStart.gameObject, 340f, 48f);
+            _mpStart = MenuTheme.TextButton(col.transform, "EMPEZAR PARTIDA", Fs(15), () => Game.Runtime.Net.NetRelay.HostStart(), 320f, 38f).GetComponent<Button>();
+            AddLE(_mpStart.gameObject, 320f, 38f);
             _mpStart.interactable = false;
 
-            var disc = MenuTheme.TextButton(col.transform, "Desconectar", 14, () => { Game.Runtime.Net.NetworkBootstrap.Shutdown(); }, 200f, 34f, thicken: false);
-            AddLE(disc.gameObject, 200f, 34f);
+            var disc = MenuTheme.TextButton(col.transform, "Desconectar", Fs(12), () =>
+            {
+                Game.Runtime.Net.NetworkBootstrap.Shutdown();
+                _mpConnecting = false;
+            }, 200f, 28f, thicken: false);
+            AddLE(disc.gameObject, 200f, 28f);
 
             return screen;
+        }
+
+        /// <summary>Código de sala tal como lo escribió el jugador (o el de por defecto si lo deja vacío).</summary>
+        private string MpCode()
+        {
+            var c = _mpCode != null ? _mpCode.text : null;
+            return string.IsNullOrWhiteSpace(c) ? MpDefaultCode : c.Trim().ToUpperInvariant();
         }
 
         /// <summary>Tamaño de fuente escalado +30% en Android (pantallas pequeñas de alta densidad).</summary>
@@ -1003,45 +1042,6 @@ namespace Game.Runtime.Menu
         {
             var le = go.GetComponent<LayoutElement>() ?? go.AddComponent<LayoutElement>();
             le.preferredWidth = w; le.preferredHeight = h; le.minHeight = h;
-        }
-
-        private static string LocalIPv4()
-        {
-            try
-            {
-                var ips = new List<string>();
-                foreach (var a in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
-                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                    {
-                        var s = a.ToString();
-                        if (!s.StartsWith("169.254") && !s.StartsWith("127.")) ips.Add(s);
-                    }
-                if (ips.Count == 0) return "127.0.0.1";
-                // Preferir LAN privada real (Wi-Fi/router) sobre adaptadores VPN (Radmin 26.x, Hamachi 25.x, etc.).
-                foreach (var s in ips) if (s.StartsWith("192.168.")) return s;
-                foreach (var s in ips) if (s.StartsWith("10.")) return s;
-                foreach (var s in ips) if (System.Text.RegularExpressions.Regex.IsMatch(s, @"^172\.(1[6-9]|2\d|3[01])\.")) return s;
-                return ips[0];
-            }
-            catch { /* ignora */ }
-            return "127.0.0.1";
-        }
-
-        /// <summary>Todas las IPv4 candidatas (para mostrarlas y que el usuario elija la de su red).</summary>
-        private static string AllIPv4()
-        {
-            try
-            {
-                var ips = new List<string>();
-                foreach (var a in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
-                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                    {
-                        var s = a.ToString();
-                        if (!s.StartsWith("169.254") && !s.StartsWith("127.")) ips.Add(s);
-                    }
-                return ips.Count > 0 ? string.Join("   ", ips) : "—";
-            }
-            catch { return "—"; }
         }
 
         private InputField MakeInput(Transform parent, string placeholder)
@@ -1140,18 +1140,116 @@ namespace Game.Runtime.Menu
             grid.constraintCount = 4;
             grid.childAlignment = TextAnchor.UpperCenter;
 
+            // Todas las tarjetas de la pantalla como "recetas": se pintan solo las de la página
+            // actual, porque en la rejilla de 4x2 no caben más de 8 (antes las demás se cortaban).
+            var tarjetas = new List<System.Action<Transform>>();
+
             // "Crear Nueva Historia" SIEMPRE primero: así nunca desaparece de la 1ª pantalla al
             // tener muchas historias (a diferencia del Godot, donde iba al final).
-            BuildMazoNewCard(grid.transform, () => Push(Screen.ChooseHistoria));
+            tarjetas.Add(parent => BuildMazoNewCard(parent, () => Push(Screen.ChooseHistoria)));
 
             var mazosGuardados = PlayerData.Mazos();
             for (int i = 0; i < mazosGuardados.Count; i++)
             {
                 int idx = i; // captura por valor: cada tarjeta abre el modal de SU mazo
-                BuildMazoBookCard(grid.transform, mazosGuardados[i], () => ShowMazoOptions(idx));
+                var guardado = mazosGuardados[i];
+                tarjetas.Add(parent => BuildMazoBookCard(parent, guardado, () => ShowMazoOptions(idx)));
             }
+
+            // v0.01 — Mazos de PRUEBA (2 por historia; entre todos cubren el catálogo completo).
+            // Se generan desde el código, así que no se editan ni se pueden borrar: se juegan directo.
+            EnsureCatalog();
+            foreach (var pre in PlayerData.MazosPredefinidos(_catalog))
+            {
+                var preDeck = pre;
+                tarjetas.Add(parent => BuildMazoBookCard(parent, preDeck, () =>
+                {
+                    PlayerData.SelectedHistoriaId = preDeck.historiaId;
+                    PlayerData.SelectedDeck = preDeck.cartas;
+                    LaunchGame();
+                }));
+            }
+
+            // Costura de pruebas: mazos extra puestos por el sistema de QA (si está instalado).
+            var extras = PlayerData.ExtraDecks?.Invoke();
+            if (extras != null)
+                foreach (var ex in extras)
+                {
+                    var exDeck = ex;
+                    tarjetas.Add(parent => BuildMazoBookCard(parent, exDeck, () =>
+                    {
+                        PlayerData.SelectedHistoriaId = exDeck.historiaId;
+                        PlayerData.SelectedDeck = exDeck.cartas;
+                        LaunchGame();
+                    }));
+                }
+
+            BuildPagedGrid(screen, grid, tarjetas, _mazosPage, p => _mazosPage = p);
+
             if (_tutFlowConstructor) PostTutorialInConstructor(); // recorrido: cierre del tutorial
             return screen;
+        }
+
+        private int _mazosPage;             // página visible en MIS HISTORIAS
+        private int _selectDeckPage;        // página visible en ELIGE TU HISTORIA
+        private const int MazosPorPagina = 8; // rejilla de 4 columnas x 2 filas
+
+        /// <summary>Pinta en la rejilla solo las tarjetas de la página actual y añade las flechas
+        /// ◀ / ▶ para pasar de página (con el indicador "n / total"). Sin esto, con más de 8 mazos
+        /// las tarjetas sobrantes quedaban fuera de la pantalla.</summary>
+        private void BuildPagedGrid(RectTransform screen, GridLayoutGroup grid,
+                                    List<System.Action<Transform>> tarjetas,
+                                    int paginaInicial, System.Action<int> setPagina)
+        {
+            int totalPaginas = Mathf.Max(1, Mathf.CeilToInt(tarjetas.Count / (float)MazosPorPagina));
+            int pagina = Mathf.Clamp(paginaInicial, 0, totalPaginas - 1);
+            setPagina(pagina);
+
+            void Pintar()
+            {
+                for (int i = grid.transform.childCount - 1; i >= 0; i--)
+                    Destroy(grid.transform.GetChild(i).gameObject);
+
+                int desde = pagina * MazosPorPagina;
+                for (int i = desde; i < Mathf.Min(desde + MazosPorPagina, tarjetas.Count); i++)
+                    tarjetas[i](grid.transform);
+            }
+            Pintar();
+
+            if (totalPaginas <= 1) return; // cabe todo: sin flechas
+
+            var contador = MenuTheme.Label(screen, $"{pagina + 1} / {totalPaginas}", 18,
+                                           MenuTheme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            contador.raycastTarget = false;
+            MenuTheme.Anchor((RectTransform)contador.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                             new Vector2(-60f, 6f), new Vector2(60f, 34f));
+
+            Button izq = null, der = null;
+            void RefrescarFlechas()
+            {
+                if (izq != null) izq.interactable = pagina > 0;
+                if (der != null) der.interactable = pagina < totalPaginas - 1;
+            }
+
+            Button Flecha(string texto, float x, int salto)
+            {
+                var btn = MenuTheme.TextButton(screen, texto, 26, () => { }, 64f, 64f);
+                MenuTheme.Anchor((RectTransform)btn.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                                 new Vector2(x - 32f, -32f), new Vector2(x + 32f, 32f));
+                btn.onClick.AddListener(() =>
+                {
+                    pagina = Mathf.Clamp(pagina + salto, 0, totalPaginas - 1);
+                    setPagina(pagina);
+                    Pintar();
+                    contador.text = $"{pagina + 1} / {totalPaginas}";
+                    RefrescarFlechas();
+                });
+                return btn;
+            }
+
+            izq = Flecha("◀", -520f, -1);
+            der = Flecha("▶", 520f, +1);
+            RefrescarFlechas();
         }
 
         /// <summary>Tras elegir una HISTORIA: qué mazo usar para jugarla (mismos "libros" que Mis Mazos).</summary>
@@ -1173,17 +1271,31 @@ namespace Game.Runtime.Menu
             grid.constraintCount = 4;
             grid.childAlignment = TextAnchor.UpperCenter;
 
+            var tarjetas = new List<System.Action<Transform>>();
+
             var hid = PlayerData.SelectedHistoriaId;
             foreach (var m in PlayerData.Mazos())
             {
                 if (m.historiaId != hid) continue; // solo mazos de la historia elegida
                 var deck = m;
-                BuildMazoBookCard(grid.transform, deck, () => { PlayerData.SelectedDeck = deck.cartas; LaunchGame(); });
+                tarjetas.Add(parent => BuildMazoBookCard(parent, deck, () => { PlayerData.SelectedDeck = deck.cartas; LaunchGame(); }));
             }
+
+            // Mazos de PRUEBA de esta historia (variantes A y B): listos para jugar.
+            EnsureCatalog();
+            foreach (var pre in PlayerData.MazosPredefinidos(_catalog))
+            {
+                if (pre.historiaId != hid) continue;
+                var preDeck = pre;
+                tarjetas.Add(parent => BuildMazoBookCard(parent, preDeck, () => { PlayerData.SelectedDeck = preDeck.cartas; LaunchGame(); }));
+            }
+
             // Sin mazo propio guardado: se usa el mismo mazo por defecto que arma el rival IA
             // para esa historia (SampleDeckBuilder), no un mazo al azar.
-            BuildMazoNewCard(grid.transform, () => { PlayerData.SelectedDeck = null; LaunchGame(); },
-                             plusLabel: "★", bottomLabel: "MAZO\nPOR DEFECTO", useCreateAsset: false);
+            tarjetas.Add(parent => BuildMazoNewCard(parent, () => { PlayerData.SelectedDeck = null; LaunchGame(); },
+                             plusLabel: "★", bottomLabel: "MAZO\nPOR DEFECTO", useCreateAsset: false));
+
+            BuildPagedGrid(screen, grid, tarjetas, _selectDeckPage, p => _selectDeckPage = p);
             return screen;
         }
 
@@ -3359,6 +3471,11 @@ namespace Game.Runtime.Menu
 
         private void LaunchGame()
         {
+            // Partida LOCAL: asegurar que no quede una sesión de red viva de un multijugador anterior.
+            // Si NetPlay.Active siguiera en true, el campo arrancaría en modo red (sin IA y sin tutorial)
+            // y el rival se quedaría congelado.
+            if (Game.Runtime.Net.NetPlay.Active) Game.Runtime.Net.NetworkBootstrap.Shutdown();
+
             // Tutorial #2: la primera vez que se juega "La Caída del Edén" (h1) tras el tutorial #1,
             // y sin ser la propia partida-tutorial #1, se marca como partida-tutorial #2.
             if (PlayerPrefs.GetInt("tutorial_match", 0) != 1
@@ -3412,7 +3529,27 @@ namespace Game.Runtime.Menu
             // Multijugador: refrescar estado de conexión y habilitar EMPEZAR (solo host con 2 conectados).
             if (_currentScreen == Screen.Multijugador)
             {
-                if (_mpStatus != null) _mpStatus.text = Game.Runtime.Net.NetworkBootstrap.Status;
+                Game.Runtime.Net.LanDiscovery.Tick();
+
+                // Cliente: en cuanto el buscador encuentra al host con el mismo código, conecta solo.
+                if (!_mpConnecting && Game.Runtime.Net.LanDiscovery.FoundIp != null && !Game.Runtime.Net.NetworkBootstrap.Running)
+                {
+                    _mpConnecting = true;
+                    Game.Runtime.Net.NetworkBootstrap.StartClient(Game.Runtime.Net.LanDiscovery.FoundIp);
+                    Game.Runtime.Net.LanDiscovery.StopListening(); // conserva FoundDeviceName para mostrarlo
+                }
+
+                if (_mpStatus != null)
+                {
+                    string s = Game.Runtime.Net.NetworkBootstrap.Status;
+                    // Cliente buscando (aún sin conectar): prioriza el mensaje de búsqueda sobre "Desconectado".
+                    if (!_mpConnecting && !Game.Runtime.Net.NetworkBootstrap.Running && Game.Runtime.Net.LanDiscovery.IsSearching)
+                        s = "Buscando sala «" + MpCode() + "»…";
+
+                    var remote = Game.Runtime.Net.NetRelay.RemoteName ?? Game.Runtime.Net.LanDiscovery.FoundDeviceName;
+                    if (!string.IsNullOrEmpty(remote)) s += "\nDispositivo conectado: " + remote;
+                    _mpStatus.text = s;
+                }
                 if (_mpStart != null) _mpStart.interactable = Game.Runtime.Net.NetworkBootstrap.ClientCount >= 2;
             }
 
@@ -3474,6 +3611,7 @@ namespace Game.Runtime.Menu
             CloseModal();
             _inMatch = false;
             if (_board != null) _board.enabled = false;
+            if (Game.Runtime.Net.NetPlay.Active) Game.Runtime.Net.NetworkBootstrap.Shutdown(); // avisa al rival + limpia estado de red
             _canvas.gameObject.SetActive(true);
             _stack.Clear();
             Push(Screen.MainMenu);

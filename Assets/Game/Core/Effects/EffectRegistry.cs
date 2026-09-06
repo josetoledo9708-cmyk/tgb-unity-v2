@@ -63,6 +63,23 @@ namespace Game.Core.Effects
             }
 
             handler(ctx);
+
+            // Regla general: tras resolver un efecto el mazo se baraja, para que nadie conserve
+            // información del orden. Se exceptúan los efectos cuya GRACIA es dejar un orden elegido
+            // (mirar el tope y recolocar): barajar ahí anularía el propio efecto.
+            if (!KeepsDeckOrder.Contains(ctx.Self.Def.Id))
+                EffectApi.ShuffleDeck(ctx.Engine, owner);
         }
+
+        /// <summary>Cartas que ORDENAN el tope del mazo: su efecto se perdería si se barajara después.</summary>
+        private static readonly HashSet<string> KeepsDeckOrder = new()
+        {
+            "t10",   // Betel
+            "sh01",  // Adán
+            "c16",   // El Sueño de la Escalera
+            "c30",   // El Sueño de los Haces
+            "c41",   // Los Sueños de José
+            "dia4",  // mira el tope
+        };
     }
 }

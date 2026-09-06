@@ -16,6 +16,7 @@ namespace Game.Runtime.Net
 
         public static System.Action<NetCommand> Submit;  // HotseatView -> red (enviar comando local)
         public static System.Action Launch;              // red -> menú (encender el campo al empezar)
+        public static System.Action PeerDisconnected;    // red -> campo: el rival se desconectó a media partida
 
         // Comandos ya ordenados por el servidor, pendientes de aplicar por el campo (ambos lados).
         public static readonly Queue<NetCommand> Incoming = new();
@@ -23,6 +24,7 @@ namespace Game.Runtime.Net
         public static void Reset()
         {
             Active = false;
+            MyPlayer = 0; // vuelve al lado local por defecto (una partida local es siempre P0)
             Submit = null;
             Incoming.Clear();
         }

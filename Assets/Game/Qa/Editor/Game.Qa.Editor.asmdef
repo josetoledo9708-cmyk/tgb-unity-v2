@@ -1,0 +1,20 @@
+{
+    "name": "Game.Qa.Editor",
+    "rootNamespace": "Game.Qa.Editor",
+    "references": [
+        "Game.Core",
+        "Game.Runtime",
+        "Game.Qa"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
